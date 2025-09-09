@@ -34,108 +34,118 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
 
 const WelcomeScreen = ({ onNext }: { onNext: () => void }) => {
   return (
-    <div className="min-h-screen bg-primary flex flex-col items-center justify-between p-6 text-center">
-      <div className="flex-1 flex flex-col items-center justify-center">
-        <div className="mb-8">
-          <img 
-            src={fitpasLogo} 
-            alt="FitPaS Logo" 
-            className="w-32 h-32 mx-auto filter brightness-0 invert"
-          />
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      <div className="bg-primary rounded-3xl p-8 w-full max-w-sm h-[600px] flex flex-col items-center justify-between text-center relative overflow-hidden">
+        <div className="flex-1 flex flex-col items-center justify-center">
+          <div className="mb-8">
+            <img 
+              src={fitpasLogo} 
+              alt="FitPaS Logo" 
+              className="w-24 h-24 mx-auto filter brightness-0 invert"
+            />
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-4">
+            Bienvenue
+          </h1>
         </div>
-        <h1 className="text-4xl font-bold text-white mb-4">
-          Bienvenue
-        </h1>
-      </div>
 
-      {/* Navigation dots */}
-      <div className="flex gap-2 mb-6">
-        <div className="w-3 h-3 rounded-full bg-white"></div>
-        <div className="w-3 h-3 rounded-full bg-white/30"></div>
-        <div className="w-3 h-3 rounded-full bg-white/30"></div>
-      </div>
+        {/* Navigation dots */}
+        <div className="flex gap-2 mb-6">
+          <div className="w-3 h-3 rounded-full bg-white"></div>
+          <div className="w-3 h-3 rounded-full bg-white/30"></div>
+          <div className="w-3 h-3 rounded-full bg-white/30"></div>
+        </div>
 
-      <Button 
-        onClick={onNext}
-        variant="secondary"
-        size="lg"
-        className="w-full max-w-sm py-4 text-lg font-semibold rounded-full"
-      >
-        Suivant
-      </Button>
+        <Button 
+          onClick={onNext}
+          className="w-full py-4 text-lg font-semibold rounded-2xl bg-secondary hover:bg-secondary/90 text-white border-0"
+        >
+          Suivant
+        </Button>
+
+        {/* Bottom indicator */}
+        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-12 h-1 bg-black/20 rounded-full"></div>
+      </div>
     </div>
   );
 };
 
 const PresentationScreen = ({ onNext }: { onNext: () => void }) => {
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-between p-6 text-center">
-      <div className="flex-1 flex flex-col items-center justify-center">
-        <h1 className="text-3xl font-bold text-foreground mb-8">
-          Présentation<br />de l'app
-        </h1>
-        
-        {/* Walking person illustration */}
-        <div className="mb-8">
-          <div className="w-32 h-32 mx-auto bg-gradient-to-br from-yellow-400 to-blue-500 rounded-full flex items-center justify-center">
-            <User className="w-16 h-16 text-white" />
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl p-8 w-full max-w-sm h-[600px] flex flex-col items-center justify-between text-center relative">
+        <div className="flex-1 flex flex-col items-center justify-center">
+          <h1 className="text-2xl font-bold text-gray-800 mb-8 leading-tight">
+            Présentation<br />de l'app
+          </h1>
+          
+          {/* Walking person illustration */}
+          <div className="mb-8">
+            <div className="relative">
+              <div className="w-20 h-20 bg-yellow-400 rounded-full mb-2"></div>
+              <div className="w-16 h-24 bg-blue-500 rounded-lg mx-auto mb-2"></div>
+              <div className="flex gap-1 justify-center">
+                <div className="w-6 h-3 bg-gray-800 rounded"></div>
+                <div className="w-6 h-3 bg-gray-800 rounded"></div>
+              </div>
+            </div>
           </div>
+
+          <p className="text-base text-gray-600 max-w-xs leading-relaxed">
+            Planifie tes marches,<br />
+            accède à des statistiques,<br />
+            et bien plus encore.
+          </p>
         </div>
 
-        <p className="text-lg text-muted-foreground max-w-sm leading-relaxed">
-          Planifie tes marches,<br />
-          accède à des statistiques,<br />
-          et bien plus encore.
-        </p>
-      </div>
+        {/* Navigation dots */}
+        <div className="flex gap-2 mb-6">
+          <div className="w-3 h-3 rounded-full bg-gray-300"></div>
+          <div className="w-3 h-3 rounded-full bg-secondary"></div>
+          <div className="w-3 h-3 rounded-full bg-gray-300"></div>
+        </div>
 
-      {/* Navigation dots */}
-      <div className="flex gap-2 mb-6">
-        <div className="w-3 h-3 rounded-full bg-muted"></div>
-        <div className="w-3 h-3 rounded-full bg-secondary"></div>
-        <div className="w-3 h-3 rounded-full bg-muted"></div>
-      </div>
+        <Button 
+          onClick={onNext}
+          className="w-full py-4 text-lg font-semibold rounded-2xl bg-secondary hover:bg-secondary/90 text-white border-0"
+        >
+          Suivant
+        </Button>
 
-      <Button 
-        onClick={onNext}
-        variant="secondary"
-        size="lg"
-        className="w-full max-w-sm py-4 text-lg font-semibold rounded-full"
-      >
-        Suivant
-      </Button>
+        {/* Bottom indicator */}
+        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-12 h-1 bg-black/20 rounded-full"></div>
+      </div>
     </div>
   );
 };
 
 const GoalsScreen = ({ onNext }: { onNext: () => void }) => {
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-between p-6 text-center">
-      <div className="flex-1 flex flex-col items-center justify-center">
-        <div className="mb-8">
-          <Target className="w-20 h-20 mx-auto text-secondary" />
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl p-8 w-full max-w-sm h-[600px] flex flex-col items-center justify-between text-center relative">
+        <div className="flex-1 flex flex-col items-center justify-center px-4">
+          <h1 className="text-2xl font-bold text-gray-800 mb-8 max-w-xs leading-tight">
+            Planifie ta marche en fonction de ton objectif et nombre de pas à atteindre
+          </h1>
         </div>
-        
-        <h1 className="text-2xl font-bold text-foreground mb-8 max-w-sm leading-tight">
-          Planifie ta marche en fonction de ton objectif et nombre de pas à atteindre
-        </h1>
-      </div>
 
-      {/* Navigation dots */}
-      <div className="flex gap-2 mb-6">
-        <div className="w-3 h-3 rounded-full bg-muted"></div>
-        <div className="w-3 h-3 rounded-full bg-muted"></div>
-        <div className="w-3 h-3 rounded-full bg-secondary"></div>
-      </div>
+        {/* Navigation dots */}
+        <div className="flex gap-2 mb-6">
+          <div className="w-3 h-3 rounded-full bg-gray-300"></div>
+          <div className="w-3 h-3 rounded-full bg-gray-300"></div>
+          <div className="w-3 h-3 rounded-full bg-secondary"></div>
+        </div>
 
-      <Button 
-        onClick={onNext}
-        variant="secondary"
-        size="lg"
-        className="w-full max-w-sm py-4 text-lg font-semibold rounded-full"
-      >
-        Continuer
-      </Button>
+        <Button 
+          onClick={onNext}
+          className="w-full py-4 text-lg font-semibold rounded-2xl bg-secondary hover:bg-secondary/90 text-white border-0"
+        >
+          Continuer
+        </Button>
+
+        {/* Bottom indicator */}
+        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-12 h-1 bg-black/20 rounded-full"></div>
+      </div>
     </div>
   );
 };
