@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronRight, User, Target } from 'lucide-react';
+import { ChevronLeft, User, Target } from 'lucide-react';
 const fitpasLogo = '/lovable-uploads/4c20a048-5819-4d0f-b867-b91d67ca59ee.png';
 
 interface OnboardingProps {
@@ -13,15 +13,26 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
   const steps = [
     {
       id: 'welcome',
-      component: <WelcomeScreen onNext={() => setCurrentStep(1)} />
+      component: <WelcomeScreen 
+        onNext={() => setCurrentStep(1)} 
+        showBack={false}
+      />
     },
     {
       id: 'presentation',
-      component: <PresentationScreen onNext={() => setCurrentStep(2)} />
+      component: <PresentationScreen 
+        onNext={() => setCurrentStep(2)} 
+        onBack={() => setCurrentStep(0)}
+        showBack={true}
+      />
     },
     {
       id: 'goals',
-      component: <GoalsScreen onNext={onComplete} />
+      component: <GoalsScreen 
+        onNext={onComplete} 
+        onBack={() => setCurrentStep(1)}
+        showBack={true}
+      />
     }
   ];
 
@@ -32,10 +43,20 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
   );
 };
 
-const WelcomeScreen = ({ onNext }: { onNext: () => void }) => {
+const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boolean }) => {
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="bg-primary rounded-3xl p-8 w-full max-w-sm h-[600px] flex flex-col items-center justify-between text-center relative overflow-hidden">
+        {/* Back button */}
+        {showBack && (
+          <button 
+            onClick={() => {}} 
+            className="absolute top-6 left-6 text-white/70 hover:text-white"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+        )}
+
         <div className="flex-1 flex flex-col items-center justify-center">
           <div className="mb-8">
             <img 
@@ -70,10 +91,20 @@ const WelcomeScreen = ({ onNext }: { onNext: () => void }) => {
   );
 };
 
-const PresentationScreen = ({ onNext }: { onNext: () => void }) => {
+const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack: () => void; showBack: boolean }) => {
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl p-8 w-full max-w-sm h-[600px] flex flex-col items-center justify-between text-center relative">
+        {/* Back button */}
+        {showBack && (
+          <button 
+            onClick={onBack} 
+            className="absolute top-6 left-6 text-gray-600 hover:text-gray-800"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+        )}
+
         <div className="flex-1 flex flex-col items-center justify-center">
           <h1 className="text-2xl font-bold text-gray-800 mb-8 leading-tight">
             Présentation<br />de l'app
@@ -116,10 +147,20 @@ const PresentationScreen = ({ onNext }: { onNext: () => void }) => {
   );
 };
 
-const GoalsScreen = ({ onNext }: { onNext: () => void }) => {
+const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack: () => void; showBack: boolean }) => {
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl p-8 w-full max-w-sm h-[600px] flex flex-col items-center justify-between text-center relative">
+        {/* Back button */}
+        {showBack && (
+          <button 
+            onClick={onBack} 
+            className="absolute top-6 left-6 text-gray-600 hover:text-gray-800"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+        )}
+
         <div className="flex-1 flex flex-col items-center justify-center px-4">
           <h1 className="text-2xl font-bold text-gray-800 mb-8 max-w-xs leading-tight">
             Planifie ta marche en fonction de ton objectif et nombre de pas à atteindre
