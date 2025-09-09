@@ -2,14 +2,9 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import { CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
 interface ProfileCompletionProps {
@@ -23,15 +18,25 @@ const profileSchema = z.object({
   weight: z.number()
     .min(30, "Entrez un poids entre 30 et 250 kg")
     .max(250, "Entrez un poids entre 30 et 250 kg"),
-  birthDate: z.date({
-    required_error: "Veuillez sélectionner votre date de naissance"
-  }).refine((date) => {
-    const today = new Date();
-    const age = today.getFullYear() - date.getFullYear();
-    const monthDiff = today.getMonth() - date.getMonth();
-    const finalAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate()) ? age - 1 : age;
-    return finalAge >= 13;
-  }, "Vous devez avoir au moins 13 ans")
+  birthDate: z.string()
+    .min(1, "Veuillez entrer votre date de naissance")
+    .regex(/^\d{2}\/\d{2}\/\d{4}$/, "Format requis : JJ/MM/AAAA")
+    .refine((dateStr) => {
+      const [day, month, year] = dateStr.split('/').map(Number);
+      const date = new Date(year, month - 1, day);
+      
+      // Vérifier que la date est valide
+      if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+        return false;
+      }
+      
+      // Vérifier l'âge minimum
+      const today = new Date();
+      const age = today.getFullYear() - year;
+      const monthDiff = today.getMonth() - (month - 1);
+      const finalAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < day) ? age - 1 : age;
+      return finalAge >= 13;
+    }, "Date invalide ou âge minimum requis : 13 ans")
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -46,14 +51,11 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
     handleSubmit, 
     formState: { errors, isValid }, 
     setValue, 
-    watch,
     trigger
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
     mode: 'onChange'
   });
-
-  const selectedDate = watch('birthDate');
 
   const handleHeightChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -77,28 +79,24 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
     }
   };
 
-  const handleDateSelect = async (date: Date | undefined) => {
-    if (date) {
-      setValue('birthDate', date);
-      await trigger('birthDate');
-    }
-  };
-
   const onSubmit = async (data: ProfileFormData) => {
     setIsSubmitting(true);
     
     try {
-      // Calculate age
+      // Parse the birth date string and calculate age
+      const [day, month, year] = data.birthDate.split('/').map(Number);
+      const birthDate = new Date(year, month - 1, day);
+      
       const today = new Date();
-      const age = today.getFullYear() - data.birthDate.getFullYear();
-      const monthDiff = today.getMonth() - data.birthDate.getMonth();
-      const finalAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < data.birthDate.getDate()) ? age - 1 : age;
+      const age = today.getFullYear() - year;
+      const monthDiff = today.getMonth() - (month - 1);
+      const finalAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < day) ? age - 1 : age;
 
       // Here you would save to Supabase
       const profileData = {
         heightM: data.height,
         weightKg: data.weight,
-        birthDate: data.birthDate.toISOString(),
+        birthDate: birthDate.toISOString(),
         ageYears: finalAge
       };
 
@@ -174,38 +172,16 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
             <Label htmlFor="birthDate" className="text-sm font-medium text-gray-700">
               Date de naissance
             </Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal text-base h-10",
-                    !selectedDate && "text-muted-foreground",
-                    errors.birthDate && "border-red-500"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {selectedDate ? (
-                    format(selectedDate, "d MMMM yyyy", { locale: fr })
-                  ) : (
-                    <span>Sélectionner une date</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={handleDateSelect}
-                  disabled={(date) =>
-                    date > new Date() || date < new Date("1900-01-01")
-                  }
-                  initialFocus
-                  className="p-3 pointer-events-auto"
-                  locale={fr}
-                />
-              </PopoverContent>
-            </Popover>
+            <Input
+              id="birthDate"
+              type="text"
+              placeholder="JJ/MM/AAAA"
+              {...register('birthDate')}
+              className={cn(
+                "text-base",
+                errors.birthDate && "border-red-500 focus:border-red-500"
+              )}
+            />
             {errors.birthDate && (
               <p className="text-sm text-red-600">{errors.birthDate.message}</p>
             )}
