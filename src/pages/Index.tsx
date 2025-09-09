@@ -2,11 +2,13 @@ import { useState } from 'react';
 import Onboarding from '@/components/Onboarding';
 import Auth from '@/components/Auth';
 import ProfileCompletion from '@/components/ProfileCompletion';
+import Dashboard from '@/components/Dashboard';
 
 const Index = () => {
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
   const [showProfileCompletion, setShowProfileCompletion] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
@@ -20,7 +22,12 @@ const Index = () => {
 
   const handleProfileComplete = () => {
     setShowProfileCompletion(false);
-    // Ici on peut rediriger vers le dashboard principal
+    setShowDashboard(true);
+  };
+
+  const handlePlanifyWalk = () => {
+    // Ici on peut naviguer vers l'écran de planification
+    console.log('Planifier une marche');
   };
 
   if (showOnboarding) {
@@ -33,6 +40,10 @@ const Index = () => {
 
   if (showProfileCompletion) {
     return <ProfileCompletion onComplete={handleProfileComplete} />;
+  }
+
+  if (showDashboard) {
+    return <Dashboard onPlanifyWalk={handlePlanifyWalk} />;
   }
 
   return (

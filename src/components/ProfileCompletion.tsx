@@ -12,6 +12,7 @@ interface ProfileCompletionProps {
 }
 
 const profileSchema = z.object({
+  gender: z.string().min(1, "Veuillez sélectionner votre genre"),
   height: z.number()
     .min(1.0, "Entrez une taille entre 1,00 et 2,30 m")
     .max(2.3, "Entrez une taille entre 1,00 et 2,30 m"),
@@ -94,6 +95,7 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
 
       // Here you would save to Supabase
       const profileData = {
+        gender: data.gender,
         heightM: data.height,
         weightKg: data.weight,
         birthDate: birthDate.toISOString(),
@@ -123,6 +125,29 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* Genre */}
+          <div className="space-y-2">
+            <Label htmlFor="gender" className="text-sm font-medium text-gray-700">
+              Genre
+            </Label>
+            <select
+              id="gender"
+              {...register('gender')}
+              className={cn(
+                "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                errors.gender && "border-red-500 focus:border-red-500"
+              )}
+            >
+              <option value="">Sélectionner</option>
+              <option value="Homme">Homme</option>
+              <option value="Femme">Femme</option>
+              <option value="Autre">Autre</option>
+            </select>
+            {errors.gender && (
+              <p className="text-sm text-red-600">{errors.gender.message}</p>
+            )}
+          </div>
+
           {/* Taille */}
           <div className="space-y-2">
             <Label htmlFor="height" className="text-sm font-medium text-gray-700">
