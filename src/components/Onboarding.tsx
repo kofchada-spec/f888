@@ -178,7 +178,7 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
           </h1>
 
           <p className="text-base text-gray-600 max-w-xs leading-relaxed text-center">
-            FitPaS calcule la distance en fonction de ton allure et de ton nombre de pas.
+            FitPaS estime l'heure et la distance à parcourir en fonction de ton allure et de ton nombre de pas.
           </p>
         </div>
 
