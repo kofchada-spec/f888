@@ -29,14 +29,23 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
   const markers = useRef<mapboxgl.Marker[]>([]);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
 
-  // Get Mapbox token from edge function
+  // Get Mapbox token from Supabase edge function
   useEffect(() => {
     const getMapboxToken = async () => {
       try {
-        const response = await fetch('/api/mapbox-token');
-        if (response.ok) {
-          const data = await response.json();
+        // Call Supabase edge function
+        const { supabase } = await import('@/integrations/supabase/client');
+        const { data, error } = await supabase.functions.invoke('mapbox-token');
+        
+        if (error) {
+          console.error('Error calling mapbox-token function:', error);
+          throw error;
+        }
+        
+        if (data?.token) {
           setMapboxToken(data.token);
+        } else {
+          throw new Error('No token received');
         }
       } catch (error) {
         console.error('Error fetching Mapbox token:', error);
@@ -55,7 +64,7 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
     
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/light-v11',
+      style: 'mapbox://styles/mapbox/streets-v12', // Style with POI data
       zoom: 14,
       center: [userLocation.lng, userLocation.lat],
     });
@@ -67,6 +76,34 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
       }),
       'top-right'
     );
+
+    // Wait for map to load before adding POI interactions
+    map.current.on('load', () => {
+      // Add click event for POI labels
+      map.current!.on('click', 'poi-label', (e) => {
+        const coordinates = e.lngLat;
+        const properties = e.features![0].properties;
+        
+        new mapboxgl.Popup()
+          .setLngLat(coordinates)
+          .setHTML(`
+            <div class="p-2">
+              <h3 class="font-semibold">${properties.name || 'Point d\'intérêt'}</h3>
+              <p class="text-sm text-gray-600">${properties.class || 'Lieu'}</p>
+            </div>
+          `)
+          .addTo(map.current!);
+      });
+
+      // Change cursor on hover
+      map.current!.on('mouseenter', 'poi-label', () => {
+        map.current!.getCanvas().style.cursor = 'pointer';
+      });
+
+      map.current!.on('mouseleave', 'poi-label', () => {
+        map.current!.getCanvas().style.cursor = '';
+      });
+    });
 
     // Add user location marker
     const userLocationEl = document.createElement('div');
@@ -258,9 +295,12 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
   if (!mapboxToken) {
     return (
       <div className="relative h-80 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-          <p className="text-sm text-muted-foreground">Chargement de la carte...</p>
+        <div className="text-center max-w-md p-6">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-sm text-muted-foreground mb-2">Chargement de la carte...</p>
+          <p className="text-xs text-muted-foreground">
+            Si le chargement prend trop de temps, vérifiez que votre token Mapbox est configuré.
+          </p>
         </div>
       </div>
     );
