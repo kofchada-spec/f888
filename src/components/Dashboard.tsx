@@ -3,7 +3,6 @@ import { User, Edit3, Footprints, MapPin, Flame, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import fitpasLogo from '@/assets/fitpas-logo.png';
 
 interface DashboardProps {
   onPlanifyWalk: () => void;
@@ -46,7 +45,7 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
         <div className="px-6 py-4 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center space-x-3">
-            <img src={fitpasLogo} alt="FitPaS" className="h-8 w-auto" />
+            <img src="/lovable-uploads/5216fdd6-d0d7-446b-9260-86d15d06f4ba.png" alt="FitPaS" className="h-8 w-auto" />
           </div>
 
           {/* Salutation */}
