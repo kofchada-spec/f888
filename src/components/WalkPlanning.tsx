@@ -87,21 +87,33 @@ const WalkPlanning = ({ onComplete, onBack }: WalkPlanningProps) => {
               Allure de marche
             </Label>
             <div className="grid grid-cols-3 gap-3">
-              {paceOptions.map((option) => (
-                <Button
-                  key={option.id}
-                  variant={selectedPace === option.id ? "default" : "outline"}
-                  size="lg"
-                  onClick={() => setSelectedPace(option.id)}
-                  className={`h-14 text-sm font-medium transition-all ${
-                    selectedPace === option.id 
-                      ? "bg-primary text-primary-foreground shadow-md transform scale-105" 
-                      : "hover:bg-primary/10 hover:text-primary hover:border-primary/30"
-                  }`}
-                >
-                  {option.label}
-                </Button>
-              ))}
+              {paceOptions.map((option) => {
+                const getButtonStyles = () => {
+                  if (selectedPace === option.id) {
+                    switch (option.id) {
+                      case 'slow':
+                        return "bg-secondary text-secondary-foreground shadow-md transform scale-105";
+                      case 'fast':
+                        return "bg-orange-600 text-white shadow-md transform scale-105";
+                      default:
+                        return "bg-primary text-primary-foreground shadow-md transform scale-105";
+                    }
+                  }
+                  return "hover:bg-primary/10 hover:text-primary hover:border-primary/30";
+                };
+
+                return (
+                  <Button
+                    key={option.id}
+                    variant={selectedPace === option.id ? "default" : "outline"}
+                    size="lg"
+                    onClick={() => setSelectedPace(option.id)}
+                    className={`h-14 text-sm font-medium transition-all ${getButtonStyles()}`}
+                  >
+                    {option.label}
+                  </Button>
+                );
+              })}
             </div>
           </div>
 
