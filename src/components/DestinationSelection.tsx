@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ArrowLeft, MapPin, Clock, Zap } from 'lucide-react';
+import Map from './Map';
 
 interface DestinationSelectionProps {
   onComplete: (destination: Destination) => void;
@@ -213,126 +214,13 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
 
         {/* Carte interactive avec localisation utilisateur */}
         <div className="bg-card rounded-2xl shadow-lg overflow-hidden mb-8">
-          <div className="relative h-80 bg-gradient-to-br from-primary/10 to-secondary/10">
-            {/* Fond de carte stylisé */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20">
-              {/* Lignes de grille pour simuler une carte */}
-              <svg className="w-full h-full opacity-20" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <defs>
-                  <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
-                    <path d="M 10 0 L 0 0 0 10" fill="none" stroke="currentColor" strokeWidth="0.5"/>
-                  </pattern>
-                </defs>
-                <rect width="100" height="100" fill="url(#grid)" />
-              </svg>
-            </div>
-
-            {/* Position de l'utilisateur au centre */}
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-              <div className="relative">
-                {/* Point utilisateur */}
-                <div className="w-5 h-5 bg-blue-500 rounded-full border-3 border-white shadow-xl animate-pulse z-10 relative"></div>
-                <div className="absolute -inset-3 border-2 border-blue-400 rounded-full animate-ping opacity-60"></div>
-                <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 z-20">
-                  <div className="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm font-medium shadow-lg">
-                    📍 Départ
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Destinations avec ramifications */}
-            {destinations.map((dest, index) => {
-              // Positions différentes selon le type de trajet
-              const positions = planningData.tripType === 'round-trip' 
-                ? [
-                    { top: '25%', left: '25%' }, // Circuit A
-                    { top: '20%', right: '30%' }, // Circuit B  
-                    { bottom: '30%', left: '30%' } // Circuit C
-                  ]
-                : [
-                    { top: '15%', left: '20%' }, // Destination A
-                    { top: '25%', right: '20%' }, // Destination B  
-                    { bottom: '20%', left: '35%' } // Destination C
-                  ];
-              
-              const position = positions[index];
-              
-              return (
-                <div key={dest.id}>
-                  {/* Ligne de connexion */}
-                  <svg className="absolute inset-0 pointer-events-none z-0">
-                    {planningData.tripType === 'round-trip' ? (
-                      // Pour l'aller-retour : ligne courbe qui revient
-                      <path
-                        d={`M 50 50 Q ${position.left ? position.left.replace('%', '') : (100 - parseInt(position.right!.replace('%', '')))} ${position.top ? position.top.replace('%', '') : (100 - parseInt(position.bottom!.replace('%', '')))} 50 50`}
-                        stroke={selectedDestination === dest.id ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))'}
-                        strokeWidth="3"
-                        fill="none"
-                        strokeDasharray="8,4"
-                        className={`transition-all duration-300 ${selectedDestination === dest.id ? 'opacity-100' : 'opacity-40'}`}
-                      />
-                    ) : (
-                      // Pour l'aller simple : ligne droite
-                      <line
-                        x1="50%"
-                        y1="50%"
-                        x2={position.left ? position.left : position.right ? `${100 - parseInt(position.right)}%` : '50%'}
-                        y2={position.top ? position.top : position.bottom ? `${100 - parseInt(position.bottom)}%` : '50%'}
-                        stroke={selectedDestination === dest.id ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))'}
-                        strokeWidth="3"
-                        strokeDasharray="8,4"
-                        className={`transition-all duration-300 ${selectedDestination === dest.id ? 'opacity-100' : 'opacity-40'}`}
-                      />
-                    )}
-                  </svg>
-                  
-                  {/* Marqueur destination */}
-                  <div 
-                    className="absolute transform -translate-x-1/2 -translate-y-1/2 z-10"
-                    style={position}
-                  >
-                    <div 
-                      className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-white shadow-xl cursor-pointer transition-all duration-300 border-2 border-white hover:scale-110 ${
-                        selectedDestination === dest.id ? 'bg-primary scale-110 shadow-2xl' : 'bg-secondary hover:bg-secondary/80'
-                      }`}
-                      onClick={() => handleDestinationSelect(dest)}
-                    >
-                      {dest.id}
-                    </div>
-                    
-                    {/* Affichage simple du nom uniquement */}
-                    <div className="absolute top-14 left-1/2 transform -translate-x-1/2 z-20">
-                      <div className={`bg-white dark:bg-gray-800 rounded-lg px-2 py-1 shadow-md border transition-all duration-300 ${
-                        selectedDestination === dest.id ? 'scale-105 border-primary' : 'scale-95 opacity-60'
-                      }`}>
-                        <p className="text-xs font-medium text-foreground whitespace-nowrap">{dest.name}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Légende simplifiée */}
-            <div className="absolute top-4 left-4 bg-white/95 dark:bg-black/95 rounded-lg p-3 text-xs shadow-lg border">
-              <div className="flex items-center space-x-2 mb-2">
-                <div className="w-4 h-4 bg-blue-500 rounded-full border border-white"></div>
-                <span>{planningData.tripType === 'round-trip' ? 'Point de départ/arrivée' : 'Point de départ'}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-secondary rounded-full border border-white"></div>
-                <span>{planningData.tripType === 'round-trip' ? 'Points de passage' : 'Destinations'}</span>
-              </div>
-            </div>
-
-            {/* Info trajet en haut à droite */}
-            <div className="absolute top-4 right-4 bg-primary/90 text-primary-foreground rounded-lg p-3 text-sm shadow-lg">
-              <div className="font-semibold">
-                {planningData.tripType === 'round-trip' ? '🔄 Aller-Retour' : '➡️ Aller Simple'}
-              </div>
-            </div>
-          </div>
+          <Map 
+            userLocation={userLocation}
+            destinations={destinations}
+            selectedDestination={selectedDestination}
+            onDestinationSelect={handleDestinationSelect}
+            planningData={planningData}
+          />
         </div>
 
         {/* Liste des destinations */}
