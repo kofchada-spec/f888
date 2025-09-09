@@ -3,12 +3,14 @@ import Onboarding from '@/components/Onboarding';
 import Auth from '@/components/Auth';
 import ProfileCompletion from '@/components/ProfileCompletion';
 import Dashboard from '@/components/Dashboard';
+import WalkPlanning from '@/components/WalkPlanning';
 
 const Index = () => {
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
   const [showProfileCompletion, setShowProfileCompletion] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [showWalkPlanning, setShowWalkPlanning] = useState(false);
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
@@ -26,8 +28,18 @@ const Index = () => {
   };
 
   const handlePlanifyWalk = () => {
-    // Ici on peut naviguer vers l'écran de planification
-    console.log('Planifier une marche');
+    setShowDashboard(false);
+    setShowWalkPlanning(true);
+  };
+
+  const handleWalkPlanningComplete = () => {
+    setShowWalkPlanning(false);
+    setShowDashboard(true);
+  };
+
+  const handleBackToDashboard = () => {
+    setShowWalkPlanning(false);
+    setShowDashboard(true);
   };
 
   if (showOnboarding) {
@@ -44,6 +56,10 @@ const Index = () => {
 
   if (showDashboard) {
     return <Dashboard onPlanifyWalk={handlePlanifyWalk} />;
+  }
+
+  if (showWalkPlanning) {
+    return <WalkPlanning onComplete={handleWalkPlanningComplete} onBack={handleBackToDashboard} />;
   }
 
   return (
