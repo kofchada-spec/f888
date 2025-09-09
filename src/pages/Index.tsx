@@ -12,6 +12,7 @@ const Index = () => {
   const { user, loading } = useAuth();
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [hasCompletedProfile, setHasCompletedProfile] = useState(false);
+  const [skipAuth, setSkipAuth] = useState(false);
   const [showWalkPlanning, setShowWalkPlanning] = useState(false);
   const [showDestinationSelection, setShowDestinationSelection] = useState(false);
   const [planningData, setPlanningData] = useState({ 
@@ -40,6 +41,10 @@ const Index = () => {
 
   const handleAuthComplete = () => {
     // This will be handled by useAuth hook automatically
+  };
+
+  const handleSkipAuth = () => {
+    setSkipAuth(true);
   };
 
   const handleProfileComplete = () => {
@@ -89,9 +94,9 @@ const Index = () => {
     return <Onboarding onComplete={handleOnboardingComplete} />;
   }
 
-  // Show auth if user is not authenticated
-  if (!user) {
-    return <Auth onComplete={handleAuthComplete} />;
+  // Show auth if user is not authenticated and auth is not skipped
+  if (!user && !skipAuth) {
+    return <Auth onComplete={handleAuthComplete} onSkipAuth={handleSkipAuth} />;
   }
 
   // Show profile completion if not completed (and user is authenticated)

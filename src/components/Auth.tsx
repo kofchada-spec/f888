@@ -8,9 +8,10 @@ import { Loader2 } from 'lucide-react';
 
 interface AuthProps {
   onComplete: () => void;
+  onSkipAuth?: () => void;
 }
 
-const Auth = ({ onComplete }: AuthProps) => {
+const Auth = ({ onComplete, onSkipAuth }: AuthProps) => {
   const [isLogin, setIsLogin] = useState(true);
   const [isResetMode, setIsResetMode] = useState(false);
   const [email, setEmail] = useState('');
@@ -216,6 +217,16 @@ const Auth = ({ onComplete }: AuthProps) => {
                     className="text-sm text-muted-foreground hover:underline block"
                   >
                     Mot de passe oublié ?
+                  </button>
+                )}
+
+                {onSkipAuth && (
+                  <button
+                    type="button"
+                    onClick={onSkipAuth}
+                    className="text-sm text-muted-foreground hover:underline block mt-4 border-t pt-4"
+                  >
+                    Continuer sans compte
                   </button>
                 )}
               </>
