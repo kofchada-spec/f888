@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, User, Target } from 'lucide-react';
+import mapDestination from '@/assets/map-destination.png';
 const fitpasLogo = '/lovable-uploads/4c20a048-5819-4d0f-b867-b91d67ca59ee.png';
 
 interface OnboardingProps {
@@ -66,8 +67,11 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
             />
           </div>
           <h1 className="text-3xl font-bold text-white mb-4">
-            Bienvenue
+            FitPaS
           </h1>
+          <p className="text-white/90 text-lg font-medium">
+            Ta marche, ton rythme, ton objectif.
+          </p>
         </div>
 
         {/* Navigation dots */}
@@ -106,10 +110,6 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
         )}
 
         <div className="flex-1 flex flex-col items-center justify-center">
-          <h1 className="text-2xl font-bold text-gray-800 mb-8 leading-tight">
-            Présentation<br />de l'app
-          </h1>
-          
           {/* Walking person illustration */}
           <div className="mb-8">
             <img 
@@ -119,10 +119,12 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
             />
           </div>
 
-          <p className="text-base text-gray-600 max-w-xs leading-relaxed">
-            Planifie tes marches,<br />
-            accède à des statistiques,<br />
-            et bien plus encore.
+          <h1 className="text-2xl font-bold text-gray-800 mb-6 leading-tight max-w-xs">
+            Planifie ta marche en fonction de tes pas à atteindre.
+          </h1>
+
+          <p className="text-base text-gray-600 max-w-xs leading-relaxed text-center">
+            Définis ton objectif et laisse FitPaS t'accompagner.
           </p>
         </div>
 
@@ -162,9 +164,22 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
         )}
 
         <div className="flex-1 flex flex-col items-center justify-center px-4">
-          <h1 className="text-2xl font-bold text-gray-800 mb-8 max-w-xs leading-tight">
-            Planifie ta marche en fonction de ton objectif et nombre de pas à atteindre
+          {/* Map/destination illustration */}
+          <div className="mb-8">
+            <img 
+              src={mapDestination}
+              alt="Carte avec destinations"
+              className="w-32 h-32 mx-auto"
+            />
+          </div>
+
+          <h1 className="text-2xl font-bold text-gray-800 mb-6 max-w-xs leading-tight text-center">
+            Choisis ta destination parmi 3 proposées afin d'atteindre ton objectif de pas.
           </h1>
+
+          <p className="text-base text-gray-600 max-w-xs leading-relaxed text-center">
+            FitPaS calcule la distance en fonction de ton allure et de ton nombre de pas.
+          </p>
         </div>
 
         {/* Navigation dots */}
@@ -178,7 +193,7 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
           onClick={onNext}
           className="w-full py-4 text-lg font-semibold rounded-2xl bg-secondary hover:bg-secondary/90 text-white border-0"
         >
-          Continuer
+          Commencer
         </Button>
 
         {/* Bottom indicator */}
