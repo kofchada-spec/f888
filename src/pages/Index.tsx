@@ -13,7 +13,11 @@ const Index = () => {
   const [showDashboard, setShowDashboard] = useState(false);
   const [showWalkPlanning, setShowWalkPlanning] = useState(false);
   const [showDestinationSelection, setShowDestinationSelection] = useState(false);
-  const [planningData, setPlanningData] = useState({ steps: '10000', pace: 'moderate' as 'slow' | 'moderate' | 'fast' });
+  const [planningData, setPlanningData] = useState({ 
+    steps: '10000', 
+    pace: 'moderate' as 'slow' | 'moderate' | 'fast',
+    tripType: 'one-way' as 'one-way' | 'round-trip'
+  });
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
@@ -35,7 +39,7 @@ const Index = () => {
     setShowWalkPlanning(true);
   };
 
-  const handleWalkPlanningComplete = (data: { steps: string; pace: 'slow' | 'moderate' | 'fast' }) => {
+  const handleWalkPlanningComplete = (data: { steps: string; pace: 'slow' | 'moderate' | 'fast'; tripType: 'one-way' | 'round-trip' }) => {
     setPlanningData(data);
     setShowWalkPlanning(false);
     setShowDestinationSelection(true);

@@ -5,15 +5,17 @@ import { Label } from '@/components/ui/label';
 import { ArrowLeft } from 'lucide-react';
 
 interface WalkPlanningProps {
-  onComplete: (data: { steps: string; pace: 'slow' | 'moderate' | 'fast' }) => void;
+  onComplete: (data: { steps: string; pace: 'slow' | 'moderate' | 'fast'; tripType: 'one-way' | 'round-trip' }) => void;
   onBack: () => void;
 }
 
 type WalkPace = 'slow' | 'moderate' | 'fast';
+type TripType = 'one-way' | 'round-trip';
 
 const WalkPlanning = ({ onComplete, onBack }: WalkPlanningProps) => {
   const [steps, setSteps] = useState('10000');
   const [selectedPace, setSelectedPace] = useState<WalkPace>('moderate');
+  const [tripType, setTripType] = useState<TripType>('one-way');
 
   const paceOptions = [
     { id: 'slow' as WalkPace, label: 'Lente' },
@@ -23,7 +25,7 @@ const WalkPlanning = ({ onComplete, onBack }: WalkPlanningProps) => {
 
   const handleValidate = () => {
     // Passer les données de planification au parent
-    onComplete({ steps, pace: selectedPace });
+    onComplete({ steps, pace: selectedPace, tripType });
   };
 
   return (
@@ -116,17 +118,51 @@ const WalkPlanning = ({ onComplete, onBack }: WalkPlanningProps) => {
             </div>
           </div>
 
+          {/* Type de trajet */}
+          <div className="space-y-4">
+            <Label className="text-base font-semibold text-foreground">
+              Type de trajet
+            </Label>
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                variant={tripType === 'one-way' ? "default" : "outline"}
+                size="lg"
+                onClick={() => setTripType('one-way')}
+                className={`h-14 text-sm font-medium transition-all ${
+                  tripType === 'one-way' 
+                    ? "bg-primary text-primary-foreground shadow-md transform scale-105" 
+                    : "hover:bg-primary/10 hover:text-primary hover:border-primary/30"
+                }`}
+              >
+                Aller simple
+              </Button>
+              <Button
+                variant={tripType === 'round-trip' ? "default" : "outline"}
+                size="lg"
+                onClick={() => setTripType('round-trip')}
+                className={`h-14 text-sm font-medium transition-all ${
+                  tripType === 'round-trip' 
+                    ? "bg-primary text-primary-foreground shadow-md transform scale-105" 
+                    : "hover:bg-primary/10 hover:text-primary hover:border-primary/30"
+                }`}
+              >
+                Aller-retour (A-R)
+              </Button>
+            </div>
+          </div>
+
           {/* Informations sur l'allure sélectionnée */}
           <div className="bg-muted/50 rounded-xl p-4">
             <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-1">Allure sélectionnée</p>
+              <p className="text-sm text-muted-foreground mb-1">Configuration sélectionnée</p>
               <p className="font-semibold text-foreground text-base">
-                {paceOptions.find(p => p.id === selectedPace)?.label}
+                {paceOptions.find(p => p.id === selectedPace)?.label} • {tripType === 'one-way' ? 'Aller simple' : 'Aller-retour'}
               </p>
               <p className="text-xs text-muted-foreground mt-2">
                 {selectedPace === 'slow' && 'Idéal pour une promenade relaxante'}
                 {selectedPace === 'moderate' && 'Parfait pour un exercice régulier'}
                 {selectedPace === 'fast' && 'Excellent pour un entraînement intense'}
+                {tripType === 'round-trip' && ' • Distance calculée pour l\'aller-retour'}
               </p>
             </div>
           </div>
