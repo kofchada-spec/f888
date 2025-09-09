@@ -81,14 +81,11 @@ const PresentationScreen = ({ onNext }: { onNext: () => void }) => {
           
           {/* Walking person illustration */}
           <div className="mb-8">
-            <div className="relative">
-              <div className="w-20 h-20 bg-yellow-400 rounded-full mb-2"></div>
-              <div className="w-16 h-24 bg-blue-500 rounded-lg mx-auto mb-2"></div>
-              <div className="flex gap-1 justify-center">
-                <div className="w-6 h-3 bg-gray-800 rounded"></div>
-                <div className="w-6 h-3 bg-gray-800 rounded"></div>
-              </div>
-            </div>
+            <img 
+              src="/lovable-uploads/18d7c199-1173-482f-9050-fbbb00132134.png"
+              alt="Personne qui marche"
+              className="w-32 h-32 mx-auto"
+            />
           </div>
 
           <p className="text-base text-gray-600 max-w-xs leading-relaxed">
