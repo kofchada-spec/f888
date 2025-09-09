@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import { User, Edit3, Footprints, MapPin, Flame, Clock } from 'lucide-react';
+import { User, Edit3, Footprints, MapPin, Flame, Clock, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useAuth } from '@/hooks/useAuth';
 
 interface DashboardProps {
   onPlanifyWalk: () => void;
 }
 
 const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
+  const { signOut, user } = useAuth();
   // Mock data - these would come from Supabase in real implementation
   const userProfile = {
     firstName: "Alex",
@@ -63,13 +65,24 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
             </h1>
           </div>
 
-          {/* Avatar */}
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={userProfile.avatar || undefined} />
-            <AvatarFallback className="bg-gradient-to-r from-green-500 to-blue-500 text-white font-semibold">
-              {userProfile.firstName.charAt(0)}
-            </AvatarFallback>
-          </Avatar>
+          {/* Avatar et actions */}
+          <div className="flex items-center space-x-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={signOut}
+              className="text-gray-500 hover:text-red-600 hover:bg-red-50"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Déconnexion
+            </Button>
+            <Avatar className="h-10 w-10">
+              <AvatarImage src={userProfile.avatar || undefined} />
+              <AvatarFallback className="bg-gradient-to-r from-green-500 to-blue-500 text-white font-semibold">
+                {userProfile.firstName.charAt(0)}
+              </AvatarFallback>
+            </Avatar>
+          </div>
         </div>
       </header>
 

@@ -2,14 +2,56 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { Loader2 } from 'lucide-react';
 
 interface AuthProps {
   onComplete: () => void;
 }
 
 const Auth = ({ onComplete }: AuthProps) => {
-  const [isLogin, setIsLogin] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const { signIn, signUp, user } = useAuth();
+
+  // Redirect authenticated users
+  useEffect(() => {
+    if (user) {
+      onComplete();
+    }
+  }, [user, onComplete]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      if (!isLogin) {
+        if (password !== confirmPassword) {
+          return; // Error handling is done in the hook
+        }
+        
+        const { error } = await signUp(email, password, firstName, lastName);
+        if (!error) {
+          // Success handling is done in the hook
+        }
+      } else {
+        const { error } = await signIn(email, password);
+        if (!error) {
+          // User will be redirected automatically via useEffect
+        }
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
@@ -60,12 +102,39 @@ const Auth = ({ onComplete }: AuthProps) => {
           </div>
 
           {/* Manual Form */}
-          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); onComplete(); }}>
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            {!isLogin && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">Prénom</Label>
+                  <Input
+                    id="firstName"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="Jean"
+                    required={!isLogin}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Nom</Label>
+                  <Input
+                    id="lastName"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Dupont"
+                    required={!isLogin}
+                  />
+                </div>
+              </div>
+            )}
+            
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="votre@email.com"
                 required
               />
@@ -76,8 +145,11 @@ const Auth = ({ onComplete }: AuthProps) => {
               <Input
                 id="password"
                 type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
+                minLength={6}
               />
             </div>
 
@@ -87,6 +159,8 @@ const Auth = ({ onComplete }: AuthProps) => {
                 <Input
                   id="confirmPassword"
                   type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
                   required
                 />
@@ -96,9 +170,17 @@ const Auth = ({ onComplete }: AuthProps) => {
             <Button 
               type="submit"
               variant="default"
+              disabled={isSubmitting}
               className="w-full py-6 text-lg bg-primary hover:bg-primary/90"
             >
-              {isLogin ? 'Se connecter' : 'Créer un compte'}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {isLogin ? 'Connexion...' : 'Création...'}
+                </>
+              ) : (
+                isLogin ? 'Se connecter' : 'Créer un compte'
+              )}
             </Button>
           </form>
 

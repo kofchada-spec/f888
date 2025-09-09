@@ -1,16 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Onboarding from '@/components/Onboarding';
 import Auth from '@/components/Auth';
 import ProfileCompletion from '@/components/ProfileCompletion';
 import Dashboard from '@/components/Dashboard';
 import WalkPlanning from '@/components/WalkPlanning';
 import DestinationSelection from '@/components/DestinationSelection';
+import { useAuth } from '@/hooks/useAuth';
+import { Loader2 } from 'lucide-react';
 
 const Index = () => {
-  const [showOnboarding, setShowOnboarding] = useState(true);
-  const [showAuth, setShowAuth] = useState(false);
-  const [showProfileCompletion, setShowProfileCompletion] = useState(false);
-  const [showDashboard, setShowDashboard] = useState(false);
+  const { user, loading } = useAuth();
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const [hasCompletedProfile, setHasCompletedProfile] = useState(false);
   const [showWalkPlanning, setShowWalkPlanning] = useState(false);
   const [showDestinationSelection, setShowDestinationSelection] = useState(false);
   const [planningData, setPlanningData] = useState({ 
@@ -19,23 +20,34 @@ const Index = () => {
     tripType: 'one-way' as 'one-way' | 'round-trip'
   });
 
+  // Check stored completion states on mount
+  useEffect(() => {
+    const onboardingComplete = localStorage.getItem('fitpas-onboarding-complete');
+    const profileComplete = localStorage.getItem('fitpas-profile-complete');
+    
+    if (onboardingComplete) {
+      setHasCompletedOnboarding(true);
+    }
+    if (profileComplete) {
+      setHasCompletedProfile(true);
+    }
+  }, []);
+
   const handleOnboardingComplete = () => {
-    setShowOnboarding(false);
-    setShowAuth(true);
+    setHasCompletedOnboarding(true);
+    localStorage.setItem('fitpas-onboarding-complete', 'true');
   };
 
   const handleAuthComplete = () => {
-    setShowAuth(false);
-    setShowProfileCompletion(true);
+    // This will be handled by useAuth hook automatically
   };
 
   const handleProfileComplete = () => {
-    setShowProfileCompletion(false);
-    setShowDashboard(true);
+    setHasCompletedProfile(true);
+    localStorage.setItem('fitpas-profile-complete', 'true');
   };
 
   const handlePlanifyWalk = () => {
-    setShowDashboard(false);
     setShowWalkPlanning(true);
   };
 
@@ -47,14 +59,12 @@ const Index = () => {
 
   const handleBackToDashboard = () => {
     setShowWalkPlanning(false);
-    setShowDashboard(true);
   };
 
   const handleDestinationComplete = (destination: any) => {
     console.log('Destination sélectionnée:', destination);
     // Ici on naviguera vers l'écran de navigation
     setShowDestinationSelection(false);
-    setShowDashboard(true);
   };
 
   const handleBackToPlanning = () => {
@@ -62,26 +72,39 @@ const Index = () => {
     setShowWalkPlanning(true);
   };
 
-  if (showOnboarding) {
+  // Show loading while auth is loading
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <Loader2 className="mx-auto h-8 w-8 animate-spin mb-4" />
+          <p className="text-muted-foreground">Chargement...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show onboarding if not completed
+  if (!hasCompletedOnboarding) {
     return <Onboarding onComplete={handleOnboardingComplete} />;
   }
 
-  if (showAuth) {
+  // Show auth if user is not authenticated
+  if (!user) {
     return <Auth onComplete={handleAuthComplete} />;
   }
 
-  if (showProfileCompletion) {
+  // Show profile completion if not completed (and user is authenticated)
+  if (!hasCompletedProfile) {
     return <ProfileCompletion onComplete={handleProfileComplete} />;
   }
 
-  if (showDashboard) {
-    return <Dashboard onPlanifyWalk={handlePlanifyWalk} />;
-  }
-
+  // Show Walk Planning if active
   if (showWalkPlanning) {
     return <WalkPlanning onComplete={handleWalkPlanningComplete} onBack={handleBackToDashboard} />;
   }
 
+  // Show Destination Selection if active
   if (showDestinationSelection) {
     return (
       <DestinationSelection 
@@ -92,14 +115,8 @@ const Index = () => {
     );
   }
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Bienvenue dans FitPaS!</h1>
-        <p className="text-xl text-muted-foreground">Application prête à être utilisée!</p>
-      </div>
-    </div>
-  );
+  // Show Dashboard (default authenticated state)
+  return <Dashboard onPlanifyWalk={handlePlanifyWalk} />;
 };
 
 export default Index;
