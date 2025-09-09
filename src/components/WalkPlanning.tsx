@@ -134,7 +134,7 @@ const WalkPlanning = ({ onComplete, onBack }: WalkPlanningProps) => {
                     : "hover:bg-primary/10 hover:text-primary hover:border-primary/30"
                 }`}
               >
-                Aller simple
+                Aller
               </Button>
               <Button
                 variant={tripType === 'round-trip' ? "default" : "outline"}
@@ -146,7 +146,7 @@ const WalkPlanning = ({ onComplete, onBack }: WalkPlanningProps) => {
                     : "hover:bg-primary/10 hover:text-primary hover:border-primary/30"
                 }`}
               >
-                Aller-retour (A-R)
+                A-R
               </Button>
             </div>
           </div>
@@ -156,7 +156,7 @@ const WalkPlanning = ({ onComplete, onBack }: WalkPlanningProps) => {
             <div className="text-center">
               <p className="text-sm text-muted-foreground mb-1">Configuration sélectionnée</p>
               <p className="font-semibold text-foreground text-base">
-                {paceOptions.find(p => p.id === selectedPace)?.label} • {tripType === 'one-way' ? 'Aller simple' : 'Aller-retour'}
+                {paceOptions.find(p => p.id === selectedPace)?.label} • {tripType === 'one-way' ? 'Aller' : 'A-R'}
               </p>
               <p className="text-xs text-muted-foreground mt-2">
                 {selectedPace === 'slow' && 'Idéal pour une promenade relaxante'}

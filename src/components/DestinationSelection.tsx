@@ -178,7 +178,7 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
             <div className="text-center">
               <p className="text-muted-foreground">Type</p>
               <p className="font-semibold">
-                {planningData.tripType === 'one-way' ? 'Aller simple' : 'Aller-retour'}
+                {planningData.tripType === 'one-way' ? 'Aller' : 'A-R'}
               </p>
             </div>
           </div>
@@ -186,7 +186,7 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
 
         {/* Carte interactive avec localisation utilisateur */}
         <div className="bg-card rounded-2xl shadow-lg overflow-hidden mb-8">
-          <div className="relative h-64 bg-gradient-to-br from-primary/10 to-secondary/10">
+          <div className="relative h-80 bg-gradient-to-br from-primary/10 to-secondary/10">
             {/* Fond de carte stylisé */}
             <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20">
               {/* Lignes de grille pour simuler une carte */}
@@ -204,10 +204,12 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
               <div className="relative">
                 {/* Point utilisateur */}
-                <div className="w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-lg animate-pulse"></div>
-                <div className="absolute -inset-2 border-2 border-blue-500 rounded-full animate-ping opacity-50"></div>
-                <div className="absolute -top-8 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-blue-500 text-white px-2 py-1 rounded text-xs font-medium">Vous</span>
+                <div className="w-5 h-5 bg-blue-500 rounded-full border-3 border-white shadow-xl animate-pulse z-10 relative"></div>
+                <div className="absolute -inset-3 border-2 border-blue-400 rounded-full animate-ping opacity-60"></div>
+                <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 z-20">
+                  <div className="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm font-medium shadow-lg">
+                    📍 Vous êtes ici
+                  </div>
                 </div>
               </div>
             </div>
@@ -215,9 +217,9 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
             {/* Destinations avec ramifications */}
             {destinations.map((dest, index) => {
               const positions = [
-                { top: '20%', left: '25%' }, // Position A
-                { top: '30%', right: '25%' }, // Position B  
-                { bottom: '25%', left: '40%' } // Position C
+                { top: '15%', left: '20%' }, // Position A
+                { top: '25%', right: '20%' }, // Position B  
+                { bottom: '20%', left: '35%' } // Position C
               ];
               
               const position = positions[index];
@@ -225,56 +227,89 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
               return (
                 <div key={dest.id}>
                   {/* Ligne de connexion vers la destination */}
-                  <svg className="absolute inset-0 pointer-events-none">
+                  <svg className="absolute inset-0 pointer-events-none z-0">
                     <line
                       x1="50%"
                       y1="50%"
                       x2={position.left ? position.left : position.right ? `${100 - parseInt(position.right)}%` : '50%'}
                       y2={position.top ? position.top : position.bottom ? `${100 - parseInt(position.bottom)}%` : '50%'}
                       stroke={selectedDestination === dest.id ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))'}
-                      strokeWidth="2"
-                      strokeDasharray="5,5"
-                      className="opacity-60"
+                      strokeWidth="3"
+                      strokeDasharray="8,4"
+                      className={`transition-all duration-300 ${selectedDestination === dest.id ? 'opacity-100' : 'opacity-40'}`}
                     />
                   </svg>
                   
                   {/* Marqueur destination */}
                   <div 
-                    className="absolute transform -translate-x-1/2 -translate-y-1/2"
+                    className="absolute transform -translate-x-1/2 -translate-y-1/2 z-10"
                     style={position}
                   >
                     <div 
-                      className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-lg cursor-pointer transition-all hover:scale-110 ${
-                        selectedDestination === dest.id ? 'bg-primary scale-110' : 'bg-secondary'
+                      className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-white shadow-xl cursor-pointer transition-all duration-300 border-2 border-white hover:scale-110 ${
+                        selectedDestination === dest.id ? 'bg-primary scale-110 shadow-2xl' : 'bg-secondary hover:bg-secondary/80'
                       }`}
                       onClick={() => handleDestinationSelect(dest)}
                     >
                       {dest.id}
                     </div>
-                    {/* Distance indicator */}
-                    <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        selectedDestination === dest.id 
-                          ? 'bg-primary text-primary-foreground' 
-                          : 'bg-muted text-muted-foreground'
+                    
+                    {/* Info card sur la destination */}
+                    <div className="absolute top-14 left-1/2 transform -translate-x-1/2 z-20">
+                      <div className={`bg-white dark:bg-gray-800 rounded-lg p-2 shadow-lg border transition-all duration-300 min-w-max ${
+                        selectedDestination === dest.id ? 'scale-105 border-primary' : 'scale-95 opacity-80'
                       }`}>
-                        {dest.distance}
-                      </span>
+                        <div className="text-center">
+                          <p className="font-semibold text-xs text-foreground mb-1">{dest.name}</p>
+                          <div className="flex items-center justify-between space-x-3 text-xs">
+                            <div className="flex items-center space-x-1">
+                              <MapPin size={12} className="text-primary" />
+                              <span className="font-medium">{dest.distance}</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <Clock size={12} className="text-secondary" />
+                              <span className="font-medium">{dest.duration}</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <Zap size={12} className="text-orange-500" />
+                              <span className="font-medium">{dest.calories}cal</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               );
             })}
 
-            {/* Légende */}
-            <div className="absolute top-4 left-4 bg-white/90 dark:bg-black/90 rounded-lg p-2 text-xs">
-              <div className="flex items-center space-x-2 mb-1">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span>Votre position</span>
+            {/* Légende améliorée */}
+            <div className="absolute top-4 left-4 bg-white/95 dark:bg-black/95 rounded-lg p-3 text-xs shadow-lg border">
+              <h4 className="font-semibold mb-2 text-foreground">Légende</h4>
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 bg-blue-500 rounded-full border border-white"></div>
+                  <span>Votre position</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 bg-secondary rounded-full border border-white"></div>
+                  <span>Destinations</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-1 bg-primary rounded"></div>
+                  <span>Trajet sélectionné</span>
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-secondary rounded-full"></div>
-                <span>Destinations</span>
+            </div>
+
+            {/* Informations de trajet */}
+            <div className="absolute top-4 right-4 bg-white/95 dark:bg-black/95 rounded-lg p-3 text-xs shadow-lg border">
+              <h4 className="font-semibold mb-2 text-foreground">Trajet</h4>
+              <div className="space-y-1">
+                <div>Type: <span className="font-medium">{planningData.tripType === 'one-way' ? 'Aller' : 'A-R'}</span></div>
+                <div>Allure: <span className="font-medium">
+                  {planningData.pace === 'slow' ? 'Lente' : planningData.pace === 'moderate' ? 'Modérée' : 'Rapide'}
+                </span></div>
               </div>
             </div>
           </div>
