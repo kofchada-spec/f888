@@ -85,26 +85,53 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
     };
   };
 
-  const destinations: Destination[] = [
-    {
-      id: 'A',
-      name: 'Parc de la Citadelle',
-      description: 'Promenade paisible à travers le parc historique',
-      ...calculateMetrics(4.2)
-    },
-    {
-      id: 'B', 
-      name: 'Bords de Seine',
-      description: 'Marche le long des quais avec vue sur le fleuve',
-      ...calculateMetrics(5.8)
-    },
-    {
-      id: 'C',
-      name: 'Centre Historique',
-      description: 'Découverte du patrimoine architectural',
-      ...calculateMetrics(3.6)
+  const destinations: Destination[] = (() => {
+    if (planningData.tripType === 'round-trip') {
+      // Pour l'aller-retour : des boucles qui reviennent au point de départ
+      return [
+        {
+          id: 'A',
+          name: 'Circuit du Parc',
+          description: 'Boucle complète dans le parc avec retour au point de départ',
+          ...calculateMetrics(3.5)
+        },
+        {
+          id: 'B', 
+          name: 'Tour du Quartier',
+          description: 'Circuit urbain avec découverte du quartier',
+          ...calculateMetrics(4.8)
+        },
+        {
+          id: 'C',
+          name: 'Promenade Riverside',
+          description: 'Boucle le long de la rivière avec points d\'intérêt',
+          ...calculateMetrics(2.9)
+        }
+      ];
+    } else {
+      // Pour l'aller simple : destinations linéaires
+      return [
+        {
+          id: 'A',
+          name: 'Parc de la Citadelle',
+          description: 'Promenade paisible vers le parc historique',
+          ...calculateMetrics(4.2)
+        },
+        {
+          id: 'B', 
+          name: 'Bords de Seine',
+          description: 'Marche le long des quais avec vue sur le fleuve',
+          ...calculateMetrics(5.8)
+        },
+        {
+          id: 'C',
+          name: 'Centre Historique',
+          description: 'Découverte du patrimoine architectural en centre-ville',
+          ...calculateMetrics(3.6)
+        }
+      ];
     }
-  ].map(dest => ({
+  })().map(dest => ({
     ...dest,
     distance: `${dest.distance} km`,
     duration: `${dest.duration} min`
@@ -208,7 +235,7 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
                 <div className="absolute -inset-3 border-2 border-blue-400 rounded-full animate-ping opacity-60"></div>
                 <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 z-20">
                   <div className="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm font-medium shadow-lg">
-                    📍 Vous êtes ici
+                    📍 Départ
                   </div>
                 </div>
               </div>
@@ -216,28 +243,48 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
 
             {/* Destinations avec ramifications */}
             {destinations.map((dest, index) => {
-              const positions = [
-                { top: '15%', left: '20%' }, // Position A
-                { top: '25%', right: '20%' }, // Position B  
-                { bottom: '20%', left: '35%' } // Position C
-              ];
+              // Positions différentes selon le type de trajet
+              const positions = planningData.tripType === 'round-trip' 
+                ? [
+                    { top: '25%', left: '25%' }, // Circuit A
+                    { top: '20%', right: '30%' }, // Circuit B  
+                    { bottom: '30%', left: '30%' } // Circuit C
+                  ]
+                : [
+                    { top: '15%', left: '20%' }, // Destination A
+                    { top: '25%', right: '20%' }, // Destination B  
+                    { bottom: '20%', left: '35%' } // Destination C
+                  ];
               
               const position = positions[index];
               
               return (
                 <div key={dest.id}>
-                  {/* Ligne de connexion vers la destination */}
+                  {/* Ligne de connexion */}
                   <svg className="absolute inset-0 pointer-events-none z-0">
-                    <line
-                      x1="50%"
-                      y1="50%"
-                      x2={position.left ? position.left : position.right ? `${100 - parseInt(position.right)}%` : '50%'}
-                      y2={position.top ? position.top : position.bottom ? `${100 - parseInt(position.bottom)}%` : '50%'}
-                      stroke={selectedDestination === dest.id ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))'}
-                      strokeWidth="3"
-                      strokeDasharray="8,4"
-                      className={`transition-all duration-300 ${selectedDestination === dest.id ? 'opacity-100' : 'opacity-40'}`}
-                    />
+                    {planningData.tripType === 'round-trip' ? (
+                      // Pour l'aller-retour : ligne courbe qui revient
+                      <path
+                        d={`M 50 50 Q ${position.left ? position.left.replace('%', '') : (100 - parseInt(position.right!.replace('%', '')))} ${position.top ? position.top.replace('%', '') : (100 - parseInt(position.bottom!.replace('%', '')))} 50 50`}
+                        stroke={selectedDestination === dest.id ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))'}
+                        strokeWidth="3"
+                        fill="none"
+                        strokeDasharray="8,4"
+                        className={`transition-all duration-300 ${selectedDestination === dest.id ? 'opacity-100' : 'opacity-40'}`}
+                      />
+                    ) : (
+                      // Pour l'aller simple : ligne droite
+                      <line
+                        x1="50%"
+                        y1="50%"
+                        x2={position.left ? position.left : position.right ? `${100 - parseInt(position.right)}%` : '50%'}
+                        y2={position.top ? position.top : position.bottom ? `${100 - parseInt(position.bottom)}%` : '50%'}
+                        stroke={selectedDestination === dest.id ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))'}
+                        strokeWidth="3"
+                        strokeDasharray="8,4"
+                        className={`transition-all duration-300 ${selectedDestination === dest.id ? 'opacity-100' : 'opacity-40'}`}
+                      />
+                    )}
                   </svg>
                   
                   {/* Marqueur destination */}
@@ -254,28 +301,12 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
                       {dest.id}
                     </div>
                     
-                    {/* Info card sur la destination */}
+                    {/* Affichage simple du nom uniquement */}
                     <div className="absolute top-14 left-1/2 transform -translate-x-1/2 z-20">
-                      <div className={`bg-white dark:bg-gray-800 rounded-lg p-2 shadow-lg border transition-all duration-300 min-w-max ${
-                        selectedDestination === dest.id ? 'scale-105 border-primary' : 'scale-95 opacity-80'
+                      <div className={`bg-white dark:bg-gray-800 rounded-lg px-2 py-1 shadow-md border transition-all duration-300 ${
+                        selectedDestination === dest.id ? 'scale-105 border-primary' : 'scale-95 opacity-60'
                       }`}>
-                        <div className="text-center">
-                          <p className="font-semibold text-xs text-foreground mb-1">{dest.name}</p>
-                          <div className="flex items-center justify-between space-x-3 text-xs">
-                            <div className="flex items-center space-x-1">
-                              <MapPin size={12} className="text-primary" />
-                              <span className="font-medium">{dest.distance}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <Clock size={12} className="text-secondary" />
-                              <span className="font-medium">{dest.duration}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <Zap size={12} className="text-orange-500" />
-                              <span className="font-medium">{dest.calories}cal</span>
-                            </div>
-                          </div>
-                        </div>
+                        <p className="text-xs font-medium text-foreground whitespace-nowrap">{dest.name}</p>
                       </div>
                     </div>
                   </div>
@@ -283,33 +314,22 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
               );
             })}
 
-            {/* Légende améliorée */}
+            {/* Légende simplifiée */}
             <div className="absolute top-4 left-4 bg-white/95 dark:bg-black/95 rounded-lg p-3 text-xs shadow-lg border">
-              <h4 className="font-semibold mb-2 text-foreground">Légende</h4>
-              <div className="space-y-1">
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-blue-500 rounded-full border border-white"></div>
-                  <span>Votre position</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-secondary rounded-full border border-white"></div>
-                  <span>Destinations</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-1 bg-primary rounded"></div>
-                  <span>Trajet sélectionné</span>
-                </div>
+              <div className="flex items-center space-x-2 mb-2">
+                <div className="w-4 h-4 bg-blue-500 rounded-full border border-white"></div>
+                <span>{planningData.tripType === 'round-trip' ? 'Point de départ/arrivée' : 'Point de départ'}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-secondary rounded-full border border-white"></div>
+                <span>{planningData.tripType === 'round-trip' ? 'Points de passage' : 'Destinations'}</span>
               </div>
             </div>
 
-            {/* Informations de trajet */}
-            <div className="absolute top-4 right-4 bg-white/95 dark:bg-black/95 rounded-lg p-3 text-xs shadow-lg border">
-              <h4 className="font-semibold mb-2 text-foreground">Trajet</h4>
-              <div className="space-y-1">
-                <div>Type: <span className="font-medium">{planningData.tripType === 'one-way' ? 'Aller' : 'A-R'}</span></div>
-                <div>Allure: <span className="font-medium">
-                  {planningData.pace === 'slow' ? 'Lente' : planningData.pace === 'moderate' ? 'Modérée' : 'Rapide'}
-                </span></div>
+            {/* Info trajet en haut à droite */}
+            <div className="absolute top-4 right-4 bg-primary/90 text-primary-foreground rounded-lg p-3 text-sm shadow-lg">
+              <div className="font-semibold">
+                {planningData.tripType === 'round-trip' ? '🔄 Aller-Retour' : '➡️ Aller Simple'}
               </div>
             </div>
           </div>
