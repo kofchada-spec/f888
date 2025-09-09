@@ -12,6 +12,7 @@ interface AuthProps {
 
 const Auth = ({ onComplete }: AuthProps) => {
   const [isLogin, setIsLogin] = useState(true);
+  const [isResetMode, setIsResetMode] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -19,7 +20,7 @@ const Auth = ({ onComplete }: AuthProps) => {
   const [lastName, setLastName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, resetPassword, user } = useAuth();
 
   // Redirect authenticated users
   useEffect(() => {
@@ -33,7 +34,11 @@ const Auth = ({ onComplete }: AuthProps) => {
     setIsSubmitting(true);
 
     try {
-      if (!isLogin) {
+      if (isResetMode) {
+        await resetPassword(email);
+        setIsResetMode(false);
+        setIsLogin(true);
+      } else if (!isLogin) {
         if (password !== confirmPassword) {
           return; // Error handling is done in the hook
         }
@@ -58,11 +63,12 @@ const Auth = ({ onComplete }: AuthProps) => {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">
-            {isLogin ? 'Se connecter' : 'Créer un compte'}
+            {isResetMode ? 'Récupérer le mot de passe' : isLogin ? 'Se connecter' : 'Créer un compte'}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Social Login Buttons */}
+          {/* Social Login Buttons - Hidden in reset mode */}
+          {!isResetMode && (
           <div className="space-y-3">
             <Button 
               variant="outline" 
@@ -89,7 +95,9 @@ const Auth = ({ onComplete }: AuthProps) => {
               Continuer avec Apple
             </Button>
           </div>
+          )}
 
+          {!isResetMode && (
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
@@ -100,10 +108,11 @@ const Auth = ({ onComplete }: AuthProps) => {
               </span>
             </div>
           </div>
+          )}
 
           {/* Manual Form */}
           <form className="space-y-4" onSubmit={handleSubmit}>
-            {!isLogin && (
+            {!isLogin && !isResetMode && (
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">Prénom</Label>
@@ -140,6 +149,7 @@ const Auth = ({ onComplete }: AuthProps) => {
               />
             </div>
             
+            {!isResetMode && (
             <div className="space-y-2">
               <Label htmlFor="password">Mot de passe</Label>
               <Input
@@ -152,8 +162,9 @@ const Auth = ({ onComplete }: AuthProps) => {
                 minLength={6}
               />
             </div>
+            )}
 
-            {!isLogin && (
+            {!isLogin && !isResetMode && (
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
                 <Input
@@ -176,25 +187,52 @@ const Auth = ({ onComplete }: AuthProps) => {
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isLogin ? 'Connexion...' : 'Création...'}
+                  {isResetMode ? 'Envoi...' : isLogin ? 'Connexion...' : 'Création...'}
                 </>
               ) : (
-                isLogin ? 'Se connecter' : 'Créer un compte'
+                isResetMode ? 'Envoyer le lien de récupération' : isLogin ? 'Se connecter' : 'Créer un compte'
               )}
             </Button>
           </form>
 
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-sm text-secondary hover:underline"
-            >
-              {isLogin 
-                ? "Pas encore de compte ? Créer un compte" 
-                : "Déjà un compte ? Se connecter"
-              }
-            </button>
+          <div className="text-center space-y-2">
+            {!isResetMode && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setIsLogin(!isLogin)}
+                  className="text-sm text-secondary hover:underline block"
+                >
+                  {isLogin 
+                    ? "Pas encore de compte ? Créer un compte" 
+                    : "Déjà un compte ? Se connecter"
+                  }
+                </button>
+                
+                {isLogin && (
+                  <button
+                    type="button"
+                    onClick={() => setIsResetMode(true)}
+                    className="text-sm text-muted-foreground hover:underline block"
+                  >
+                    Mot de passe oublié ?
+                  </button>
+                )}
+              </>
+            )}
+            
+            {isResetMode && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsResetMode(false);
+                  setIsLogin(true);
+                }}
+                className="text-sm text-secondary hover:underline"
+              >
+                Retour à la connexion
+              </button>
+            )}
           </div>
         </CardContent>
       </Card>
