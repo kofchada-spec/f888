@@ -45,7 +45,15 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
         <div className="px-6 py-4 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center space-x-3">
-            <img src="/lovable-uploads/5216fdd6-d0d7-446b-9260-86d15d06f4ba.png" alt="FitPaS" className="h-8 w-auto" />
+            <img 
+              src="/lovable-uploads/5216fdd6-d0d7-446b-9260-86d15d06f4ba.png" 
+              alt="FitPaS" 
+              className="h-8 w-auto"
+              style={{ 
+                filter: 'invert(0) sepia(1) saturate(5) hue-rotate(120deg) brightness(0.8)',
+                color: '#10b981' 
+              }}
+            />
           </div>
 
           {/* Salutation */}
