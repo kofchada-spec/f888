@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronRight, User, Target } from 'lucide-react';
-import fitpasLogo from '@/assets/fitpas-logo.png';
+const fitpasLogo = '/lovable-uploads/4c20a048-5819-4d0f-b867-b91d67ca59ee.png';
 
 interface OnboardingProps {
   onComplete: () => void;
