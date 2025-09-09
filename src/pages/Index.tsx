@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import Onboarding from '@/components/Onboarding';
 import Auth from '@/components/Auth';
+import ProfileCompletion from '@/components/ProfileCompletion';
 
 const Index = () => {
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
+  const [showProfileCompletion, setShowProfileCompletion] = useState(false);
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
@@ -13,6 +15,11 @@ const Index = () => {
 
   const handleAuthComplete = () => {
     setShowAuth(false);
+    setShowProfileCompletion(true);
+  };
+
+  const handleProfileComplete = () => {
+    setShowProfileCompletion(false);
     // Ici on peut rediriger vers le dashboard principal
   };
 
@@ -22,6 +29,10 @@ const Index = () => {
 
   if (showAuth) {
     return <Auth onComplete={handleAuthComplete} />;
+  }
+
+  if (showProfileCompletion) {
+    return <ProfileCompletion onComplete={handleProfileComplete} />;
   }
 
   return (
