@@ -4,6 +4,7 @@ import Auth from '@/components/Auth';
 import ProfileCompletion from '@/components/ProfileCompletion';
 import Dashboard from '@/components/Dashboard';
 import WalkPlanning from '@/components/WalkPlanning';
+import DestinationSelection from '@/components/DestinationSelection';
 
 const Index = () => {
   const [showOnboarding, setShowOnboarding] = useState(true);
@@ -11,6 +12,8 @@ const Index = () => {
   const [showProfileCompletion, setShowProfileCompletion] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
   const [showWalkPlanning, setShowWalkPlanning] = useState(false);
+  const [showDestinationSelection, setShowDestinationSelection] = useState(false);
+  const [planningData, setPlanningData] = useState({ steps: '10000', pace: 'moderate' as 'slow' | 'moderate' | 'fast' });
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
@@ -32,14 +35,27 @@ const Index = () => {
     setShowWalkPlanning(true);
   };
 
-  const handleWalkPlanningComplete = () => {
+  const handleWalkPlanningComplete = (data: { steps: string; pace: 'slow' | 'moderate' | 'fast' }) => {
+    setPlanningData(data);
     setShowWalkPlanning(false);
-    setShowDashboard(true);
+    setShowDestinationSelection(true);
   };
 
   const handleBackToDashboard = () => {
     setShowWalkPlanning(false);
     setShowDashboard(true);
+  };
+
+  const handleDestinationComplete = (destination: any) => {
+    console.log('Destination sélectionnée:', destination);
+    // Ici on naviguera vers l'écran de navigation
+    setShowDestinationSelection(false);
+    setShowDashboard(true);
+  };
+
+  const handleBackToPlanning = () => {
+    setShowDestinationSelection(false);
+    setShowWalkPlanning(true);
   };
 
   if (showOnboarding) {
@@ -60,6 +76,16 @@ const Index = () => {
 
   if (showWalkPlanning) {
     return <WalkPlanning onComplete={handleWalkPlanningComplete} onBack={handleBackToDashboard} />;
+  }
+
+  if (showDestinationSelection) {
+    return (
+      <DestinationSelection 
+        onComplete={handleDestinationComplete} 
+        onBack={handleBackToPlanning}
+        planningData={planningData}
+      />
+    );
   }
 
   return (

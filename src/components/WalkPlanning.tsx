@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { ArrowLeft } from 'lucide-react';
 
 interface WalkPlanningProps {
-  onComplete: () => void;
+  onComplete: (data: { steps: string; pace: 'slow' | 'moderate' | 'fast' }) => void;
   onBack: () => void;
 }
 
@@ -22,9 +22,8 @@ const WalkPlanning = ({ onComplete, onBack }: WalkPlanningProps) => {
   ];
 
   const handleValidate = () => {
-    // Ici on pourrait sauvegarder les données de planification
-    console.log('Planification validée:', { steps, pace: selectedPace });
-    onComplete();
+    // Passer les données de planification au parent
+    onComplete({ steps, pace: selectedPace });
   };
 
   return (
