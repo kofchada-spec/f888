@@ -76,6 +76,12 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
       return;
     }
 
+    // Prevent re-initialization if map already exists
+    if (map.current) {
+      console.log('Map already initialized, skipping');
+      return;
+    }
+
     console.log('Initializing map with token:', mapboxToken.substring(0, 20) + '...');
     mapboxgl.accessToken = mapboxToken;
     
@@ -84,6 +90,15 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
       style: 'mapbox://styles/mapbox/streets-v12',
       zoom: 14,
       center: userLocation ? [userLocation.lng, userLocation.lat] : [2.3522, 48.8566], // Paris par défaut
+    });
+
+    // Add error handling
+    map.current.on('error', (e) => {
+      console.error('Mapbox error:', e.error);
+      console.error('Error type:', e.error?.message);
+      if (e.error?.message?.includes('401') || e.error?.message?.includes('403')) {
+        console.error('Authentication error - check your Mapbox token');
+      }
     });
 
     // Add navigation controls
@@ -96,6 +111,13 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
 
     // Wait for map to load before adding POI interactions
     map.current.on('load', () => {
+      // Resize map to ensure proper rendering
+      setTimeout(() => {
+        if (map.current) {
+          map.current.resize();
+        }
+      }, 100);
+
       // Protéger les événements POI avec getLayer
       if (map.current?.getLayer('poi-label')) {
         map.current.on('click', 'poi-label', (e) => {
@@ -126,6 +148,7 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
     // Cleanup
     return () => {
       map.current?.remove();
+      map.current = null;
     };
   }, [mapboxToken]);
 
@@ -387,7 +410,7 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
 
   if (!mapboxToken || !mapboxToken.startsWith('pk.')) {
     return (
-      <div className="relative h-80 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl flex items-center justify-center">
+      <div style={{ height: '360px' }} className="relative bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl flex items-center justify-center">
         <div className="text-center max-w-md p-6">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-sm text-muted-foreground mb-2">
@@ -401,8 +424,32 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
     );
   }
 
+  // IntersectionObserver to resize map when it becomes visible
+  useEffect(() => {
+    if (!mapContainer.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && map.current) {
+            setTimeout(() => {
+              map.current?.resize();
+            }, 100);
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(mapContainer.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
   return (
-    <div className="relative h-80 rounded-2xl overflow-hidden shadow-lg">
+    <div style={{ height: '360px' }} className="relative rounded-2xl overflow-hidden shadow-lg">
       <div 
         ref={mapContainer} 
         style={{ width: '100%', height: '100%' }}

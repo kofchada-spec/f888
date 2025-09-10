@@ -149,9 +149,9 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
         </div>
 
         {/* Carte interactive avec localisation utilisateur */}
-        <div className="bg-card rounded-2xl shadow-lg overflow-hidden mb-8">
+        <div className="bg-card rounded-2xl shadow-lg overflow-hidden mb-8" style={{ height: '360px' }}>
           {loading ? (
-            <div className="h-80 flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl">
+            <div className="h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl">
               <div className="text-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
                 <p className="text-sm text-muted-foreground">Recherche de destinations...</p>
@@ -159,7 +159,7 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
               </div>
             </div>
           ) : error ? (
-            <div className="h-80 flex items-center justify-center bg-gradient-to-br from-destructive/10 to-muted/10 rounded-2xl">
+            <div className="h-full flex items-center justify-center bg-gradient-to-br from-destructive/10 to-muted/10 rounded-2xl">
               <div className="text-center max-w-md p-6">
                 <p className="text-sm text-destructive mb-2">Erreur lors du chargement</p>
                 <p className="text-xs text-muted-foreground">{error}</p>
