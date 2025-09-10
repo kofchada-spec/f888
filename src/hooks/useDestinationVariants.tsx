@@ -32,35 +32,11 @@ export const useDestinationVariants = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const generateScenarioKey = (userLocation: UserLocation, planningData: PlanningData): string => {
-    // Round coordinates to 3 decimal places for consistent grouping
-    const roundedLat = Math.round(userLocation.lat * 1000) / 1000;
-    const roundedLng = Math.round(userLocation.lng * 1000) / 1000;
-    
-    return `${roundedLat}_${roundedLng}_${planningData.steps}_${planningData.pace}_${planningData.tripType}_${planningData.height}_${planningData.weight}`;
-  };
-
-  const getVariantIndex = (scenarioKey: string): number => {
-    const storageKey = `destination_variant_${scenarioKey}`;
-    const currentIndex = parseInt(localStorage.getItem(storageKey) || '0');
-    
-    // Increment for next time (cycle 0, 1, 2)
-    const nextIndex = (currentIndex + 1) % 3;
-    localStorage.setItem(storageKey, nextIndex.toString());
-    
-    console.log(`Scenario: ${scenarioKey}, Current variant: ${currentIndex}, Next: ${nextIndex}`);
-    
-    return currentIndex;
-  };
-
-  const fetchDestinations = async (userLocation: UserLocation, planningData: PlanningData) => {
+  const fetchDestinations = async (userLocation: UserLocation, planningData: PlanningData, variantIndex: number) => {
     setLoading(true);
     setError(null);
 
     try {
-      const scenarioKey = generateScenarioKey(userLocation, planningData);
-      const variantIndex = getVariantIndex(scenarioKey);
-
       console.log('Fetching destinations for variant:', variantIndex);
 
       const { supabase } = await import('@/integrations/supabase/client');

@@ -14,6 +14,7 @@ interface DestinationSelectionProps {
     tripType: 'one-way' | 'round-trip';
     height: string;
     weight: string;
+    variantIndex: number;
   };
 }
 
@@ -61,7 +62,7 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
   // Charger les destinations quand localisation et données de planification sont prêtes
   useEffect(() => {
     if (userLocation && planningData) {
-      fetchDestinations(userLocation, planningData);
+      fetchDestinations(userLocation, planningData, planningData.variantIndex);
     }
   }, [userLocation, planningData, fetchDestinations]);
 
@@ -167,7 +168,7 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
                   variant="outline" 
                   size="sm" 
                   className="mt-3"
-                  onClick={() => userLocation && fetchDestinations(userLocation, planningData)}
+                  onClick={() => userLocation && fetchDestinations(userLocation, planningData, planningData.variantIndex)}
                 >
                   Réessayer
                 </Button>

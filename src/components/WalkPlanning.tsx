@@ -11,6 +11,7 @@ interface WalkPlanningProps {
     tripType: TripType;
     height: string;
     weight: string;
+    variantIndex: number;
   }) => void;
   onBack: () => void;
 }
@@ -26,12 +27,25 @@ const WalkPlanning = ({ onComplete, onBack }: WalkPlanningProps) => {
   const [weight, setWeight] = useState('70');
 
   const handleValidate = () => {
+    // Calculer et avancer la variante à chaque validation
+    const scenarioKey = `${selectedPace}_${tripType}_${steps}`;
+    
+    // Récupérer la variante actuelle depuis localStorage et l'avancer
+    const currentVariant = parseInt(localStorage.getItem(`fitpas-variant-${scenarioKey}`) || '0');
+    const nextVariant = (currentVariant + 1) % 3;
+    
+    // Sauvegarder la nouvelle variante
+    localStorage.setItem(`fitpas-variant-${scenarioKey}`, nextVariant.toString());
+    
+    console.log(`Scenario: ${scenarioKey}, Previous variant: ${currentVariant}, Next variant: ${nextVariant}`);
+    
     onComplete({
       steps,
       pace: selectedPace,
       tripType,
       height,
-      weight
+      weight,
+      variantIndex: nextVariant
     });
   };
 

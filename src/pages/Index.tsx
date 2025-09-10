@@ -20,7 +20,8 @@ const Index = () => {
     pace: 'moderate' as 'slow' | 'moderate' | 'fast',
     tripType: 'one-way' as 'one-way' | 'round-trip',
     height: '1.70',
-    weight: '70'
+    weight: '70',
+    variantIndex: 0
   });
 
   // Check stored completion states on mount
@@ -58,7 +59,7 @@ const Index = () => {
     setShowWalkPlanning(true);
   };
 
-  const handleWalkPlanningComplete = (data: { steps: string; pace: 'slow' | 'moderate' | 'fast'; tripType: 'one-way' | 'round-trip'; height: string; weight: string }) => {
+  const handleWalkPlanningComplete = (data: { steps: string; pace: 'slow' | 'moderate' | 'fast'; tripType: 'one-way' | 'round-trip'; height: string; weight: string; variantIndex: number }) => {
     setPlanningData(data);
     setShowWalkPlanning(false);
     setShowDestinationSelection(true);
