@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User, Edit3, Footprints, MapPin, Flame, Clock, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DashboardProps {
   onPlanifyWalk: () => void;
@@ -11,15 +12,49 @@ interface DashboardProps {
 
 const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
   const { signOut, user } = useAuth();
-  // Mock data - these would come from Supabase in real implementation
-  const userProfile = {
-    firstName: "Alex",
-    gender: "Homme",
-    height: 1.75,
-    weight: 70,
-    age: 28,
+  const [userProfile, setUserProfile] = useState({
+    firstName: "Utilisateur",
+    gender: "-",
+    height: 0,
+    weight: 0,
+    age: 0,
     avatar: null
-  };
+  });
+
+  // Load user profile from Supabase
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      if (!user) return;
+      
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error loading profile:', error);
+          return;
+        }
+
+        if (profile) {
+          setUserProfile({
+            firstName: profile.first_name || "Utilisateur",
+            gender: profile.gender || "-",
+            height: profile.height_m || 0,
+            weight: profile.weight_kg || 0,
+            age: profile.age_years || 0,
+            avatar: profile.avatar_url || null
+          });
+        }
+      } catch (error) {
+        console.error('Error loading profile:', error);
+      }
+    };
+
+    loadUserProfile();
+  }, [user]);
 
   const todayStats = {
     steps: 8247,
@@ -109,15 +144,21 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
               </div>
               <div className="text-center">
                 <p className="text-sm text-gray-500">Taille</p>
-                <p className="text-lg font-medium text-gray-900">{userProfile.height}m</p>
+                <p className="text-lg font-medium text-gray-900">
+                  {userProfile.height > 0 ? `${userProfile.height}m` : '-'}
+                </p>
               </div>
               <div className="text-center">
                 <p className="text-sm text-gray-500">Poids</p>
-                <p className="text-lg font-medium text-gray-900">{userProfile.weight}kg</p>
+                <p className="text-lg font-medium text-gray-900">
+                  {userProfile.weight > 0 ? `${userProfile.weight}kg` : '-'}
+                </p>
               </div>
               <div className="text-center">
                 <p className="text-sm text-gray-500">Âge</p>
-                <p className="text-lg font-medium text-gray-900">{userProfile.age} ans</p>
+                <p className="text-lg font-medium text-gray-900">
+                  {userProfile.age > 0 ? `${userProfile.age} ans` : '-'}
+                </p>
               </div>
             </div>
           </CardContent>

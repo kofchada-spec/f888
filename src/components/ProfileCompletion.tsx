@@ -93,19 +93,29 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
       const monthDiff = today.getMonth() - (month - 1);
       const finalAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < day) ? age - 1 : age;
 
-      // Here you would save to Supabase
-      const profileData = {
-        gender: data.gender,
-        heightM: data.height,
-        weightKg: data.weight,
-        birthDate: birthDate.toISOString(),
-        ageYears: finalAge
-      };
-
-      console.log('Profile data to save:', profileData);
+      // Save to Supabase profiles table
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data: { user } } = await supabase.auth.getUser();
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          gender: data.gender,
+          height_m: data.height,
+          weight_kg: data.weight,
+          birth_date: birthDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
+          age_years: finalAge
+        })
+        .eq('user_id', user.id);
+
+      if (updateError) {
+        console.error('Error saving profile:', updateError);
+        throw updateError;
+      }
       
       onComplete();
     } catch (error) {
