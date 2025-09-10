@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { userLocation, planningData, profileData, excludedIds = [] } = await req.json();
+    const { userLocation, planningData, profileData, generateThree = false } = await req.json();
     
     // Get Mapbox token from environment
     const mapboxToken = Deno.env.get('MAPBOX_PUBLIC_TOKEN');
@@ -21,7 +21,7 @@ serve(async (req) => {
       throw new Error('MAPBOX_PUBLIC_TOKEN not configured');
     }
 
-    console.log('Generating single destination with exclusions:', excludedIds, planningData);
+    console.log('Generating destinations with generateThree:', generateThree, planningData);
 
     // Calculs selon les spécifications
     const steps = parseInt(planningData.steps);
@@ -71,18 +71,21 @@ serve(async (req) => {
       }
     }
     
-    // Filtrer par anneau de distance et exclure les IDs déjà vus
+    // Filtrer par anneau de distance
     const validPois = poiCandidates.filter(poi => {
       const poiDistance = poi.distance;
-      const isInRing = poiDistance >= minRing && poiDistance <= maxRing;
-      const notExcluded = !excludedIds.includes(poi.id);
-      return isInRing && notExcluded;
+      return poiDistance >= minRing && poiDistance <= maxRing;
     });
     
     console.log(`Found ${validPois.length} valid POIs in distance ring ${minRing.toFixed(2)}-${maxRing.toFixed(2)}km`);
     
-    // Calculer les routes pour un sous-ensemble et trouver le meilleur score
-    const poisToEvaluate = validPois.slice(0, 12); // Limiter à 12 pour les performances
+    if (generateThree) {
+      // Générer 3 destinations fixes (déterministiques)
+      return await generateThreeDestinations(validPois, userLocation, targetOutKm, durationMin, calories, mapboxToken, corsHeaders);
+    }
+    
+    // Mode original : une seule destination
+    const poisToEvaluate = validPois.slice(0, 12);
     let bestDestination = null;
     let bestScore = Infinity;
     
@@ -200,4 +203,90 @@ function calculateDistance(point1: { lat: number; lng: number }, point2: { lat: 
   return R * c;
 }
 
-// Fonctions utilitaires supprimées car non utilisées dans la nouvelle logique
+// Fonction pour générer exactement 3 destinations déterministiques
+async function generateThreeDestinations(
+  validPois: any[], 
+  userLocation: { lat: number; lng: number }, 
+  targetOutKm: number, 
+  durationMin: number, 
+  calories: number, 
+  mapboxToken: string,
+  corsHeaders: any
+) {
+  const destinations = [];
+  const poisToEvaluate = validPois.slice(0, 20); // Plus de candidats pour avoir 3 destinations
+  const evaluatedPois = [];
+  
+  // Calculer les scores pour tous les POI candidats
+  for (const poi of poisToEvaluate) {
+    try {
+      const directionsUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${userLocation.lng},${userLocation.lat};${poi.center[0]},${poi.center[1]}?geometries=geojson&steps=true&access_token=${mapboxToken}`;
+      
+      const dirResponse = await fetch(directionsUrl);
+      const dirData = await dirResponse.json();
+      
+      if (dirData.routes && dirData.routes.length > 0) {
+        const route = dirData.routes[0];
+        const routeDistanceKm = route.distance / 1000;
+        const score = Math.abs(routeDistanceKm - targetOutKm);
+        
+        evaluatedPois.push({
+          ...poi,
+          route,
+          routeDistanceKm,
+          score
+        });
+      }
+    } catch (error) {
+      console.log('Error calculating route for POI:', error);
+    }
+  }
+  
+  // Trier par score (meilleur en premier) et prendre les 3 meilleurs
+  evaluatedPois.sort((a, b) => a.score - b.score);
+  const topThree = evaluatedPois.slice(0, 3);
+  
+  // Créer les objets destinations
+  for (let i = 0; i < topThree.length; i++) {
+    const poi = topThree[i];
+    destinations.push({
+      id: `dest_${i + 1}_${poi.id || Math.random().toString(36).substr(2, 9)}`,
+      name: poi.place_name?.split(',')[0] || poi.text || `Destination ${i + 1}`,
+      coordinates: { lat: poi.center[1], lng: poi.center[0] },
+      routeGeoJSON: poi.route.geometry,
+      distanceKm: poi.routeDistanceKm,
+      durationMin: Math.round(poi.route.duration / 60),
+      calories: calories
+    });
+  }
+  
+  // Fallback si moins de 3 destinations trouvées
+  while (destinations.length < 3) {
+    const angle = (destinations.length * 120) * (Math.PI / 180);
+    const distance = targetOutKm * (1 + destinations.length * 0.1);
+    const distanceInDegrees = distance / 111.32;
+    
+    const destLat = userLocation.lat + Math.sin(angle) * distanceInDegrees;
+    const destLng = userLocation.lng + Math.cos(angle) * distanceInDegrees;
+    
+    destinations.push({
+      id: `fallback_${destinations.length + 1}_${Date.now()}`,
+      name: `Destination ${destinations.length + 1}`,
+      coordinates: { lat: destLat, lng: destLng },
+      routeGeoJSON: null,
+      distanceKm: targetOutKm,
+      durationMin: Math.round(durationMin),
+      calories: calories
+    });
+  }
+  
+  console.log(`Generated ${destinations.length} destinations`);
+  
+  return new Response(
+    JSON.stringify({ destinations }),
+    {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    },
+  );
+}

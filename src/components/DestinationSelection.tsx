@@ -39,7 +39,7 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
     refreshRemaining, 
     loading, 
     error, 
-    fetchDestination, 
+    fetchDestinations, 
     refreshDestination, 
     resetSession,
     canRefresh 
@@ -72,22 +72,19 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
     }
   }, []);
 
-  // Charger la première destination quand localisation et données sont prêtes
+  // Charger les destinations quand localisation et données sont prêtes
   useEffect(() => {
     if (userLocation && planningData && !currentDestination && !loading) {
-      fetchDestination(userLocation, planningData, {
+      fetchDestinations(userLocation, planningData, {
         heightM: parseFloat(planningData.height),
         weightKg: parseFloat(planningData.weight)
       });
     }
-  }, [userLocation, planningData, currentDestination, loading, fetchDestination]);
+  }, [userLocation, planningData, currentDestination, loading, fetchDestinations]);
 
   const handleRefresh = () => {
-    if (userLocation && canRefresh) {
-      refreshDestination(userLocation, planningData, {
-        heightM: parseFloat(planningData.height),
-        weightKg: parseFloat(planningData.weight)
-      });
+    if (canRefresh) {
+      refreshDestination();
     }
   };
 
@@ -186,7 +183,7 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  onClick={() => userLocation && fetchDestination(userLocation, planningData, { heightM: parseFloat(planningData.height), weightKg: parseFloat(planningData.weight) })}
+                  onClick={() => userLocation && fetchDestinations(userLocation, planningData, { heightM: parseFloat(planningData.height), weightKg: parseFloat(planningData.weight) })}
                 >
                   Réessayer
                 </Button>
@@ -250,10 +247,10 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
                 variant="outline"
                 size="sm"
                 className="flex items-center space-x-2"
-                title={canRefresh ? `Réactualiser (${refreshRemaining}/3)` : 'Limite atteinte'}
+                title={canRefresh ? `Réactualiser (${refreshRemaining}/2)` : 'Limite atteinte'}
               >
                 <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-                <span>Réactualiser ({refreshRemaining}/3)</span>
+                <span>Réactualiser ({refreshRemaining}/2)</span>
               </Button>
             </div>
           </Card>

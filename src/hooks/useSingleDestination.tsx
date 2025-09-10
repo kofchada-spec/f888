@@ -34,12 +34,25 @@ interface ProfileData {
 
 export const useSingleDestination = () => {
   const [currentDestination, setCurrentDestination] = useState<Destination | null>(null);
-  const [refreshRemaining, setRefreshRemaining] = useState(3);
-  const [seenIds, setSeenIds] = useState<string[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [refreshRemaining, setRefreshRemaining] = useState(2);
+  const [destinationsList, setDestinationsList] = useState<Destination[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchDestination = useCallback(async (
+  // Fonction pour générer une clé de scénario
+  const generateScenarioKey = useCallback((
+    userLocation: UserLocation,
+    planningData: PlanningData
+  ) => {
+    // Arrondir la position à ±0.001°
+    const roundedLat = Math.round(userLocation.lat * 1000) / 1000;
+    const roundedLng = Math.round(userLocation.lng * 1000) / 1000;
+    
+    return `${roundedLat}_${roundedLng}_${planningData.steps}_${planningData.pace}_${planningData.tripType}_${planningData.height}`;
+  }, []);
+
+  const fetchDestinations = useCallback(async (
     userLocation: UserLocation, 
     planningData: PlanningData,
     profileData?: ProfileData
@@ -48,12 +61,27 @@ export const useSingleDestination = () => {
     setError(null);
     
     try {
+      const scenarioKey = generateScenarioKey(userLocation, planningData);
+      
+      // Vérifier si les destinations sont déjà en cache
+      const cachedData = localStorage.getItem(`destinations_${scenarioKey}`);
+      if (cachedData) {
+        const { list } = JSON.parse(cachedData);
+        setDestinationsList(list);
+        setCurrentDestination(list[0]);
+        setCurrentIndex(0);
+        setRefreshRemaining(2);
+        console.log('Destinations rechargées depuis le cache');
+        return;
+      }
+      
+      // Générer 3 nouvelles destinations
       const { data, error } = await supabase.functions.invoke('mapbox-destinations', {
         body: { 
           userLocation, 
           planningData,
           profileData,
-          excludedIds: seenIds
+          generateThree: true
         }
       });
       
@@ -61,34 +89,40 @@ export const useSingleDestination = () => {
         throw error;
       }
       
-      if (data?.destination) {
-        setCurrentDestination(data.destination);
-        setSeenIds(prev => [...prev, data.destination.id]);
+      if (data?.destinations && data.destinations.length > 0) {
+        const list = data.destinations;
+        setDestinationsList(list);
+        setCurrentDestination(list[0]);
+        setCurrentIndex(0);
+        setRefreshRemaining(2);
+        
+        // Sauvegarder en cache
+        localStorage.setItem(`destinations_${scenarioKey}`, JSON.stringify({ list }));
+        console.log('Nouvelles destinations générées et sauvegardées');
       } else {
         throw new Error('Aucune destination trouvée');
       }
     } catch (err) {
-      console.error('Erreur lors de la récupération de destination:', err);
+      console.error('Erreur lors de la récupération des destinations:', err);
       setError(err instanceof Error ? err.message : 'Erreur inconnue');
     } finally {
       setLoading(false);
     }
-  }, [seenIds]);
+  }, [generateScenarioKey]);
 
-  const refreshDestination = useCallback(async (
-    userLocation: UserLocation, 
-    planningData: PlanningData,
-    profileData?: ProfileData
-  ) => {
-    if (refreshRemaining <= 0) return;
+  const refreshDestination = useCallback(() => {
+    if (refreshRemaining <= 0 || currentIndex >= destinationsList.length - 1) return;
     
+    const nextIndex = currentIndex + 1;
+    setCurrentIndex(nextIndex);
+    setCurrentDestination(destinationsList[nextIndex]);
     setRefreshRemaining(prev => prev - 1);
-    await fetchDestination(userLocation, planningData, profileData);
-  }, [refreshRemaining, fetchDestination]);
+  }, [refreshRemaining, currentIndex, destinationsList]);
 
   const resetSession = useCallback(() => {
-    setRefreshRemaining(3);
-    setSeenIds([]);
+    setRefreshRemaining(2);
+    setCurrentIndex(0);
+    setDestinationsList([]);
     setCurrentDestination(null);
     setError(null);
   }, []);
@@ -98,9 +132,9 @@ export const useSingleDestination = () => {
     refreshRemaining,
     loading,
     error,
-    fetchDestination,
+    fetchDestinations,
     refreshDestination,
     resetSession,
-    canRefresh: refreshRemaining > 0
+    canRefresh: refreshRemaining > 0 && currentIndex < destinationsList.length - 1
   };
 };

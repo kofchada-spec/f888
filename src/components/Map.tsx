@@ -109,6 +109,18 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
       'top-right'
     );
 
+    // Add geolocate control
+    map.current.addControl(
+      new mapboxgl.GeolocateControl({
+        positionOptions: {
+          enableHighAccuracy: true
+        },
+        trackUserLocation: true,
+        showUserLocation: true
+      }),
+      'top-right'
+    );
+
     // Wait for map to load before adding POI interactions
     map.current.on('load', () => {
       // Resize map to ensure proper rendering
@@ -172,33 +184,39 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
     markers.current.forEach(marker => marker.remove());
     markers.current = [];
 
-    // Add user location marker
+    // Add user location marker (custom "Départ" marker)
     const userLocationEl = document.createElement('div');
     userLocationEl.className = 'user-location-marker';
     userLocationEl.innerHTML = `
       <div style="
-        width: 20px;
-        height: 20px;
-        background: #3b82f6;
+        width: 24px;
+        height: 24px;
+        background: #ef4444;
         border: 3px solid white;
         border-radius: 50%;
         box-shadow: 0 2px 10px rgba(0,0,0,0.3);
         position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
       ">
+        📍
         <div style="
           position: absolute;
-          top: -30px;
+          top: -35px;
           left: 50%;
           transform: translateX(-50%);
-          background: #3b82f6;
+          background: #ef4444;
           color: white;
           padding: 4px 8px;
           border-radius: 4px;
           font-size: 12px;
-          font-weight: 500;
+          font-weight: 600;
           white-space: nowrap;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         ">
-          📍 Départ
+          Départ
         </div>
       </div>
     `;
@@ -234,7 +252,7 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
         <div style="
           width: 40px;
           height: 40px;
-          background: ${isSelected ? 'hsl(var(--primary))' : 'hsl(var(--secondary))'};
+          background: ${isSelected ? '#10b981' : '#6b7280'};
           border: 3px solid white;
           border-radius: 50%;
           display: flex;
@@ -246,8 +264,9 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
           box-shadow: 0 4px 15px rgba(0,0,0,0.3);
           transition: all 0.3s ease;
           transform: ${isSelected ? 'scale(1.1)' : 'scale(1)'};
+          font-size: 18px;
         ">
-          ${destination.id}
+          🎯
         </div>
         <div style="
           position: absolute;
@@ -262,8 +281,11 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
           font-weight: 500;
           white-space: nowrap;
           box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-          border: ${isSelected ? '2px solid hsl(var(--primary))' : '1px solid #e5e7eb'};
+          border: ${isSelected ? '2px solid #10b981' : '1px solid #e5e7eb'};
           opacity: ${isSelected ? '1' : '0.8'};
+          max-width: 150px;
+          overflow: hidden;
+          text-overflow: ellipsis;
         ">
           ${destination.name}
         </div>
