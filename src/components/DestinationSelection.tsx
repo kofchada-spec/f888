@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ArrowLeft, MapPin, Clock, Zap } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, Zap, Loader2 } from 'lucide-react';
 import Map from './Map';
+import { useDestinationVariants } from '@/hooks/useDestinationVariants';
 
 interface DestinationSelectionProps {
   onComplete: (destination: Destination) => void;
@@ -21,11 +22,17 @@ interface Destination {
   duration: string;
   calories: number;
   description: string;
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
+  route?: any;
 }
 
 const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationSelectionProps) => {
   const [selectedDestination, setSelectedDestination] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const { destinations, loading, error, fetchDestinations } = useDestinationVariants();
 
   // Obtenir la localisation de l'utilisateur
   useEffect(() => {
@@ -49,94 +56,13 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
     }
   }, []);
 
-  // Calcul des données basé sur les paramètres de planification
-  const calculateMetrics = (baseDistance: number) => {
-    const steps = parseInt(planningData.steps);
-    const stepToKm = 0.00075; // Approximation: 1 pas = 0.75m
-    let targetDistance = steps * stepToKm;
-    
-    // Si c'est un aller-retour, diviser par 2 la distance cible
-    if (planningData.tripType === 'round-trip') {
-      targetDistance = targetDistance / 2;
+  // Charger les destinations quand localisation et données de planification sont prêtes
+  useEffect(() => {
+    if (userLocation && planningData) {
+      fetchDestinations(userLocation, planningData);
     }
-    
-    // Ajustement de la distance selon le ratio
-    const adjustedDistance = (baseDistance * targetDistance) / 5; // Base de 5km
-    
-    // Pour l'affichage, multiplier par 2 si aller-retour
-    const displayDistance = planningData.tripType === 'round-trip' ? adjustedDistance * 2 : adjustedDistance;
-    
-    // Calcul du temps selon l'allure
-    const paceSpeed = {
-      slow: 4,     // 4 km/h
-      moderate: 5, // 5 km/h  
-      fast: 6.5    // 6.5 km/h
-    };
-    
-    const speed = paceSpeed[planningData.pace];
-    const duration = displayDistance / speed * 60; // en minutes
-    
-    // Calcul des calories (approximation: 50 calories par km)
-    const calories = Math.round(displayDistance * 50);
-    
-    return {
-      distance: displayDistance.toFixed(1),
-      duration: Math.round(duration),
-      calories
-    };
-  };
+  }, [userLocation, planningData, fetchDestinations]);
 
-  const destinations: Destination[] = (() => {
-    if (planningData.tripType === 'round-trip') {
-      // Pour l'aller-retour : des boucles qui reviennent au point de départ
-      return [
-        {
-          id: 'A',
-          name: 'Circuit du Parc',
-          description: 'Boucle complète dans le parc avec retour au point de départ',
-          ...calculateMetrics(3.5)
-        },
-        {
-          id: 'B', 
-          name: 'Tour du Quartier',
-          description: 'Circuit urbain avec découverte du quartier',
-          ...calculateMetrics(4.8)
-        },
-        {
-          id: 'C',
-          name: 'Promenade Riverside',
-          description: 'Boucle le long de la rivière avec points d\'intérêt',
-          ...calculateMetrics(2.9)
-        }
-      ];
-    } else {
-      // Pour l'aller simple : destinations linéaires
-      return [
-        {
-          id: 'A',
-          name: 'Parc de la Citadelle',
-          description: 'Promenade paisible vers le parc historique',
-          ...calculateMetrics(4.2)
-        },
-        {
-          id: 'B', 
-          name: 'Bords de Seine',
-          description: 'Marche le long des quais avec vue sur le fleuve',
-          ...calculateMetrics(5.8)
-        },
-        {
-          id: 'C',
-          name: 'Centre Historique',
-          description: 'Découverte du patrimoine architectural en centre-ville',
-          ...calculateMetrics(3.6)
-        }
-      ];
-    }
-  })().map(dest => ({
-    ...dest,
-    distance: `${dest.distance} km`,
-    duration: `${dest.duration} min`
-  }));
 
   const handleDestinationSelect = (destination: Destination) => {
     setSelectedDestination(destination.id);
@@ -214,13 +140,38 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
 
         {/* Carte interactive avec localisation utilisateur */}
         <div className="bg-card rounded-2xl shadow-lg overflow-hidden mb-8">
-          <Map 
-            userLocation={userLocation}
-            destinations={destinations}
-            selectedDestination={selectedDestination}
-            onDestinationSelect={handleDestinationSelect}
-            planningData={planningData}
-          />
+          {loading ? (
+            <div className="h-80 flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl">
+              <div className="text-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+                <p className="text-sm text-muted-foreground">Recherche de destinations...</p>
+                <p className="text-xs text-muted-foreground mt-1">Génération de la variante en cours</p>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="h-80 flex items-center justify-center bg-gradient-to-br from-destructive/10 to-muted/10 rounded-2xl">
+              <div className="text-center max-w-md p-6">
+                <p className="text-sm text-destructive mb-2">Erreur lors du chargement</p>
+                <p className="text-xs text-muted-foreground">{error}</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-3"
+                  onClick={() => userLocation && fetchDestinations(userLocation, planningData)}
+                >
+                  Réessayer
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Map 
+              userLocation={userLocation}
+              destinations={destinations}
+              selectedDestination={selectedDestination}
+              onDestinationSelect={handleDestinationSelect}
+              planningData={planningData}
+            />
+          )}
         </div>
 
         {/* Liste des destinations */}

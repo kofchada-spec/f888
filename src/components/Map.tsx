@@ -9,6 +9,11 @@ interface Destination {
   duration: string;
   calories: number;
   description: string;
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
+  route?: any;
 }
 
 interface MapProps {
@@ -169,10 +174,19 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
 
     // Add destination markers
     destinations.forEach((destination, index) => {
-      const angle = (index * 120) * (Math.PI / 180);
-      const distance = 0.01;
-      const destLng = userLocation.lng + Math.cos(angle) * distance;
-      const destLat = userLocation.lat + Math.sin(angle) * distance;
+      let destLng, destLat;
+      
+      // Use real coordinates if available, otherwise calculate position
+      if (destination.coordinates) {
+        destLng = destination.coordinates.lng;
+        destLat = destination.coordinates.lat;
+      } else {
+        // Fallback to calculated positions
+        const angle = (index * 120) * (Math.PI / 180);
+        const distance = 0.01;
+        destLng = userLocation.lng + Math.cos(angle) * distance;
+        destLat = userLocation.lat + Math.sin(angle) * distance;
+      }
 
       const markerEl = document.createElement('div');
       markerEl.className = 'destination-marker';
@@ -230,16 +244,63 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
 
       // Add route line when map is ready
       if (map.current?.isStyleLoaded()) {
-        addRouteLine(destination.id, userLocation, { lat: destLat, lng: destLng }, isRoundTrip, isSelected);
+        if (destination.route) {
+          addRouteFromGeometry(destination.id, destination.route, isSelected);
+        } else {
+          addRouteLine(destination.id, userLocation, { lat: destLat, lng: destLng }, isRoundTrip, isSelected);
+        }
       } else {
         map.current?.on('styledata', () => {
           if (map.current?.isStyleLoaded()) {
-            addRouteLine(destination.id, userLocation, { lat: destLat, lng: destLng }, isRoundTrip, isSelected);
+            if (destination.route) {
+              addRouteFromGeometry(destination.id, destination.route, isSelected);
+            } else {
+              addRouteLine(destination.id, userLocation, { lat: destLat, lng: destLng }, isRoundTrip, isSelected);
+            }
           }
         });
       }
     });
   }, [destinations, selectedDestination, planningData, userLocation]);
+
+  const addRouteFromGeometry = (
+    destId: string,
+    routeGeometry: any,
+    isSelected: boolean
+  ) => {
+    if (!map.current) return;
+
+    const sourceId = `route-${destId}`;
+    const layerId = `route-layer-${destId}`;
+
+    // Remove existing route if it exists
+    if (map.current.getLayer(layerId)) {
+      map.current.removeLayer(layerId);
+    }
+    if (map.current.getSource(sourceId)) {
+      map.current.removeSource(sourceId);
+    }
+
+    map.current.addSource(sourceId, {
+      type: 'geojson',
+      data: routeGeometry
+    });
+
+    map.current.addLayer({
+      id: layerId,
+      type: 'line',
+      source: sourceId,
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round'
+      },
+      paint: {
+        'line-color': isSelected ? '#10b981' : '#6b7280',
+        'line-width': isSelected ? 4 : 2,
+        'line-opacity': isSelected ? 1 : 0.6
+      }
+    });
+  };
 
   const addRouteLine = (
     destId: string, 
