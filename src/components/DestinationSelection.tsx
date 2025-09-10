@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ArrowLeft, MapPin, Clock, Zap, Loader2 } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, Zap, Loader2, RefreshCw } from 'lucide-react';
 import Map from './Map';
-import { useDestinationVariants } from '@/hooks/useDestinationVariants';
+import { useSingleDestination } from '@/hooks/useSingleDestination';
+import { useAuth } from '@/hooks/useAuth';
 
 interface DestinationSelectionProps {
   onComplete: (destination: Destination) => void;
@@ -14,28 +15,40 @@ interface DestinationSelectionProps {
     tripType: 'one-way' | 'round-trip';
     height: string;
     weight: string;
-    variantIndex: number;
   };
 }
 
 interface Destination {
   id: string;
   name: string;
-  distance: string;
-  duration: string;
-  calories: number;
-  description: string;
-  coordinates?: {
+  coordinates: {
     lat: number;
     lng: number;
   };
-  route?: any;
+  routeGeoJSON?: any;
+  distanceKm: number;
+  durationMin: number;
+  calories: number;
 }
 
 const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationSelectionProps) => {
-  const [selectedDestination, setSelectedDestination] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
-  const { destinations, loading, error, fetchDestinations } = useDestinationVariants();
+  const { user } = useAuth();
+  const { 
+    currentDestination, 
+    refreshRemaining, 
+    loading, 
+    error, 
+    fetchDestination, 
+    refreshDestination, 
+    resetSession,
+    canRefresh 
+  } = useSingleDestination();
+
+  // Réinitialiser la session si les paramètres changent
+  useEffect(() => {
+    resetSession();
+  }, [planningData.steps, planningData.pace, planningData.tripType, planningData.height, planningData.weight, resetSession]);
 
   // Obtenir la localisation de l'utilisateur
   useEffect(() => {
@@ -59,22 +72,28 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
     }
   }, []);
 
-  // Charger les destinations quand localisation et données de planification sont prêtes
+  // Charger la première destination quand localisation et données sont prêtes
   useEffect(() => {
-    if (userLocation && planningData) {
-      fetchDestinations(userLocation, planningData, planningData.variantIndex);
+    if (userLocation && planningData && !currentDestination && !loading) {
+      fetchDestination(userLocation, planningData, {
+        heightM: parseFloat(planningData.height),
+        weightKg: parseFloat(planningData.weight)
+      });
     }
-  }, [userLocation, planningData?.steps, planningData?.pace, planningData?.tripType, planningData?.variantIndex, fetchDestinations]);
+  }, [userLocation, planningData, currentDestination, loading, fetchDestination]);
 
-
-  const handleDestinationSelect = (destination: Destination) => {
-    setSelectedDestination(destination.id);
+  const handleRefresh = () => {
+    if (userLocation && canRefresh) {
+      refreshDestination(userLocation, planningData, {
+        heightM: parseFloat(planningData.height),
+        weightKg: parseFloat(planningData.weight)
+      });
+    }
   };
 
   const handleStartWalk = () => {
-    const selected = destinations.find(d => d.id === selectedDestination);
-    if (selected) {
-      onComplete(selected);
+    if (currentDestination) {
+      onComplete(currentDestination);
     }
   };
 
@@ -114,7 +133,7 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
           </h1>
           <div className="space-y-2 text-muted-foreground max-w-2xl mx-auto">
             <p>FitPaS calcule la distance en fonction de ton allure et du nombre de pas.</p>
-            <p>Voici 3 destinations proposées pour atteindre ton objectif.</p>
+            <p>Voici une destination proposée pour atteindre ton objectif.</p>
           </div>
         </div>
 
@@ -149,94 +168,102 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
           </div>
         </div>
 
-        {/* Carte interactive avec localisation utilisateur */}
+        {/* Carte interactive avec destination unique */}
         <div className="bg-card rounded-2xl shadow-lg overflow-hidden mb-8" style={{ height: '360px' }}>
           {loading ? (
             <div className="h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl">
               <div className="text-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-                <p className="text-sm text-muted-foreground">Recherche de destinations...</p>
-                <p className="text-xs text-muted-foreground mt-1">Génération de la variante en cours</p>
+                <p className="text-sm text-muted-foreground">Recherche de destination...</p>
+                <p className="text-xs text-muted-foreground mt-1">Calcul de l'itinéraire optimal</p>
               </div>
             </div>
           ) : error ? (
             <div className="h-full flex items-center justify-center bg-gradient-to-br from-destructive/10 to-muted/10 rounded-2xl">
               <div className="text-center max-w-md p-6">
                 <p className="text-sm text-destructive mb-2">Erreur lors du chargement</p>
-                <p className="text-xs text-muted-foreground">{error}</p>
+                <p className="text-xs text-muted-foreground mb-4">{error}</p>
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className="mt-3"
-                  onClick={() => userLocation && fetchDestinations(userLocation, planningData, planningData.variantIndex)}
+                  onClick={() => userLocation && fetchDestination(userLocation, planningData, { heightM: parseFloat(planningData.height), weightKg: parseFloat(planningData.weight) })}
                 >
                   Réessayer
                 </Button>
               </div>
             </div>
-          ) : (
+          ) : currentDestination ? (
             <Map 
               userLocation={userLocation}
-              destinations={destinations}
-              selectedDestination={selectedDestination}
-              onDestinationSelect={handleDestinationSelect}
+              destinations={currentDestination ? [{
+                id: currentDestination.id,
+                name: currentDestination.name,
+                distance: `${currentDestination.distanceKm.toFixed(1)} km`,
+                duration: `${currentDestination.durationMin} min`,
+                calories: currentDestination.calories,
+                description: `Destination à ${currentDestination.distanceKm.toFixed(1)} km`,
+                coordinates: currentDestination.coordinates,
+                route: currentDestination.routeGeoJSON
+              }] : []}
+              selectedDestination={currentDestination ? currentDestination.id : null}
+              onDestinationSelect={() => {}} // Pas de sélection nécessaire avec une seule destination
               planningData={planningData}
             />
+          ) : (
+            <div className="h-full flex items-center justify-center bg-gradient-to-br from-muted/10 to-secondary/10 rounded-2xl">
+              <p className="text-muted-foreground">Aucune destination trouvée</p>
+            </div>
           )}
         </div>
 
-        {/* Liste des destinations */}
-        <div className="grid gap-6 mb-8">
-          {destinations.map((destination) => (
-            <Card
-              key={destination.id}
-              className={`p-6 cursor-pointer transition-all hover:shadow-lg ${
-                selectedDestination === destination.id 
-                  ? 'ring-2 ring-primary bg-primary/5' 
-                  : 'hover:bg-card/80'
-              }`}
-              onClick={() => handleDestinationSelect(destination)}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-start space-x-4">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-white ${
-                    selectedDestination === destination.id ? 'bg-primary' : 'bg-secondary'
-                  }`}>
-                    {destination.id}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-semibold text-foreground mb-1">
-                      {destination.name}
-                    </h3>
-                    <p className="text-muted-foreground text-sm mb-4">
-                      {destination.description}
-                    </p>
-                    <div className="flex items-center space-x-6 text-sm">
-                      <div className="flex items-center space-x-2">
-                        <MapPin size={16} className="text-primary" />
-                        <span className="font-medium">{destination.distance}</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Clock size={16} className="text-secondary" />
-                        <span className="font-medium">{destination.duration}</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Zap size={16} className="text-orange-500" />
-                        <span className="font-medium">{destination.calories} cal</span>
-                      </div>
+        {/* Carte de destination unique */}
+        {currentDestination && (
+          <Card className="p-6 mb-8 shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-start space-x-4">
+                <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center font-bold text-primary-foreground">
+                  🎯
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-2xl font-semibold text-foreground mb-2">
+                    {currentDestination.name}
+                  </h3>
+                  <div className="grid grid-cols-3 gap-6 text-sm">
+                    <div className="flex items-center space-x-2">
+                      <MapPin size={16} className="text-primary" />
+                      <span className="font-medium">{currentDestination.distanceKm.toFixed(1)} km</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Clock size={16} className="text-secondary" />
+                      <span className="font-medium">{currentDestination.durationMin} min</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Zap size={16} className="text-orange-500" />
+                      <span className="font-medium">{currentDestination.calories} cal</span>
                     </div>
                   </div>
                 </div>
               </div>
-            </Card>
-          ))}
-        </div>
+              <Button
+                onClick={handleRefresh}
+                disabled={!canRefresh || loading}
+                variant="outline"
+                size="sm"
+                className="flex items-center space-x-2"
+                title={canRefresh ? `Réactualiser (${refreshRemaining}/3)` : 'Limite atteinte'}
+              >
+                <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                <span>Réactualiser ({refreshRemaining}/3)</span>
+              </Button>
+            </div>
+          </Card>
+        )}
 
         {/* Bouton CTA */}
         <div className="text-center">
           <Button
             onClick={handleStartWalk}
-            disabled={!selectedDestination}
+            disabled={!currentDestination}
             size="lg"
             className="w-full max-w-md h-14 text-lg font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:transform-none"
           >
