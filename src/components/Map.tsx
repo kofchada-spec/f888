@@ -46,14 +46,18 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
           throw error;
         }
         
-        if (data?.token) {
+        if (data?.token && typeof data.token === 'string' && data.token.startsWith('pk.')) {
+          console.log('Valid Mapbox token received');
           setMapboxToken(data.token);
         } else {
-          throw new Error('No token received');
+          console.error('Invalid token received:', data);
+          throw new Error('Invalid token received');
         }
       } catch (error) {
         console.error('Error fetching Mapbox token:', error);
-        setMapboxToken('pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw');
+        // Fallback: ask user to provide token directly in console for debugging
+        console.log('Please check your MAPBOX_PUBLIC_TOKEN in Supabase secrets');
+        setMapboxToken(null);
       }
     };
     getMapboxToken();
@@ -61,8 +65,16 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
 
   // Initialize map once when token is available
   useEffect(() => {
-    if (!mapContainer.current || !mapboxToken) return;
+    if (!mapContainer.current || !mapboxToken || !mapboxToken.startsWith('pk.')) {
+      console.log('Map initialization waiting for:', { 
+        container: !!mapContainer.current, 
+        token: !!mapboxToken,
+        validToken: mapboxToken?.startsWith('pk.')
+      });
+      return;
+    }
 
+    console.log('Initializing map with token:', mapboxToken.substring(0, 20) + '...');
     mapboxgl.accessToken = mapboxToken;
     
     map.current = new mapboxgl.Map({
@@ -371,14 +383,16 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
     });
   };
 
-  if (!mapboxToken) {
+  if (!mapboxToken || !mapboxToken.startsWith('pk.')) {
     return (
       <div className="relative h-80 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl flex items-center justify-center">
         <div className="text-center max-w-md p-6">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-sm text-muted-foreground mb-2">Chargement de la carte...</p>
+          <p className="text-sm text-muted-foreground mb-2">
+            {!mapboxToken ? 'Chargement du token Mapbox...' : 'Token Mapbox invalide'}
+          </p>
           <p className="text-xs text-muted-foreground">
-            Si le chargement prend trop de temps, vérifiez que votre token Mapbox est configuré.
+            Vérifiez que votre token Mapbox est configuré dans les secrets Supabase.
           </p>
         </div>
       </div>
