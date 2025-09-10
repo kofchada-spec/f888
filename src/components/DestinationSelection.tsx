@@ -94,6 +94,32 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
     }
   };
 
+  // Calculer l'écart avec la distance cible
+  const getTargetDistance = () => {
+    const steps = parseInt(planningData.steps);
+    const heightM = parseFloat(planningData.height);
+    const strideM = 0.415 * heightM;
+    const totalKm = (steps * strideM) / 1000;
+    return planningData.tripType === 'round-trip' ? totalKm / 2 : totalKm;
+  };
+
+  const getDeviation = () => {
+    if (!currentDestination) return '0 km';
+    const target = getTargetDistance();
+    const deviation = currentDestination.distanceKm - target;
+    const sign = deviation >= 0 ? '+' : '';
+    return `${sign}${deviation.toFixed(1)} km`;
+  };
+
+  const getDeviationColor = () => {
+    if (!currentDestination) return 'bg-gray-400';
+    const target = getTargetDistance();
+    const deviation = Math.abs(currentDestination.distanceKm - target);
+    if (deviation <= 0.2) return 'bg-green-500';
+    if (deviation <= 0.5) return 'bg-orange-500';
+    return 'bg-red-500';
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
       {/* Header */}
@@ -225,18 +251,34 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
                   <h3 className="text-2xl font-semibold text-foreground mb-2">
                     {currentDestination.name}
                   </h3>
-                  <div className="grid grid-cols-3 gap-6 text-sm">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div className="flex items-center space-x-2">
                       <MapPin size={16} className="text-primary" />
-                      <span className="font-medium">{currentDestination.distanceKm.toFixed(1)} km</span>
+                      <div>
+                        <span className="font-medium">{currentDestination.distanceKm.toFixed(1)} km</span>
+                        <p className="text-xs text-muted-foreground">Distance aller</p>
+                      </div>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Clock size={16} className="text-secondary" />
-                      <span className="font-medium">{currentDestination.durationMin} min</span>
+                      <div>
+                        <span className="font-medium">{currentDestination.durationMin} min</span>
+                        <p className="text-xs text-muted-foreground">Durée aller</p>
+                      </div>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Zap size={16} className="text-orange-500" />
-                      <span className="font-medium">{currentDestination.calories} cal</span>
+                      <div>
+                        <span className="font-medium">{currentDestination.calories} cal</span>
+                        <p className="text-xs text-muted-foreground">Calories totales</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-4 h-4 rounded-full ${getDeviationColor()}`}></div>
+                      <div>
+                        <span className="font-medium">{getDeviation()}</span>
+                        <p className="text-xs text-muted-foreground">Écart cible</p>
+                      </div>
                     </div>
                   </div>
                 </div>
