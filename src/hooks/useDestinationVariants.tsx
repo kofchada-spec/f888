@@ -4,6 +4,8 @@ interface PlanningData {
   steps: string;
   pace: 'slow' | 'moderate' | 'fast';
   tripType: 'one-way' | 'round-trip';
+  height: string;
+  weight: string;
 }
 
 interface UserLocation {
@@ -35,7 +37,7 @@ export const useDestinationVariants = () => {
     const roundedLat = Math.round(userLocation.lat * 1000) / 1000;
     const roundedLng = Math.round(userLocation.lng * 1000) / 1000;
     
-    return `${roundedLat}_${roundedLng}_${planningData.steps}_${planningData.pace}_${planningData.tripType}`;
+    return `${roundedLat}_${roundedLng}_${planningData.steps}_${planningData.pace}_${planningData.tripType}_${planningData.height}_${planningData.weight}`;
   };
 
   const getVariantIndex = (scenarioKey: string): number => {
@@ -95,30 +97,47 @@ export const useDestinationVariants = () => {
   const generateFallbackDestinations = (planningData: PlanningData): Destination[] => {
     const calculateMetrics = (baseDistance: number) => {
       const steps = parseInt(planningData.steps);
-      const stepToKm = 0.00075;
-      let targetDistance = steps * stepToKm;
+      const heightInM = parseFloat(planningData.height);
+      const weightInKg = parseFloat(planningData.weight) || 70; // fallback weight
+      
+      // Formule de foulée : 0.415 × taille (m)
+      const strideLength = 0.415 * heightInM;
+      
+      // Distance (km) = pas × foulée / 1000
+      let targetDistance = (steps * strideLength) / 1000;
       
       if (planningData.tripType === 'round-trip') {
         targetDistance = targetDistance / 2;
       }
       
+      // Ajustement avec le ratio de base
       const adjustedDistance = (baseDistance * targetDistance) / 5;
       const displayDistance = planningData.tripType === 'round-trip' ? adjustedDistance * 2 : adjustedDistance;
       
+      // Vitesse selon l'allure
       const paceSpeed = {
         slow: 4,
         moderate: 5,
-        fast: 6.5
+        fast: 6
       };
       
       const speed = paceSpeed[planningData.pace];
-      const duration = displayDistance / speed * 60;
-      const calories = Math.round(displayDistance * 50);
+      const duration = displayDistance / speed * 60; // en minutes
+      
+      // Calories : distance × poids × coefficient
+      const calorieCoefficients = {
+        slow: 0.35,
+        moderate: 0.50,
+        fast: 0.70
+      };
+      
+      const coefficient = calorieCoefficients[planningData.pace];
+      const calories = displayDistance * weightInKg * coefficient;
       
       return {
         distance: displayDistance.toFixed(1),
         duration: Math.round(duration),
-        calories
+        calories: Math.round(calories)
       };
     };
 

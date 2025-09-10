@@ -12,6 +12,8 @@ interface DestinationSelectionProps {
     steps: string;
     pace: 'slow' | 'moderate' | 'fast';
     tripType: 'one-way' | 'round-trip';
+    height: string;
+    weight: string;
   };
 }
 
@@ -117,10 +119,18 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
 
         {/* Résumé de la planification */}
         <div className="bg-card rounded-xl p-4 mb-8 shadow-sm">
-          <div className="flex justify-center items-center space-x-8 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
             <div className="text-center">
               <p className="text-muted-foreground">Objectif</p>
               <p className="font-semibold">{planningData.steps} pas</p>
+            </div>
+            <div className="text-center">
+              <p className="text-muted-foreground">Taille</p>
+              <p className="font-semibold">{planningData.height} m</p>
+            </div>
+            <div className="text-center">
+              <p className="text-muted-foreground">Poids</p>
+              <p className="font-semibold">{planningData.weight} kg</p>
             </div>
             <div className="text-center">
               <p className="text-muted-foreground">Allure</p>

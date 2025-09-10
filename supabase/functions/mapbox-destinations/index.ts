@@ -23,10 +23,16 @@ serve(async (req) => {
 
     console.log('Generating destinations for variant:', variantIndex, planningData);
 
-    // Calculate target distance based on steps and pace
+    // Calculate target distance based on steps and pace using new formulas
     const steps = parseInt(planningData.steps);
-    const stepToKm = 0.00075; // 1 step = 0.75m
-    let targetDistance = steps * stepToKm;
+    const heightInM = parseFloat(planningData.height);
+    const weightInKg = parseFloat(planningData.weight) || 70;
+    
+    // Formule de foulée : 0.415 × taille (m)
+    const strideLength = 0.415 * heightInM;
+    
+    // Distance (km) = pas × foulée / 1000
+    let targetDistance = (steps * strideLength) / 1000;
     
     if (planningData.tripType === 'round-trip') {
       targetDistance = targetDistance / 2;
@@ -79,8 +85,16 @@ serve(async (req) => {
               actualDuration *= 2;
             }
 
-            // Calculate calories (50 cal per km approximation)
-            const calories = Math.round(actualDistance * 50);
+            // Calculate calories using new formula: distance × poids × coefficient
+            const calorieCoefficients = {
+              slow: 0.35,
+              moderate: 0.50,
+              fast: 0.70
+            };
+            
+            const coefficient = calorieCoefficients[planningData.pace];
+            const weightInKg = parseFloat(planningData.weight) || 70;
+            const calories = Math.round(actualDistance * weightInKg * coefficient);
 
             destinations.push({
               id: String.fromCharCode(65 + poiIndex), // A, B, C
@@ -110,7 +124,16 @@ serve(async (req) => {
             actualDuration *= 2;
           }
 
-          const calories = Math.round(actualDistance * 50);
+          // Calculate calories using new formula
+          const calorieCoefficients = {
+            slow: 0.35,
+            moderate: 0.50,
+            fast: 0.70
+          };
+          
+          const coefficient = calorieCoefficients[planningData.pace];
+          const weightInKg = parseFloat(planningData.weight) || 70;
+          const calories = Math.round(actualDistance * weightInKg * coefficient);
 
           destinations.push({
             id: String.fromCharCode(65 + poiIndex),
@@ -144,7 +167,16 @@ serve(async (req) => {
         actualDuration *= 2;
       }
 
-      const calories = Math.round(actualDistance * 50);
+      // Calculate calories using new formula
+      const calorieCoefficients = {
+        slow: 0.35,
+        moderate: 0.50,
+        fast: 0.70
+      };
+      
+      const coefficient = calorieCoefficients[planningData.pace];
+      const weightInKg = parseFloat(planningData.weight) || 70;
+      const calories = Math.round(actualDistance * weightInKg * coefficient);
 
       destinations.push({
         id: String.fromCharCode(65 + index),
@@ -220,7 +252,7 @@ function getPaceSpeed(pace: string): number {
   const speeds = {
     slow: 4,     // 4 km/h
     moderate: 5, // 5 km/h  
-    fast: 6.5    // 6.5 km/h
+    fast: 6      // 6 km/h
   };
   return speeds[pace] || 5;
 }

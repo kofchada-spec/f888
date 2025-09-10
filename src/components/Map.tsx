@@ -25,6 +25,8 @@ interface MapProps {
     tripType: 'one-way' | 'round-trip';
     steps: string;
     pace: 'slow' | 'moderate' | 'fast';
+    height: string;
+    weight: string;
   };
 }
 
