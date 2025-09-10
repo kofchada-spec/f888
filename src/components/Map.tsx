@@ -29,11 +29,10 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
   const markers = useRef<mapboxgl.Marker[]>([]);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
 
-  // Get Mapbox token from Supabase edge function
+  // Get Mapbox token from Supabase edge function (only once)
   useEffect(() => {
     const getMapboxToken = async () => {
       try {
-        // Call Supabase edge function
         const { supabase } = await import('@/integrations/supabase/client');
         const { data, error } = await supabase.functions.invoke('mapbox-token');
         
@@ -49,24 +48,23 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
         }
       } catch (error) {
         console.error('Error fetching Mapbox token:', error);
-        // Fallback: use a placeholder token for development
         setMapboxToken('pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw');
       }
     };
     getMapboxToken();
   }, []);
 
+  // Initialize map once when token is available
   useEffect(() => {
-    if (!mapContainer.current || !userLocation || !mapboxToken) return;
+    if (!mapContainer.current || !mapboxToken) return;
 
-    // Initialize map
     mapboxgl.accessToken = mapboxToken;
     
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12', // Style with POI data
+      style: 'mapbox://styles/mapbox/streets-v12',
       zoom: 14,
-      center: [userLocation.lng, userLocation.lat],
+      center: userLocation ? [userLocation.lng, userLocation.lat] : [2.3522, 48.8566], // Paris par défaut
     });
 
     // Add navigation controls
@@ -79,31 +77,58 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
 
     // Wait for map to load before adding POI interactions
     map.current.on('load', () => {
-      // Add click event for POI labels
-      map.current!.on('click', 'poi-label', (e) => {
-        const coordinates = e.lngLat;
-        const properties = e.features![0].properties;
-        
-        new mapboxgl.Popup()
-          .setLngLat(coordinates)
-          .setHTML(`
-            <div class="p-2">
-              <h3 class="font-semibold">${properties.name || 'Point d\'intérêt'}</h3>
-              <p class="text-sm text-gray-600">${properties.class || 'Lieu'}</p>
-            </div>
-          `)
-          .addTo(map.current!);
-      });
+      // Protéger les événements POI avec getLayer
+      if (map.current?.getLayer('poi-label')) {
+        map.current.on('click', 'poi-label', (e) => {
+          const coordinates = e.lngLat;
+          const properties = e.features![0].properties;
+          
+          new mapboxgl.Popup()
+            .setLngLat(coordinates)
+            .setHTML(`
+              <div class="p-2">
+                <h3 class="font-semibold">${properties.name || 'Point d\'intérêt'}</h3>
+                <p class="text-sm text-gray-600">${properties.class || 'Lieu'}</p>
+              </div>
+            `)
+            .addTo(map.current!);
+        });
 
-      // Change cursor on hover
-      map.current!.on('mouseenter', 'poi-label', () => {
-        map.current!.getCanvas().style.cursor = 'pointer';
-      });
+        map.current.on('mouseenter', 'poi-label', () => {
+          map.current!.getCanvas().style.cursor = 'pointer';
+        });
 
-      map.current!.on('mouseleave', 'poi-label', () => {
-        map.current!.getCanvas().style.cursor = '';
-      });
+        map.current.on('mouseleave', 'poi-label', () => {
+          map.current!.getCanvas().style.cursor = '';
+        });
+      }
     });
+
+    // Cleanup
+    return () => {
+      map.current?.remove();
+    };
+  }, [mapboxToken]);
+
+  // Update camera when userLocation changes
+  useEffect(() => {
+    if (map.current && userLocation) {
+      map.current.flyTo({
+        center: [userLocation.lng, userLocation.lat],
+        zoom: 14,
+        speed: 1.2,
+        curve: 1.42
+      });
+    }
+  }, [userLocation]);
+
+  // Update markers and routes when destinations or selection changes
+  useEffect(() => {
+    if (!map.current || !userLocation) return;
+
+    // Clear existing markers
+    markers.current.forEach(marker => marker.remove());
+    markers.current = [];
 
     // Add user location marker
     const userLocationEl = document.createElement('div');
@@ -136,19 +161,16 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
       </div>
     `;
 
-    new mapboxgl.Marker(userLocationEl)
+    const userMarker = new mapboxgl.Marker(userLocationEl)
       .setLngLat([userLocation.lng, userLocation.lat])
       .addTo(map.current);
-
-    // Clear existing markers
-    markers.current.forEach(marker => marker.remove());
-    markers.current = [];
+    
+    markers.current.push(userMarker);
 
     // Add destination markers
     destinations.forEach((destination, index) => {
-      // Calculate destination position (simulate different locations around user)
-      const angle = (index * 120) * (Math.PI / 180); // 120 degrees apart
-      const distance = 0.01; // Approximate distance in degrees
+      const angle = (index * 120) * (Math.PI / 180);
+      const distance = 0.01;
       const destLng = userLocation.lng + Math.cos(angle) * distance;
       const destLat = userLocation.lat + Math.sin(angle) * distance;
 
@@ -206,22 +228,18 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
 
       markers.current.push(marker);
 
-      // Add route line
+      // Add route line when map is ready
       if (map.current?.isStyleLoaded()) {
         addRouteLine(destination.id, userLocation, { lat: destLat, lng: destLng }, isRoundTrip, isSelected);
       } else {
-        map.current?.on('style.load', () => {
-          addRouteLine(destination.id, userLocation, { lat: destLat, lng: destLng }, isRoundTrip, isSelected);
+        map.current?.on('styledata', () => {
+          if (map.current?.isStyleLoaded()) {
+            addRouteLine(destination.id, userLocation, { lat: destLat, lng: destLng }, isRoundTrip, isSelected);
+          }
         });
       }
     });
-
-    // Cleanup
-    return () => {
-      markers.current.forEach(marker => marker.remove());
-      map.current?.remove();
-    };
-  }, [userLocation, destinations, selectedDestination, planningData, mapboxToken]);
+  }, [destinations, selectedDestination, planningData, userLocation]);
 
   const addRouteLine = (
     destId: string, 
@@ -308,7 +326,11 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
 
   return (
     <div className="relative h-80 rounded-2xl overflow-hidden shadow-lg">
-      <div ref={mapContainer} className="absolute inset-1 rounded-lg" />
+      <div 
+        ref={mapContainer} 
+        style={{ width: '100%', height: '100%' }}
+        className="absolute inset-0 rounded-lg" 
+      />
       
       {/* Légende */}
       <div className="absolute top-4 left-4 bg-white/95 dark:bg-black/95 rounded-lg p-3 text-xs shadow-lg border">
