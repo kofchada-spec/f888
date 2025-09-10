@@ -300,6 +300,30 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
     });
   }, [destinations, selectedDestination, planningData, userLocation]);
 
+  // IntersectionObserver to resize map when it becomes visible (must be before any returns)
+  useEffect(() => {
+    if (!mapContainer.current || !map.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && map.current) {
+            setTimeout(() => {
+              map.current?.resize();
+            }, 100);
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(mapContainer.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [map.current]);
+
   const addRouteFromGeometry = (
     destId: string,
     routeGeometry: any,
@@ -423,30 +447,6 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
       </div>
     );
   }
-
-  // IntersectionObserver to resize map when it becomes visible
-  useEffect(() => {
-    if (!mapContainer.current) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && map.current) {
-            setTimeout(() => {
-              map.current?.resize();
-            }, 100);
-          }
-        });
-      },
-      { threshold: 0.1 }
-    );
-
-    observer.observe(mapContainer.current);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
 
   return (
     <div style={{ height: '360px' }} className="relative rounded-2xl overflow-hidden shadow-lg">
