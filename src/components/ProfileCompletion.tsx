@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ProfileCompletionProps {
   onComplete: () => void;
@@ -43,6 +44,7 @@ const profileSchema = z.object({
 type ProfileFormData = z.infer<typeof profileSchema>;
 
 const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [heightInput, setHeightInput] = useState('');
   const [weightInput, setWeightInput] = useState('');
@@ -93,28 +95,35 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
       const monthDiff = today.getMonth() - (month - 1);
       const finalAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < day) ? age - 1 : age;
 
-      // Save to Supabase profiles table
-      const { supabase } = await import('@/integrations/supabase/client');
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
+      if (user) {
+        // Save to Supabase profiles table if user is authenticated
+        const { supabase } = await import('@/integrations/supabase/client');
+        
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            gender: data.gender,
+            height_m: data.height,
+            weight_kg: data.weight,
+            birth_date: birthDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
+            age_years: finalAge
+          })
+          .eq('user_id', user.id);
 
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({
+        if (updateError) {
+          console.error('Error saving profile:', updateError);
+          throw updateError;
+        }
+      } else {
+        // If no user (auth skipped), store in localStorage
+        const profileData = {
           gender: data.gender,
           height_m: data.height,
           weight_kg: data.weight,
-          birth_date: birthDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
+          birth_date: birthDate.toISOString().split('T')[0],
           age_years: finalAge
-        })
-        .eq('user_id', user.id);
-
-      if (updateError) {
-        console.error('Error saving profile:', updateError);
-        throw updateError;
+        };
+        localStorage.setItem('fitpas-profile-data', JSON.stringify(profileData));
       }
       
       onComplete();
