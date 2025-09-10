@@ -71,7 +71,7 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
       console.log('Map initialization waiting for:', { 
         container: !!mapContainer.current, 
         token: !!mapboxToken,
-        validToken: mapboxToken?.startsWith('pk.')
+        validToken: !!mapboxToken && mapboxToken.startsWith('pk.')
       });
       return;
     }

@@ -64,7 +64,7 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
     if (userLocation && planningData) {
       fetchDestinations(userLocation, planningData, planningData.variantIndex);
     }
-  }, [userLocation, planningData, fetchDestinations]);
+  }, [userLocation, planningData?.steps, planningData?.pace, planningData?.tripType, planningData?.variantIndex, fetchDestinations]);
 
 
   const handleDestinationSelect = (destination: Destination) => {
