@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Footprints, MapPin, Flame, Clock } from 'lucide-react';
+import { WeeklyCalendarModal } from '@/components/WeeklyCalendarModal';
 
 export interface DayStats {
   dateISO: string;
@@ -20,6 +21,7 @@ interface WeeklyStatsProps {
 
 export const WeeklyStats = ({ userProfile }: WeeklyStatsProps) => {
   const [weeklyStats, setWeeklyStats] = useState<DayStats[]>([]);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   // Générer des données de démonstration pour la semaine
   const generateMockWeekData = (): DayStats[] => {
@@ -88,13 +90,18 @@ export const WeeklyStats = ({ userProfile }: WeeklyStatsProps) => {
       <CardContent className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-foreground">Cette semaine</h2>
-          <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-primary hover:text-primary/80"
+            onClick={() => setIsCalendarOpen(true)}
+          >
             Voir le détail
           </Button>
         </div>
 
         {/* Résumé totaux */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
           <div className="text-center p-3 bg-muted/50 rounded-lg">
             <div className="flex items-center justify-center mb-1">
               <Footprints className="h-4 w-4 text-primary mr-1" />
@@ -128,64 +135,37 @@ export const WeeklyStats = ({ userProfile }: WeeklyStatsProps) => {
           </div>
         </div>
 
-        {/* Détail par jour */}
-        <div className="space-y-3">
-          {dayNames.map((dayName, index) => {
-            const dayData = weeklyStats[index];
-            const hasData = dayData && dayData.steps > 0;
-            
-            return (
-              <div
-                key={index}
-                className={`grid grid-cols-5 gap-4 p-3 rounded-lg transition-colors ${
-                  hasData ? 'bg-background border border-border' : 'bg-muted/30'
-                }`}
-              >
-                <div className="text-center font-medium">
-                  <p className={`text-sm ${hasData ? 'text-foreground' : 'text-muted-foreground'}`}>
-                    {dayName}
-                  </p>
+        {/* Graphique simple de la semaine */}
+        <div className="bg-muted/30 rounded-lg p-4">
+          <h3 className="text-sm font-medium text-foreground mb-3">Progression de la semaine</h3>
+          <div className="flex items-end justify-between space-x-2 h-20">
+            {dayNames.map((dayName, index) => {
+              const dayData = weeklyStats[index];
+              const steps = dayData?.steps || 0;
+              const maxSteps = Math.max(...weeklyStats.map(d => d.steps));
+              const heightPercent = maxSteps > 0 ? (steps / maxSteps) * 100 : 0;
+              
+              return (
+                <div key={index} className="flex-1 flex flex-col items-center">
+                  <div 
+                    className={`w-full rounded-t transition-all ${
+                      steps > 0 ? 'bg-primary' : 'bg-muted'
+                    }`}
+                    style={{ height: `${Math.max(heightPercent, steps > 0 ? 10 : 5)}%` }}
+                  />
+                  <span className="text-xs text-muted-foreground mt-1">{dayName}</span>
                 </div>
-                
-                <div className="text-center">
-                  <p className={`text-xs ${hasData ? 'text-muted-foreground' : 'text-muted-foreground/60'}`}>
-                    Pas
-                  </p>
-                  <p className={`font-medium ${hasData ? 'text-foreground' : 'text-muted-foreground/60'}`}>
-                    {hasData ? dayData.steps.toLocaleString() : '0'}
-                  </p>
-                </div>
-                
-                <div className="text-center">
-                  <p className={`text-xs ${hasData ? 'text-muted-foreground' : 'text-muted-foreground/60'}`}>
-                    Km
-                  </p>
-                  <p className={`font-medium ${hasData ? 'text-foreground' : 'text-muted-foreground/60'}`}>
-                    {hasData ? dayData.distanceKm.toFixed(1) : '0'}
-                  </p>
-                </div>
-                
-                <div className="text-center">
-                  <p className={`text-xs ${hasData ? 'text-muted-foreground' : 'text-muted-foreground/60'}`}>
-                    Kcal
-                  </p>
-                  <p className={`font-medium ${hasData ? 'text-foreground' : 'text-muted-foreground/60'}`}>
-                    {hasData ? dayData.kcal : '0'}
-                  </p>
-                </div>
-                
-                <div className="text-center">
-                  <p className={`text-xs ${hasData ? 'text-muted-foreground' : 'text-muted-foreground/60'}`}>
-                    Min
-                  </p>
-                  <p className={`font-medium ${hasData ? 'text-foreground' : 'text-muted-foreground/60'}`}>
-                    {hasData ? dayData.walkMin : '0'}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
+
+        {/* Modal Calendrier */}
+        <WeeklyCalendarModal 
+          isOpen={isCalendarOpen}
+          onClose={() => setIsCalendarOpen(false)}
+          weeklyStats={weeklyStats}
+        />
       </CardContent>
     </Card>
   );
