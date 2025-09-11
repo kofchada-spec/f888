@@ -5,6 +5,9 @@ import { ArrowLeft, MapPin, Clock, Zap, Loader2, RefreshCw } from 'lucide-react'
 import Map, { MapRef } from './Map';
 import { useSingleDestination } from '@/hooks/useSingleDestination';
 import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 
 interface DestinationSelectionProps {
   onComplete: (destination: Destination) => void;
@@ -35,6 +38,9 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const mapRef = useRef<MapRef>(null);
   const { user } = useAuth();
+  const { subscriptionData } = useSubscription();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const { 
     currentDestination, 
     refreshRemaining, 
@@ -90,9 +96,23 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
   };
 
   const handleStartWalk = () => {
-    if (currentDestination) {
-      onComplete(currentDestination);
+    if (!currentDestination) return;
+    
+    // Vérifier si l'utilisateur a accès (abonné ou en période d'essai)
+    if (!subscriptionData?.hasAccess) {
+      toast({
+        title: "Abonnement requis",
+        description: subscriptionData?.inFreeTrial ? 
+          "Votre période d'essai gratuite est expirée. Abonnez-vous pour continuer." : 
+          "Abonnez-vous pour lancer vos marches personnalisées.",
+        variant: "destructive"
+      });
+      navigate('/subscription');
+      return;
     }
+
+    // L'utilisateur a accès, continuer avec la logique normale
+    onComplete(currentDestination);
   };
 
   const handleDestinationClick = () => {
@@ -342,7 +362,9 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
             size="lg"
             className="w-full max-w-md h-14 text-lg font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:transform-none"
           >
-            Lancer cette marche
+            {subscriptionData?.hasAccess ? 'Lancer cette marche' : 
+             subscriptionData?.inFreeTrial ? 'Essai gratuit - Lancer cette marche' : 
+             'S\'abonner pour lancer cette marche'}
           </Button>
         </div>
       </div>

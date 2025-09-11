@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
-import { User, Edit3, Footprints, MapPin, Flame, Clock, LogOut } from 'lucide-react';
+import { User, Edit3, Footprints, MapPin, Flame, Clock, LogOut, Crown, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 import { ProfileEditModal } from '@/components/ProfileEditModal';
 import { WeeklyStats } from '@/components/WeeklyStats';
+import { Link } from 'react-router-dom';
 
 interface DashboardProps {
   onPlanifyWalk: () => void;
@@ -14,6 +17,7 @@ interface DashboardProps {
 
 const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
   const { signOut, user } = useAuth();
+  const { subscriptionData } = useSubscription();
   const [userProfile, setUserProfile] = useState({
     firstName: "Utilisateur",
     gender: "-",
@@ -132,6 +136,29 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
 
           {/* Avatar et actions */}
           <div className="flex items-center space-x-3">
+            {/* Status d'abonnement */}
+            {user && subscriptionData && (
+              <Link to="/subscription">
+                <Button variant="outline" size="sm" className="flex items-center gap-2">
+                  {subscriptionData.subscribed ? (
+                    <>
+                      <Crown className="h-4 w-4 text-yellow-500" />
+                      <span className="text-sm font-medium">Premium</span>
+                    </>
+                  ) : subscriptionData.inFreeTrial ? (
+                    <>
+                      <Clock className="h-4 w-4 text-blue-500" />
+                      <span className="text-sm font-medium">Essai gratuit</span>
+                    </>
+                  ) : (
+                    <>
+                      <Settings className="h-4 w-4" />
+                      <span className="text-sm font-medium">S'abonner</span>
+                    </>
+                  )}
+                </Button>
+              </Link>
+            )}
             <Button
               variant="ghost"
               size="sm"
