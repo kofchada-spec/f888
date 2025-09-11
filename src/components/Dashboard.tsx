@@ -5,6 +5,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { ProfileEditModal } from '@/components/ProfileEditModal';
+import { WeeklyStats } from '@/components/WeeklyStats';
 
 interface DashboardProps {
   onPlanifyWalk: () => void;
@@ -20,11 +22,13 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
     age: 0,
     avatar: null
   });
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  // Load user profile from Supabase
+  // Load user profile from Supabase or localStorage
   useEffect(() => {
     const loadUserProfile = async () => {
-      if (!user) return;
+      if (user) {
+        // Load from Supabase
       
       try {
         const { data: profile, error } = await supabase
@@ -51,10 +55,36 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
       } catch (error) {
         console.error('Error loading profile:', error);
       }
+      } else {
+        // Load from localStorage
+        try {
+          const localProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+          if (localProfile) {
+            setUserProfile({
+              firstName: localProfile.first_name || "Utilisateur",
+              gender: localProfile.gender || "-",
+              height: localProfile.height_m || 0,
+              weight: localProfile.weight_kg || 0,
+              age: localProfile.age_years || 0,
+              avatar: localProfile.avatar_url || null
+            });
+          }
+        } catch (error) {
+          console.error('Error loading local profile:', error);
+        }
+      }
     };
 
     loadUserProfile();
   }, [user]);
+
+  const handleProfileUpdate = (updatedProfile: { weight: number; age: number }) => {
+    setUserProfile(prev => ({
+      ...prev,
+      weight: updatedProfile.weight,
+      age: updatedProfile.age
+    }));
+  };
 
   const todayStats = {
     steps: 8247,
@@ -126,11 +156,12 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
         <Card className="bg-white shadow-lg border-0">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Mes paramètres</h2>
+              <h2 className="text-lg font-semibold text-foreground">Mes paramètres</h2>
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="rounded-full border-gray-200 hover:border-green-500 hover:text-green-600"
+                onClick={() => setIsEditModalOpen(true)}
+                className="rounded-full border-border hover:border-primary hover:text-primary"
               >
                 <Edit3 className="h-4 w-4 mr-1" />
                 Modifier
@@ -139,24 +170,24 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center">
-                <p className="text-sm text-gray-500">Genre</p>
-                <p className="text-lg font-medium text-gray-900">{userProfile.gender}</p>
+                <p className="text-sm text-muted-foreground">Genre</p>
+                <p className="text-lg font-medium text-foreground">{userProfile.gender}</p>
               </div>
               <div className="text-center">
-                <p className="text-sm text-gray-500">Taille</p>
-                <p className="text-lg font-medium text-gray-900">
+                <p className="text-sm text-muted-foreground">Taille</p>
+                <p className="text-lg font-medium text-foreground">
                   {userProfile.height > 0 ? `${userProfile.height}m` : '-'}
                 </p>
               </div>
               <div className="text-center">
-                <p className="text-sm text-gray-500">Poids</p>
-                <p className="text-lg font-medium text-gray-900">
+                <p className="text-sm text-muted-foreground">Poids</p>
+                <p className="text-lg font-medium text-foreground">
                   {userProfile.weight > 0 ? `${userProfile.weight}kg` : '-'}
                 </p>
               </div>
               <div className="text-center">
-                <p className="text-sm text-gray-500">Âge</p>
-                <p className="text-lg font-medium text-gray-900">
+                <p className="text-sm text-muted-foreground">Âge</p>
+                <p className="text-lg font-medium text-foreground">
                   {userProfile.age > 0 ? `${userProfile.age} ans` : '-'}
                 </p>
               </div>
@@ -199,49 +230,33 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
           </Card>
         </div>
 
-        {/* Historique rapide */}
-        <Card className="bg-white shadow-lg border-0">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Cette semaine</h2>
-              <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
-                Voir plus
-              </Button>
-            </div>
-            
-            <div className="flex items-end justify-between space-x-2 h-32">
-              {weeklySteps.map((day, index) => (
-                <div key={index} className="flex flex-col items-center flex-1">
-                  <div 
-                    className="w-full bg-gradient-to-t from-green-500 to-blue-500 rounded-t-lg transition-all duration-300 hover:scale-105"
-                    style={{ 
-                      height: `${(day.steps / maxSteps) * 80 + 20}px`,
-                      minHeight: '20px'
-                    }}
-                  />
-                  <p className="text-xs text-gray-500 mt-2 font-medium">{day.day}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex justify-between text-xs text-gray-400 mt-2">
-              <span>0</span>
-              <span>{(maxSteps / 1000).toFixed(0)}k pas</span>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Statistiques de la semaine */}
+        <WeeklyStats userProfile={{ height: userProfile.height, weight: userProfile.weight }} />
 
         {/* CTA Principal */}
         <div className="flex justify-center pt-4">
           <Button
             onClick={onPlanifyWalk}
-            className="h-14 px-12 text-lg font-semibold rounded-[14px] bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200"
+            className="h-14 px-12 text-lg font-semibold rounded-[14px] bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200"
           >
             <Footprints className="mr-3 h-6 w-6" />
             Planifier ma marche
           </Button>
         </div>
       </div>
+
+      {/* Modal d'édition du profil */}
+      <ProfileEditModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        currentProfile={{
+          weight: userProfile.weight,
+          age: userProfile.age,
+          gender: userProfile.gender,
+          height: userProfile.height
+        }}
+        onProfileUpdate={handleProfileUpdate}
+      />
     </div>
   );
 };
