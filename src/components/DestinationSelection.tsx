@@ -98,21 +98,8 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
   const handleStartWalk = () => {
     if (!currentDestination) return;
     
-    // Vérifier si l'utilisateur a accès (abonné ou en période d'essai)
-    if (!subscriptionData?.hasAccess) {
-      toast({
-        title: "Abonnement requis",
-        description: subscriptionData?.inFreeTrial ? 
-          "Votre période d'essai gratuite est expirée. Abonnez-vous pour continuer." : 
-          "Abonnez-vous pour lancer vos marches personnalisées.",
-        variant: "destructive"
-      });
-      navigate('/subscription');
-      return;
-    }
-
-    // L'utilisateur a accès, continuer avec la logique normale
-    onComplete(currentDestination);
+    // Rediriger directement vers la page d'abonnement
+    navigate('/subscription');
   };
 
   const handleDestinationClick = () => {
