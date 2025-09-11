@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -30,11 +30,35 @@ interface MapProps {
   };
 }
 
-const Map = ({ userLocation, destinations, selectedDestination, onDestinationSelect, planningData }: MapProps) => {
+export interface MapRef {
+  fitToRoute: () => void;
+}
+
+const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selectedDestination, onDestinationSelect, planningData }, ref) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
+
+  // Expose map methods via ref
+  useImperativeHandle(ref, () => ({
+    fitToRoute: () => {
+      if (!map.current || !userLocation || destinations.length === 0) return;
+      
+      const currentDest = destinations[0];
+      if (!currentDest.coordinates) return;
+
+      const bounds = new mapboxgl.LngLatBounds();
+      bounds.extend([userLocation.lng, userLocation.lat]);
+      bounds.extend([currentDest.coordinates.lng, currentDest.coordinates.lat]);
+      
+      map.current.fitBounds(bounds, {
+        padding: 80,
+        duration: 1000,
+        maxZoom: 15
+      });
+    }
+  }));
 
   // Get Mapbox token from Supabase edge function (only once)
   useEffect(() => {
@@ -498,6 +522,8 @@ const Map = ({ userLocation, destinations, selectedDestination, onDestinationSel
       </div>
     </div>
   );
-};
+});
+
+Map.displayName = 'Map';
 
 export default Map;

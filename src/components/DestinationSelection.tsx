@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ArrowLeft, MapPin, Clock, Zap, Loader2, RefreshCw } from 'lucide-react';
-import Map from './Map';
+import Map, { MapRef } from './Map';
 import { useSingleDestination } from '@/hooks/useSingleDestination';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -33,6 +33,7 @@ interface Destination {
 
 const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationSelectionProps) => {
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const mapRef = useRef<MapRef>(null);
   const { user } = useAuth();
   const { 
     currentDestination, 
@@ -91,6 +92,13 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
   const handleStartWalk = () => {
     if (currentDestination) {
       onComplete(currentDestination);
+    }
+  };
+
+  const handleDestinationClick = () => {
+    // Center the map on the current route
+    if (mapRef.current && currentDestination && userLocation) {
+      mapRef.current.fitToRoute();
     }
   };
 
@@ -191,109 +199,125 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
           </div>
         </div>
 
-        {/* Carte interactive avec destination unique */}
-        <div className="bg-card rounded-2xl shadow-lg overflow-hidden mb-8" style={{ height: '360px' }}>
-          {loading ? (
-            <div className="h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl">
-              <div className="text-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-                <p className="text-sm text-muted-foreground">Recherche de destination...</p>
-                <p className="text-xs text-muted-foreground mt-1">Calcul de l'itinéraire optimal</p>
-              </div>
-            </div>
-          ) : error ? (
-            <div className="h-full flex items-center justify-center bg-gradient-to-br from-destructive/10 to-muted/10 rounded-2xl">
-              <div className="text-center max-w-md p-6">
-                <p className="text-sm text-destructive mb-2">Erreur lors du chargement</p>
-                <p className="text-xs text-muted-foreground mb-4">{error}</p>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => userLocation && fetchDestinations(userLocation, planningData, { heightM: parseFloat(planningData.height), weightKg: parseFloat(planningData.weight) })}
-                >
-                  Réessayer
-                </Button>
-              </div>
-            </div>
-          ) : currentDestination ? (
-            <Map 
-              userLocation={userLocation}
-              destinations={currentDestination ? [{
-                id: currentDestination.id,
-                name: currentDestination.name,
-                distance: `${currentDestination.distanceKm.toFixed(1)} km`,
-                duration: `${currentDestination.durationMin} min`,
-                calories: currentDestination.calories,
-                description: `Destination à ${currentDestination.distanceKm.toFixed(1)} km`,
-                coordinates: currentDestination.coordinates,
-                route: currentDestination.routeGeoJSON
-              }] : []}
-              selectedDestination={currentDestination ? currentDestination.id : null}
-              onDestinationSelect={() => {}} // Pas de sélection nécessaire avec une seule destination
-              planningData={planningData}
-            />
-          ) : (
-            <div className="h-full flex items-center justify-center bg-gradient-to-br from-muted/10 to-secondary/10 rounded-2xl">
-              <p className="text-muted-foreground">Aucune destination trouvée</p>
-            </div>
-          )}
-        </div>
-
-        {/* Carte de destination unique */}
-        {currentDestination && (
-          <Card className="p-6 mb-8 shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center font-bold text-primary-foreground">
-                  🎯
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-2xl font-semibold text-foreground mb-2">
-                    {currentDestination.name}
-                  </h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div className="flex items-center space-x-2">
-                      <MapPin size={16} className="text-primary" />
-                      <div>
-                        <span className="font-medium">{currentDestination.distanceKm.toFixed(1)} km</span>
-                        <p className="text-xs text-muted-foreground">Distance aller</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Clock size={16} className="text-secondary" />
-                      <div>
-                        <span className="font-medium">{currentDestination.durationMin} min</span>
-                        <p className="text-xs text-muted-foreground">Durée aller</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Zap size={16} className="text-orange-500" />
-                      <div>
-                        <span className="font-medium">{currentDestination.calories} cal</span>
-                        <p className="text-xs text-muted-foreground">Calories totales</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <div className={`w-4 h-4 rounded-full ${getDeviationColor()}`}></div>
-                      <div>
-                        <span className="font-medium">{getDeviation()}</span>
-                        <p className="text-xs text-muted-foreground">Écart cible</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+        {/* Section Destination avec bouton Réactualiser séparé */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-foreground">Destination proposée</h2>
+            {currentDestination && (
               <Button
                 onClick={handleRefresh}
                 disabled={!canRefresh || loading}
                 variant="outline"
                 size="sm"
                 className="flex items-center space-x-2"
-                title={canRefresh ? `Réactualiser (${refreshRemaining}/2)` : 'Limite atteinte'}
+                title={canRefresh ? `Réactualiser (${refreshRemaining} restant${refreshRemaining > 1 ? 's' : ''})` : 'Limite atteinte'}
               >
                 <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-                <span>Réactualiser ({refreshRemaining}/2)</span>
+                <span>
+                  {canRefresh ? `Réactualiser (${refreshRemaining})` : 'Limite atteinte'}
+                </span>
               </Button>
+            )}
+          </div>
+
+          {/* Carte interactive avec destination unique */}
+          <div className="bg-card rounded-2xl shadow-lg overflow-hidden mb-4" style={{ height: '360px' }}>
+            {loading ? (
+              <div className="h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl">
+                <div className="text-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+                  <p className="text-sm text-muted-foreground">Recherche de destination...</p>
+                  <p className="text-xs text-muted-foreground mt-1">Calcul de l'itinéraire optimal</p>
+                </div>
+              </div>
+            ) : error ? (
+              <div className="h-full flex items-center justify-center bg-gradient-to-br from-destructive/10 to-muted/10 rounded-2xl">
+                <div className="text-center max-w-md p-6">
+                  <p className="text-sm text-destructive mb-2">Erreur lors du chargement</p>
+                  <p className="text-xs text-muted-foreground mb-4">{error}</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => userLocation && fetchDestinations(userLocation, planningData, { heightM: parseFloat(planningData.height), weightKg: parseFloat(planningData.weight) })}
+                  >
+                    Réessayer
+                  </Button>
+                </div>
+              </div>
+            ) : currentDestination ? (
+              <Map 
+                ref={mapRef}
+                userLocation={userLocation}
+                destinations={currentDestination ? [{
+                  id: currentDestination.id,
+                  name: currentDestination.name,
+                  distance: `${currentDestination.distanceKm.toFixed(1)} km`,
+                  duration: `${currentDestination.durationMin} min`,
+                  calories: currentDestination.calories,
+                  description: `Destination à ${currentDestination.distanceKm.toFixed(1)} km`,
+                  coordinates: currentDestination.coordinates,
+                  route: currentDestination.routeGeoJSON
+                }] : []}
+                selectedDestination={currentDestination ? currentDestination.id : null}
+                onDestinationSelect={() => {}} // Pas de sélection nécessaire avec une seule destination
+                planningData={planningData}
+              />
+            ) : (
+              <div className="h-full flex items-center justify-center bg-gradient-to-br from-muted/10 to-secondary/10 rounded-2xl">
+                <p className="text-muted-foreground">Aucune destination trouvée</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Carte-info de destination (clickable) */}
+        {currentDestination && (
+          <Card 
+            className="p-6 mb-8 shadow-lg cursor-pointer hover:shadow-xl transition-shadow duration-200 border-2 hover:border-primary/20"
+            onClick={handleDestinationClick}
+          >
+            <div className="flex items-start space-x-4">
+              <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center font-bold text-primary-foreground">
+                🎯
+              </div>
+              <div className="flex-1">
+                <h3 className="text-2xl font-semibold text-foreground mb-2">
+                  {currentDestination.name}
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Cliquez sur cette carte pour centrer la vue sur l'itinéraire
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="flex items-center space-x-2">
+                    <MapPin size={16} className="text-primary" />
+                    <div>
+                      <span className="font-medium">{currentDestination.distanceKm.toFixed(1)} km</span>
+                      <p className="text-xs text-muted-foreground">Distance aller</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Clock size={16} className="text-secondary" />
+                    <div>
+                      <span className="font-medium">{currentDestination.durationMin} min</span>
+                      <p className="text-xs text-muted-foreground">Durée aller</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Zap size={16} className="text-orange-500" />
+                    <div>
+                      <span className="font-medium">{currentDestination.calories} cal</span>
+                      <p className="text-xs text-muted-foreground">Calories totales</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className={`w-4 h-4 rounded-full ${getDeviationColor()}`}></div>
+                    <div>
+                      <span className="font-medium">{getDeviation()}</span>
+                      <p className="text-xs text-muted-foreground">Écart cible</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </Card>
         )}
