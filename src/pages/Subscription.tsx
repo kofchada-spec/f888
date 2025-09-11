@@ -293,11 +293,16 @@ const Subscription = () => {
                   <Crown className="h-5 w-5 text-yellow-500" />
                 </CardTitle>
                 <CardDescription>Le meilleur rapport qualité-prix</CardDescription>
-                <div className="text-3xl font-bold">
-                  79,99€<span className="text-lg font-normal text-muted-foreground">/an</span>
+                <div className="space-y-2">
+                  <div className="text-lg text-muted-foreground">
+                    <span className="line-through">119,88€/an</span>
+                  </div>
+                  <div className="text-4xl font-bold text-primary">
+                    79,99€<span className="text-lg font-normal text-muted-foreground">/an</span>
+                  </div>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Soit 6,67€/mois (au lieu de 119,88€/an)
+                  Soit 6,67€/mois • Économisez 39,89€
                 </p>
               </CardHeader>
               <CardContent>
