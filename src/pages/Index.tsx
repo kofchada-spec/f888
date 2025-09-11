@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Onboarding from '@/components/Onboarding';
 import Auth from '@/components/Auth';
 import ProfileCompletion from '@/components/ProfileCompletion';
@@ -10,6 +11,7 @@ import { Loader2 } from 'lucide-react';
 
 const Index = () => {
   const { user, loading } = useAuth();
+  const [searchParams] = useSearchParams();
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [hasCompletedProfile, setHasCompletedProfile] = useState(false);
   const [skipAuth, setSkipAuth] = useState(false);
@@ -35,6 +37,14 @@ const Index = () => {
       setHasCompletedProfile(true);
     }
   }, []);
+
+  // Check for destination parameter to show destination selection
+  useEffect(() => {
+    const destinationParam = searchParams.get('destination');
+    if (destinationParam === 'true' && hasCompletedOnboarding && hasCompletedProfile && (user || skipAuth)) {
+      setShowDestinationSelection(true);
+    }
+  }, [searchParams, hasCompletedOnboarding, hasCompletedProfile, user, skipAuth]);
 
   const handleOnboardingComplete = () => {
     setHasCompletedOnboarding(true);
