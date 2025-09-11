@@ -245,23 +245,35 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
                 </div>
               </div>
             ) : currentDestination ? (
-              <Map 
-                ref={mapRef}
-                userLocation={userLocation}
-                destinations={currentDestination ? [{
+              <>
+                {console.log('Destination à afficher:', {
                   id: currentDestination.id,
                   name: currentDestination.name,
-                  distance: `${currentDestination.distanceKm.toFixed(1)} km`,
-                  duration: `${currentDestination.durationMin} min`,
-                  calories: currentDestination.calories,
-                  description: `Destination à ${currentDestination.distanceKm.toFixed(1)} km`,
                   coordinates: currentDestination.coordinates,
-                  route: currentDestination.routeGeoJSON
-                }] : []}
-                selectedDestination={currentDestination ? currentDestination.id : null}
-                onDestinationSelect={() => {}} // Pas de sélection nécessaire avec une seule destination
-                planningData={planningData}
-              />
+                  routeGeoJSON: currentDestination.routeGeoJSON,
+                  distanceKm: currentDestination.distanceKm
+                })}
+                <Map 
+                  ref={mapRef}
+                  userLocation={userLocation}
+                  destinations={[{
+                    id: currentDestination.id,
+                    name: currentDestination.name,
+                    distance: `${currentDestination.distanceKm.toFixed(1)} km`,
+                    duration: `${currentDestination.durationMin} min`,
+                    calories: currentDestination.calories,
+                    description: `Destination à ${currentDestination.distanceKm.toFixed(1)} km`,
+                    coordinates: currentDestination.coordinates || {
+                      lat: userLocation?.lat ? userLocation.lat + 0.01 : 48.8566,
+                      lng: userLocation?.lng ? userLocation.lng + 0.01 : 2.3522
+                    },
+                    route: currentDestination.routeGeoJSON
+                  }]}
+                  selectedDestination={currentDestination.id}
+                  onDestinationSelect={() => {}} // Pas de sélection nécessaire avec une seule destination
+                  planningData={planningData}
+                />
+              </>
             ) : (
               <div className="h-full flex items-center justify-center bg-gradient-to-br from-muted/10 to-secondary/10 rounded-2xl">
                 <p className="text-muted-foreground">Aucune destination trouvée</p>

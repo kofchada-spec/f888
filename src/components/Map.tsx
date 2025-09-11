@@ -253,18 +253,27 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
 
     // Add destination markers
     destinations.forEach((destination, index) => {
+      console.log(`Ajout de la destination ${index + 1}:`, {
+        id: destination.id,
+        name: destination.name,
+        coordinates: destination.coordinates,
+        hasRoute: !!destination.route
+      });
+
       let destLng, destLat;
       
       // Use real coordinates if available, otherwise calculate position
-      if (destination.coordinates) {
+      if (destination.coordinates && destination.coordinates.lat && destination.coordinates.lng) {
         destLng = destination.coordinates.lng;
         destLat = destination.coordinates.lat;
+        console.log(`Utilisation des coordonnées réelles pour ${destination.name}:`, { lat: destLat, lng: destLng });
       } else {
-        // Fallback to calculated positions
+        // Fallback to calculated positions around user location
         const angle = (index * 120) * (Math.PI / 180);
-        const distance = 0.01;
+        const distance = 0.01; // ~1km en degrés approximatifs
         destLng = userLocation.lng + Math.cos(angle) * distance;
         destLat = userLocation.lat + Math.sin(angle) * distance;
+        console.log(`Utilisation de coordonnées calculées pour ${destination.name}:`, { lat: destLat, lng: destLng });
       }
 
       const markerEl = document.createElement('div');
