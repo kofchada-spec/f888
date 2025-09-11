@@ -38,7 +38,11 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
+  const geolocateControl = useRef<mapboxgl.GeolocateControl | null>(null);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
+  const [isTrackingGPS, setIsTrackingGPS] = useState(false);
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+  const userTrail = useRef<number[][]>([]);
 
   // Expose map methods via ref
   useImperativeHandle(ref, () => ({
@@ -133,17 +137,119 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
       'top-right'
     );
 
-    // Add geolocate control
-    map.current.addControl(
-      new mapboxgl.GeolocateControl({
-        positionOptions: {
-          enableHighAccuracy: true
-        },
-        trackUserLocation: true,
-        showUserLocation: true
-      }),
-      'top-right'
-    );
+    // Add enhanced geolocate control with GPS tracking
+    geolocateControl.current = new mapboxgl.GeolocateControl({
+      positionOptions: {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000
+      },
+      trackUserLocation: true,
+      showUserLocation: true,
+      showAccuracyCircle: true
+    });
+    
+    map.current.addControl(geolocateControl.current, 'top-right');
+
+    // GPS tracking events
+    geolocateControl.current.on('trackuserlocationstart', () => {
+      console.log('Suivi GPS démarré');
+      setIsTrackingGPS(true);
+      // Clear previous trail
+      userTrail.current = [];
+      // Add trail source if not exists
+      if (!map.current?.getSource('user-trail')) {
+        map.current?.addSource('user-trail', {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: []
+            }
+          }
+        });
+        
+        map.current?.addLayer({
+          id: 'user-trail-layer',
+          type: 'line',
+          source: 'user-trail',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': '#3b82f6',
+            'line-width': 3,
+            'line-opacity': 0.7
+          }
+        });
+      }
+    });
+
+    geolocateControl.current.on('trackuserlocationend', () => {
+      console.log('Suivi GPS arrêté');
+      setIsTrackingGPS(false);
+    });
+
+    geolocateControl.current.on('geolocate', (e: any) => {
+      const { coords } = e;
+      console.log('Position GPS mise à jour:', {
+        lat: coords.latitude,
+        lng: coords.longitude,
+        accuracy: coords.accuracy,
+        speed: coords.speed,
+        heading: coords.heading
+      });
+      
+      setGpsAccuracy(coords.accuracy);
+      
+      // Add position to trail
+      const newPoint = [coords.longitude, coords.latitude];
+      userTrail.current.push(newPoint);
+      
+      // Update trail on map
+      if (map.current?.getSource('user-trail') && userTrail.current.length > 1) {
+        (map.current.getSource('user-trail') as mapboxgl.GeoJSONSource).setData({
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: userTrail.current
+          }
+        });
+      }
+    });
+
+    geolocateControl.current.on('error', (e: any) => {
+      console.error('Erreur GPS:', e);
+      setIsTrackingGPS(false);
+      
+      // Show user-friendly error message
+      let errorMessage = 'Erreur de géolocalisation';
+      switch (e.code) {
+        case 1:
+          errorMessage = 'Accès à la géolocalisation refusé';
+          break;
+        case 2:
+          errorMessage = 'Position indisponible';
+          break;
+        case 3:
+          errorMessage = 'Délai d\'attente dépassé';
+          break;
+      }
+      
+      new mapboxgl.Popup()
+        .setLngLat(map.current?.getCenter() || [0, 0])
+        .setHTML(`
+          <div class="p-3">
+            <h3 class="font-semibold text-red-600">GPS Error</h3>
+            <p class="text-sm">${errorMessage}</p>
+          </div>
+        `)
+        .addTo(map.current!);
+    });
 
     // Wait for map to load before adding POI interactions
     map.current.on('load', () => {
@@ -487,6 +593,18 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
     });
   };
 
+  const toggleGPSTracking = () => {
+    if (!geolocateControl.current) return;
+    
+    if (isTrackingGPS) {
+      // Stop tracking
+      geolocateControl.current.trigger();
+    } else {
+      // Start tracking
+      geolocateControl.current.trigger();
+    }
+  };
+
   if (!mapboxToken || !mapboxToken.startsWith('pk.')) {
     return (
       <div style={{ height: '360px' }} className="relative bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl flex items-center justify-center">
@@ -511,20 +629,59 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
         className="absolute inset-0 rounded-lg" 
       />
       
+      {/* GPS Status Indicator */}
+      {isTrackingGPS && (
+        <div className="absolute top-4 left-4 bg-green-500/90 text-white rounded-lg p-2 text-xs shadow-lg flex items-center space-x-2">
+          <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+          <span>GPS Actif</span>
+          {gpsAccuracy && (
+            <span className="text-xs opacity-75">
+              ±{Math.round(gpsAccuracy)}m
+            </span>
+          )}
+        </div>
+      )}
+      
+      {/* GPS Control Button */}
+      <button
+        onClick={toggleGPSTracking}
+        className={`absolute bottom-4 left-4 ${
+          isTrackingGPS ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'
+        } text-white rounded-full p-3 shadow-lg transition-colors duration-200`}
+        title={isTrackingGPS ? 'Arrêter le suivi GPS' : 'Démarrer le suivi GPS'}
+      >
+        {isTrackingGPS ? (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        ) : (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        )}
+      </button>
+
       {/* Légende */}
-      <div className="absolute top-4 left-4 bg-white/95 dark:bg-black/95 rounded-lg p-3 text-xs shadow-lg border">
+      <div className="absolute top-4 right-4 bg-white/95 dark:bg-black/95 rounded-lg p-3 text-xs shadow-lg border">
         <div className="flex items-center space-x-2 mb-2">
-          <div className="w-4 h-4 bg-blue-500 rounded-full border border-white"></div>
+          <div className="w-4 h-4 bg-red-500 rounded-full border border-white"></div>
           <span>{planningData.tripType === 'round-trip' ? 'Point de départ/arrivée' : 'Point de départ'}</span>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 mb-2">
           <div className="w-4 h-4 bg-gray-500 rounded-full border border-white"></div>
           <span>{planningData.tripType === 'round-trip' ? 'Points de passage' : 'Destinations'}</span>
         </div>
+        {isTrackingGPS && (
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-1 bg-blue-500 rounded"></div>
+            <span>Trajet parcouru</span>
+          </div>
+        )}
       </div>
 
       {/* Info trajet */}
-      <div className="absolute top-4 right-4 bg-primary/90 text-primary-foreground rounded-lg p-3 text-sm shadow-lg">
+      <div className="absolute bottom-4 right-4 bg-primary/90 text-primary-foreground rounded-lg p-3 text-sm shadow-lg">
         <div className="font-semibold">
           {planningData.tripType === 'round-trip' ? '🔄 Aller-Retour' : '➡️ Aller Simple'}
         </div>
