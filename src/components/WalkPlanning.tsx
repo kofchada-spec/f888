@@ -81,9 +81,9 @@ const WalkPlanning = ({ onComplete, onBack }: WalkPlanningProps) => {
   const preview = calculatePreview();
 
   const paceOptions = [
-    { id: 'slow' as WalkPace, label: 'Lente', speed: '4 km/h', icon: '🚶‍♀️' },
-    { id: 'moderate' as WalkPace, label: 'Modérée', speed: '5 km/h', icon: '🚶‍♂️' },
-    { id: 'fast' as WalkPace, label: 'Rapide', speed: '6 km/h', icon: '🏃‍♀️' }
+    { id: 'slow' as WalkPace, label: 'Lente', icon: '🚶‍♀️' },
+    { id: 'moderate' as WalkPace, label: 'Modérée', icon: '🚶‍♂️' },
+    { id: 'fast' as WalkPace, label: 'Rapide', icon: '🏃‍♀️' }
   ];
 
   return (
@@ -227,7 +227,6 @@ const WalkPlanning = ({ onComplete, onBack }: WalkPlanningProps) => {
                     <div className="text-center">
                       <div className="text-2xl mb-1">{option.icon}</div>
                       <div className="font-semibold">{option.label}</div>
-                      <div className="text-xs opacity-80">{option.speed}</div>
                     </div>
                   </Button>
                 );
@@ -302,7 +301,7 @@ const WalkPlanning = ({ onComplete, onBack }: WalkPlanningProps) => {
             <div className="mt-4 pt-4 border-t text-center">
               <p className="text-sm text-muted-foreground">
                 {tripType === 'round-trip' ? '🔄 Aller-retour' : '➡️ Aller simple'} • 
-                Allure {selectedPace === 'slow' ? 'lente (4 km/h)' : selectedPace === 'moderate' ? 'modérée (5 km/h)' : 'rapide (6 km/h)'}
+                Allure {selectedPace === 'slow' ? 'lente' : selectedPace === 'moderate' ? 'modérée' : 'rapide'}
               </p>
             </div>
           </div>
