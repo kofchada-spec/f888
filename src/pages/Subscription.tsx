@@ -26,12 +26,12 @@ const Subscription = () => {
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) {
-      navigate('/auth');
-      return;
+    if (user) {
+      checkSubscription();
+    } else {
+      setLoading(false);
     }
-    checkSubscription();
-  }, [user, navigate]);
+  }, [user]);
 
   const checkSubscription = async () => {
     if (!user) return;
