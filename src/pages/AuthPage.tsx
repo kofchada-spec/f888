@@ -16,16 +16,15 @@ const AuthPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   
-  const { signUp, signIn, user } = useAuth();
+  const { signUp, signIn, signOut, user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Redirect authenticated users
-  useEffect(() => {
-    if (user) {
-      navigate('/');
-    }
-  }, [user, navigate]);
+  // Show logout option for authenticated users
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
