@@ -4,9 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Check, Crown, Sparkles, Clock, ArrowLeft, CreditCard } from 'lucide-react';
+import { Check, Crown, Sparkles, Clock, ArrowLeft } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 interface SubscriptionData {
@@ -25,8 +24,6 @@ const Subscription = () => {
   const [subscriptionData, setSubscriptionData] = useState<SubscriptionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
-  const [paypalModalOpen, setPaypalModalOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly' | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -55,10 +52,10 @@ const Subscription = () => {
     }
   };
 
-  const handleStripeSubscribe = async (plan: 'monthly' | 'yearly') => {
+  const handleSubscribe = async (plan: 'monthly' | 'yearly') => {
     if (!user) return;
 
-    setCheckoutLoading(`stripe-${plan}`);
+    setCheckoutLoading(plan);
     try {
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: { plan }
@@ -74,37 +71,6 @@ const Subscription = () => {
         variant: 'destructive',
         title: 'Erreur',
         description: 'Impossible de démarrer le processus de paiement',
-      });
-    } finally {
-      setCheckoutLoading(null);
-    }
-  };
-
-  const handlePaypalSubscribe = (plan: 'monthly' | 'yearly') => {
-    setSelectedPlan(plan);
-    setPaypalModalOpen(true);
-  };
-
-  const handlePaypalCheckout = async () => {
-    if (!user || !selectedPlan) return;
-
-    setCheckoutLoading(`paypal-${selectedPlan}`);
-    try {
-      const { data, error } = await supabase.functions.invoke('create-paypal-checkout', {
-        body: { plan: selectedPlan }
-      });
-
-      if (error) throw error;
-
-      // Open PayPal checkout in a new tab
-      window.open(data.url, '_blank');
-      setPaypalModalOpen(false);
-    } catch (error) {
-      console.error('Error creating PayPal checkout:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Erreur PayPal',
-        description: 'Impossible de démarrer le paiement PayPal',
       });
     } finally {
       setCheckoutLoading(null);
@@ -256,27 +222,14 @@ const Subscription = () => {
                   </li>
                 </ul>
               </CardContent>
-              <CardFooter className="flex flex-col gap-2">
+              <CardFooter>
                 <Button 
                   className="w-full" 
-                  onClick={() => handleStripeSubscribe('monthly')}
+                  onClick={() => handleSubscribe('monthly')}
                   disabled={!!checkoutLoading}
                 >
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  {checkoutLoading === 'stripe-monthly' ? 'Chargement...' : 'Payer avec Stripe'}
+                  {checkoutLoading === 'monthly' ? 'Chargement...' : 'Choisir Mensuel'}
                 </Button>
-                <Dialog open={paypalModalOpen} onOpenChange={setPaypalModalOpen}>
-                  <DialogTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      className="w-full bg-[#0070ba] text-white hover:bg-[#005ea6] border-[#0070ba]"
-                      onClick={() => handlePaypalSubscribe('monthly')}
-                      disabled={!!checkoutLoading}
-                    >
-                      {checkoutLoading === 'paypal-monthly' ? 'Chargement...' : 'Payer avec PayPal'}
-                    </Button>
-                  </DialogTrigger>
-                </Dialog>
               </CardFooter>
             </Card>
 
@@ -293,16 +246,11 @@ const Subscription = () => {
                   <Crown className="h-5 w-5 text-yellow-500" />
                 </CardTitle>
                 <CardDescription>Le meilleur rapport qualité-prix</CardDescription>
-                <div className="space-y-2">
-                  <div className="text-lg text-muted-foreground">
-                    <span className="line-through">119,88€/an</span>
-                  </div>
-                  <div className="text-4xl font-bold text-primary">
-                    79,99€<span className="text-lg font-normal text-muted-foreground">/an</span>
-                  </div>
+                <div className="text-3xl font-bold">
+                  79,99€<span className="text-lg font-normal text-muted-foreground">/an</span>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Soit 6,67€/mois • Économisez 39,89€
+                  Soit 6,67€/mois (au lieu de 119,88€/an)
                 </p>
               </CardHeader>
               <CardContent>
@@ -329,27 +277,14 @@ const Subscription = () => {
                   </li>
                 </ul>
               </CardContent>
-              <CardFooter className="flex flex-col gap-2">
+              <CardFooter>
                 <Button 
                   className="w-full" 
-                  onClick={() => handleStripeSubscribe('yearly')}
+                  onClick={() => handleSubscribe('yearly')}
                   disabled={!!checkoutLoading}
                 >
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  {checkoutLoading === 'stripe-yearly' ? 'Chargement...' : 'Payer avec Stripe'}
+                  {checkoutLoading === 'yearly' ? 'Chargement...' : 'Choisir Annuel'}
                 </Button>
-                <Dialog open={paypalModalOpen} onOpenChange={setPaypalModalOpen}>
-                  <DialogTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      className="w-full bg-[#0070ba] text-white hover:bg-[#005ea6] border-[#0070ba]"
-                      onClick={() => handlePaypalSubscribe('yearly')}
-                      disabled={!!checkoutLoading}
-                    >
-                      {checkoutLoading === 'paypal-yearly' ? 'Chargement...' : 'Payer avec PayPal'}
-                    </Button>
-                  </DialogTrigger>
-                </Dialog>
               </CardFooter>
             </Card>
           </div>
@@ -388,58 +323,6 @@ const Subscription = () => {
               </div>
             </CardContent>
           </Card>
-
-          {/* PayPal Modal */}
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-[#0070ba] rounded flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">PP</span>
-                </div>
-                Paiement PayPal
-              </DialogTitle>
-              <DialogDescription>
-                Vous allez être redirigé vers PayPal pour finaliser votre paiement sécurisé.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              {selectedPlan && (
-                <div className="bg-muted p-4 rounded-lg">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">
-                      Plan {selectedPlan === 'monthly' ? 'Mensuel' : 'Annuel'}
-                    </span>
-                    <span className="text-lg font-bold">
-                      {selectedPlan === 'monthly' ? '9,99€/mois' : '79,99€/an'}
-                    </span>
-                  </div>
-                  {selectedPlan === 'yearly' && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Économisez 33% • Soit 6,67€/mois
-                    </p>
-                  )}
-                </div>
-              )}
-              
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setPaypalModalOpen(false)}
-                >
-                  Annuler
-                </Button>
-                <Button
-                  className="flex-1 bg-[#0070ba] hover:bg-[#005ea6]"
-                  onClick={handlePaypalCheckout}
-                  disabled={!!checkoutLoading}
-                >
-                  {checkoutLoading?.includes('paypal') ? 'Redirection...' : 'Continuer avec PayPal'}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
         </div>
       </div>
     </div>
