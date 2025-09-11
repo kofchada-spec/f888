@@ -206,10 +206,6 @@ const Subscription = () => {
                 <ul className="space-y-3">
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-500" />
-                    Itinéraires illimités
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-green-500" />
                     Statistiques avancées
                   </li>
                   <li className="flex items-center gap-2">
