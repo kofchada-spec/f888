@@ -349,9 +349,7 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
             size="lg"
             className="w-full max-w-md h-14 text-lg font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:transform-none"
           >
-            {subscriptionData?.hasAccess ? 'Lancer cette marche' : 
-             subscriptionData?.inFreeTrial ? 'Essai gratuit - Lancer cette marche' : 
-             'S\'abonner pour lancer cette marche'}
+            Lancer cette marche
           </Button>
         </div>
       </div>
