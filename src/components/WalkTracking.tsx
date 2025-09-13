@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ArrowLeft, Play, Pause, Square, Clock, MapPin, Zap, Target, Timer } from 'lucide-react';
 import Map, { MapRef } from './Map';
+import { useNavigate } from 'react-router-dom';
 
 interface Destination {
   id: string;
@@ -30,6 +31,7 @@ interface WalkTrackingProps {
 }
 
 const WalkTracking = ({ destination, planningData, onBack }: WalkTrackingProps) => {
+  const navigate = useNavigate();
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [isTracking, setIsTracking] = useState(false);
   const [walkStartTime, setWalkStartTime] = useState<Date | null>(null);
@@ -150,11 +152,11 @@ const WalkTracking = ({ destination, planningData, onBack }: WalkTrackingProps) 
             <span>Retour</span>
           </button>
           
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => navigate('/')}>
             <img 
               src="/lovable-uploads/5216fdd6-d0d7-446b-9260-86d15d06f4ba.png" 
               alt="FitPaS" 
-              className="h-8 w-auto"
+              className="h-8 w-auto hover:scale-105 transition-transform"
               style={{ 
                 filter: 'invert(0) sepia(1) saturate(5) hue-rotate(120deg) brightness(0.8)',
                 color: '#10b981' 

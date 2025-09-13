@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { ArrowLeft, User, Ruler, Weight, Target, Timer, Zap } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 interface WalkPlanningProps {
   onComplete: (data: {
@@ -22,6 +23,7 @@ type TripType = 'one-way' | 'round-trip';
 
 const WalkPlanning = ({ onComplete, onBack }: WalkPlanningProps) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [steps, setSteps] = useState('3000');
   const [selectedPace, setSelectedPace] = useState<WalkPace>('moderate');
   const [tripType, setTripType] = useState<TripType>('one-way');
@@ -152,11 +154,11 @@ const WalkPlanning = ({ onComplete, onBack }: WalkPlanningProps) => {
             <span>Retour</span>
           </button>
           
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => navigate('/')}>
             <img 
               src="/lovable-uploads/5216fdd6-d0d7-446b-9260-86d15d06f4ba.png" 
               alt="FitPaS" 
-              className="h-8 w-auto"
+              className="h-8 w-auto hover:scale-105 transition-transform"
               style={{ 
                 filter: 'invert(0) sepia(1) saturate(5) hue-rotate(120deg) brightness(0.8)',
                 color: '#10b981' 
