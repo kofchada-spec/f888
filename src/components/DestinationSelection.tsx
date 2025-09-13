@@ -98,8 +98,8 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
   const handleStartWalk = () => {
     if (!currentDestination) return;
     
-    // Rediriger directement vers la page d'abonnement
-    navigate('/subscription');
+    // Lancer le suivi de marche pour tous les utilisateurs
+    onComplete(currentDestination);
   };
 
   const handleDestinationClick = () => {

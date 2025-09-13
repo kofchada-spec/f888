@@ -6,6 +6,7 @@ import ProfileCompletion from '@/components/ProfileCompletion';
 import Dashboard from '@/components/Dashboard';
 import WalkPlanning from '@/components/WalkPlanning';
 import DestinationSelection from '@/components/DestinationSelection';
+import WalkTracking from '@/components/WalkTracking';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 
@@ -17,6 +18,8 @@ const Index = () => {
   const [skipAuth, setSkipAuth] = useState(false);
   const [showWalkPlanning, setShowWalkPlanning] = useState(false);
   const [showDestinationSelection, setShowDestinationSelection] = useState(false);
+  const [showWalkTracking, setShowWalkTracking] = useState(false);
+  const [selectedDestination, setSelectedDestination] = useState<any>(null);
   const [planningData, setPlanningData] = useState({ 
     steps: '10000', 
     pace: 'moderate' as 'slow' | 'moderate' | 'fast',
@@ -80,13 +83,19 @@ const Index = () => {
 
   const handleDestinationComplete = (destination: any) => {
     console.log('Destination sélectionnée:', destination);
-    // Ici on naviguera vers l'écran de navigation
+    setSelectedDestination(destination);
     setShowDestinationSelection(false);
+    setShowWalkTracking(true);
   };
 
   const handleBackToPlanning = () => {
     setShowDestinationSelection(false);
     setShowWalkPlanning(true);
+  };
+
+  const handleBackToDestination = () => {
+    setShowWalkTracking(false);
+    setShowDestinationSelection(true);
   };
 
   // Show loading while auth is loading
@@ -128,6 +137,17 @@ const Index = () => {
         onComplete={handleDestinationComplete} 
         onBack={handleBackToPlanning}
         planningData={planningData}
+      />
+    );
+  }
+
+  // Show Walk Tracking if active
+  if (showWalkTracking && selectedDestination) {
+    return (
+      <WalkTracking 
+        destination={selectedDestination}
+        planningData={planningData}
+        onBack={handleBackToDestination}
       />
     );
   }
