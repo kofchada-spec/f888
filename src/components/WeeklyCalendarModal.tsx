@@ -111,11 +111,6 @@ export const WeeklyCalendarModal = ({ isOpen, onClose, weeklyStats }: WeeklyCale
           </Button>
         </div>
 
-        {/* Instructions */}
-        <div className="mb-4 text-center text-sm text-muted-foreground">
-          💡 Cliquez sur un jour pour voir les détails de votre activité
-        </div>
-
         {/* Calendar Grid */}
         <div className="grid grid-cols-7 gap-1 md:gap-2">
           {/* Day headers */}
@@ -255,12 +250,6 @@ export const WeeklyCalendarModal = ({ isOpen, onClose, weeklyStats }: WeeklyCale
               )}
             </CardContent>
           </Card>
-        )}
-
-        {!selectedDay && (
-          <div className="mt-6 text-center text-sm text-muted-foreground bg-muted/30 rounded-lg p-4">
-            👆 Sélectionnez un jour ci-dessus pour voir les détails de votre activité
-          </div>
         )}
 
         <div className="flex justify-between items-center mt-6">
