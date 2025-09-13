@@ -19,6 +19,10 @@ import avatar3 from '@/assets/avatars/avatar-3.png';
 import avatar4 from '@/assets/avatars/avatar-4.png';
 import avatar5 from '@/assets/avatars/avatar-5.png';
 import avatar6 from '@/assets/avatars/avatar-6.png';
+import avatar7 from '@/assets/avatars/avatar-7.png';
+import avatar8 from '@/assets/avatars/avatar-8.png';
+import avatar9 from '@/assets/avatars/avatar-9.png';
+import avatar10 from '@/assets/avatars/avatar-10.png';
 
 const avatarOptions = [
   { id: 'avatar-1', src: avatar1, alt: 'Avatar 1' },
@@ -27,6 +31,10 @@ const avatarOptions = [
   { id: 'avatar-4', src: avatar4, alt: 'Avatar 4' },
   { id: 'avatar-5', src: avatar5, alt: 'Avatar 5' },
   { id: 'avatar-6', src: avatar6, alt: 'Avatar 6' },
+  { id: 'avatar-7', src: avatar7, alt: 'Femme noire' },
+  { id: 'avatar-8', src: avatar8, alt: 'Enfant noir' },
+  { id: 'avatar-9', src: avatar9, alt: 'Homme noir' },
+  { id: 'avatar-10', src: avatar10, alt: 'Personne âgée noire' },
 ];
 
 interface ProfileEditModalProps {
@@ -286,7 +294,7 @@ export const ProfileEditModal = ({
             
             {/* Avatars prédéfinis */}
             <p className="text-xs text-muted-foreground mb-2">Ou choisissez un avatar prédéfini :</p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-5 gap-3">
               {avatarOptions.map((avatar) => (
                 <button
                   key={avatar.id}
