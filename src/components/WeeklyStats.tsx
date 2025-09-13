@@ -135,28 +135,122 @@ export const WeeklyStats = ({ userProfile }: WeeklyStatsProps) => {
           </div>
         </div>
 
-        {/* Graphique simple de la semaine */}
-        <div className="bg-muted/30 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-foreground mb-3">Progression de la semaine</h3>
-          <div className="flex items-end justify-between space-x-2 h-20">
-            {dayNames.map((dayName, index) => {
-              const dayData = weeklyStats[index];
-              const steps = dayData?.steps || 0;
-              const maxSteps = Math.max(...weeklyStats.map(d => d.steps));
-              const heightPercent = maxSteps > 0 ? (steps / maxSteps) * 100 : 0;
-              
-              return (
-                <div key={index} className="flex-1 flex flex-col items-center">
-                  <div 
-                    className={`w-full rounded-t transition-all ${
-                      steps > 0 ? 'bg-primary' : 'bg-muted'
-                    }`}
-                    style={{ height: `${Math.max(heightPercent, steps > 0 ? 10 : 5)}%` }}
-                  />
-                  <span className="text-xs text-muted-foreground mt-1">{dayName}</span>
+        {/* Graphique en barres de la semaine */}
+        <div className="bg-muted/30 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-foreground mb-6">Progression de la semaine</h3>
+          <div className="space-y-4">
+            {/* Légende */}
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>Objectif: 10 000 pas/jour</span>
+              <span>Maximum: {Math.max(...weeklyStats.map(d => d.steps)).toLocaleString()} pas</span>
+            </div>
+            
+            {/* Graphique */}
+            <div className="space-y-3">
+              {dayNames.map((dayName, index) => {
+                const dayData = weeklyStats[index];
+                const steps = dayData?.steps || 0;
+                const maxSteps = Math.max(...weeklyStats.map(d => d.steps));
+                const goalSteps = 10000;
+                const widthPercent = maxSteps > 0 ? (steps / maxSteps) * 100 : 0;
+                const goalWidthPercent = maxSteps > 0 ? (goalSteps / maxSteps) * 100 : 0;
+                const isGoalReached = steps >= goalSteps;
+                const isToday = index === 6; // Dimanche est le jour actuel dans cet exemple
+                
+                return (
+                  <div key={index} className="space-y-1">
+                    {/* En-tête de la barre */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <span className={`text-sm font-medium w-8 ${
+                          isToday ? 'text-primary' : 'text-foreground'
+                        }`}>
+                          {dayName}
+                        </span>
+                        {isToday && (
+                          <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
+                            Aujourd'hui
+                          </span>
+                        )}
+                      </div>
+                      <span className={`text-sm font-semibold ${
+                        isGoalReached ? 'text-green-600' : 'text-muted-foreground'
+                      }`}>
+                        {steps.toLocaleString()} pas
+                      </span>
+                    </div>
+                    
+                    {/* Barre de progression */}
+                    <div className="relative h-8 bg-muted rounded-full overflow-hidden">
+                      {/* Barre de l'objectif (ligne de référence) */}
+                      <div 
+                        className="absolute top-0 left-0 h-full bg-gray-300/50 rounded-full"
+                        style={{ width: `${Math.min(goalWidthPercent, 100)}%` }}
+                      />
+                      
+                      {/* Barre des pas */}
+                      <div 
+                        className={`relative h-full rounded-full transition-all duration-500 ${
+                          isGoalReached 
+                            ? 'bg-gradient-to-r from-green-500 to-green-600' 
+                            : steps > 0
+                              ? 'bg-gradient-to-r from-primary to-primary/80'
+                              : 'bg-muted-foreground/30'
+                        }`}
+                        style={{ width: `${Math.max(widthPercent, steps > 0 ? 3 : 0)}%` }}
+                      >
+                        {/* Effet de brillance */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent rounded-full" />
+                      </div>
+                      
+                      {/* Marqueur d'objectif */}
+                      {goalWidthPercent <= 100 && (
+                        <div 
+                          className="absolute top-0 h-full w-0.5 bg-gray-600 z-10"
+                          style={{ left: `${goalWidthPercent}%` }}
+                        />
+                      )}
+                    </div>
+                    
+                    {/* Pourcentage de l'objectif */}
+                    {steps > 0 && (
+                      <div className="text-right">
+                        <span className={`text-xs ${
+                          isGoalReached ? 'text-green-600' : 'text-muted-foreground'
+                        }`}>
+                          {Math.round((steps / goalSteps) * 100)}% de l'objectif
+                          {isGoalReached && ' 🎯'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* Statistiques de la semaine */}
+            <div className="mt-6 pt-4 border-t border-muted-foreground/20">
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <p className="text-sm text-muted-foreground">Jours actifs</p>
+                  <p className="text-lg font-bold text-foreground">
+                    {weeklyStats.filter(d => d.steps > 0).length}/7
+                  </p>
                 </div>
-              );
-            })}
+                <div>
+                  <p className="text-sm text-muted-foreground">Objectifs atteints</p>
+                  <p className="text-lg font-bold text-green-600">
+                    {weeklyStats.filter(d => d.steps >= 10000).length}/7
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Moyenne/jour</p>
+                  <p className="text-lg font-bold text-foreground">
+                    {Math.round(weekTotals.steps / 7).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
