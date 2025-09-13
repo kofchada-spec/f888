@@ -185,15 +185,6 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground">Mes paramètres</h2>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setIsEditModalOpen(true)}
-                className="rounded-full border-border hover:border-primary hover:text-primary"
-              >
-                <Edit3 className="h-4 w-4 mr-1" />
-                Modifier
-              </Button>
             </div>
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
