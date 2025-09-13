@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft, User, Ruler, Weight, Target, Timer, Zap } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 interface WalkPlanningProps {
   onComplete: (data: {
@@ -19,11 +21,62 @@ type WalkPace = 'slow' | 'moderate' | 'fast';
 type TripType = 'one-way' | 'round-trip';
 
 const WalkPlanning = ({ onComplete, onBack }: WalkPlanningProps) => {
+  const { user } = useAuth();
   const [steps, setSteps] = useState('3000');
   const [selectedPace, setSelectedPace] = useState<WalkPace>('moderate');
   const [tripType, setTripType] = useState<TripType>('one-way');
   const [height, setHeight] = useState('1.70');
   const [weight, setWeight] = useState('70');
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Charger les données du profil utilisateur
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      if (user) {
+        try {
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('height_m, weight_kg')
+            .eq('user_id', user.id)
+            .single();
+
+          if (error) {
+            console.error('Error loading profile:', error);
+            setIsLoading(false);
+            return;
+          }
+
+          if (profile) {
+            // Utiliser les données du profil s'elles existent
+            if (profile.height_m && profile.height_m > 0) {
+              setHeight(profile.height_m.toString());
+            }
+            if (profile.weight_kg && profile.weight_kg > 0) {
+              setWeight(profile.weight_kg.toString());
+            }
+          }
+        } catch (error) {
+          console.error('Error loading profile:', error);
+        }
+      } else {
+        // Charger depuis localStorage pour les utilisateurs non connectés
+        try {
+          const localProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+          if (localProfile.height_m && localProfile.height_m > 0) {
+            setHeight(localProfile.height_m.toString());
+          }
+          if (localProfile.weight_kg && localProfile.weight_kg > 0) {
+            setWeight(localProfile.weight_kg.toString());
+          }
+        } catch (error) {
+          console.error('Error loading local profile:', error);
+        }
+      }
+      setIsLoading(false);
+    };
+
+    loadUserProfile();
+  }, [user]);
 
   const handleValidate = () => {
     onComplete({
@@ -150,6 +203,7 @@ const WalkPlanning = ({ onComplete, onBack }: WalkPlanningProps) => {
                     onChange={(e) => setHeight(e.target.value)}
                     className="w-full"
                     placeholder="1.70"
+                    disabled={isLoading}
                   />
                 </div>
 
@@ -169,6 +223,7 @@ const WalkPlanning = ({ onComplete, onBack }: WalkPlanningProps) => {
                     onChange={(e) => setWeight(e.target.value)}
                     className="w-full"
                     placeholder="70"
+                    disabled={isLoading}
                   />
                 </div>
               </div>
