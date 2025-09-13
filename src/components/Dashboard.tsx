@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { User, Edit3, Footprints, MapPin, Flame, Clock, LogOut, Crown, Settings } from 'lucide-react';
+import { User, Edit3, Footprints, MapPin, Flame, Clock, LogOut, Crown, Settings, UserCircle, CreditCard, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,6 +29,7 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
     avatar: null
   });
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
 
   // Load user profile from Supabase or localStorage
   useEffect(() => {
@@ -157,24 +159,82 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
                 </Button>
               </Link>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={async () => {
-                await signOut();
-                navigate('/auth');
-              }}
-              className="text-gray-500 hover:text-red-600 hover:bg-red-50"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Déconnexion
-            </Button>
-            <Avatar className="h-10 w-10 cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all" onClick={() => setIsEditModalOpen(true)}>
-              <AvatarImage src={userProfile.avatar || undefined} />
-              <AvatarFallback className="bg-gradient-to-r from-green-500 to-blue-500 text-white font-semibold">
-                {userProfile.firstName.charAt(0)}
-              </AvatarFallback>
-            </Avatar>
+            <Popover open={isAvatarMenuOpen} onOpenChange={setIsAvatarMenuOpen}>
+              <PopoverTrigger asChild>
+                <Avatar className="h-10 w-10 cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all">
+                  <AvatarImage src={userProfile.avatar || undefined} />
+                  <AvatarFallback className="bg-gradient-to-r from-green-500 to-blue-500 text-white font-semibold">
+                    {userProfile.firstName.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-0" align="end">
+                <div className="py-2">
+                  <div className="px-3 py-2 border-b border-gray-100">
+                    <p className="font-medium text-sm text-foreground">{userProfile.firstName}</p>
+                    <p className="text-xs text-muted-foreground">{user?.email}</p>
+                  </div>
+                  
+                  <div className="py-1">
+                    <button
+                      onClick={() => {
+                        setIsEditModalOpen(true);
+                        setIsAvatarMenuOpen(false);
+                      }}
+                      className="w-full flex items-center px-3 py-2 text-sm text-foreground hover:bg-gray-50 transition-colors"
+                    >
+                      <UserCircle className="h-4 w-4 mr-3" />
+                      Modifier mes informations
+                    </button>
+                    
+                    <Link 
+                      to="/subscription"
+                      onClick={() => setIsAvatarMenuOpen(false)}
+                      className="w-full flex items-center px-3 py-2 text-sm text-foreground hover:bg-gray-50 transition-colors"
+                    >
+                      <CreditCard className="h-4 w-4 mr-3" />
+                      Gérer mes abonnements
+                    </Link>
+                    
+                    <button
+                      onClick={() => {
+                        // TODO: Implémenter le service client
+                        setIsAvatarMenuOpen(false);
+                      }}
+                      className="w-full flex items-center px-3 py-2 text-sm text-foreground hover:bg-gray-50 transition-colors"
+                    >
+                      <HelpCircle className="h-4 w-4 mr-3" />
+                      Service client
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        // TODO: Implémenter les paramètres
+                        setIsAvatarMenuOpen(false);
+                      }}
+                      className="w-full flex items-center px-3 py-2 text-sm text-foreground hover:bg-gray-50 transition-colors"
+                    >
+                      <Settings className="h-4 w-4 mr-3" />
+                      Paramètres
+                    </button>
+                  </div>
+                  
+                  <div className="border-t border-gray-100 py-1">
+                    <button
+                      onClick={async () => {
+                        await signOut();
+                        navigate('/auth');
+                        setIsAvatarMenuOpen(false);
+                      }}
+                      className="w-full flex items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <LogOut className="h-4 w-4 mr-3" />
+                      Se déconnecter
+                    </button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       </header>
