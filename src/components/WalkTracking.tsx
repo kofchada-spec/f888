@@ -258,7 +258,7 @@ const WalkTracking = ({ destination, planningData, onBack }: WalkTrackingProps) 
 
         {/* Informations de la destination */}
         <Card className="p-6 mb-6">
-          <h3 className="text-lg font-semibold text-foreground mb-4">Informations de l'itinéraire</h3>
+          <h3 className="text-lg font-semibold text-foreground mb-4">Estimation de la marche en cours</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-primary">{destination.distanceKm.toFixed(1)} km</div>
