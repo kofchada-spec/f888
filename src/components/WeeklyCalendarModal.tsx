@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ChevronLeft, ChevronRight, Footprints, MapPin, Flame, Clock } from 'lucide-react';
@@ -81,9 +81,12 @@ export const WeeklyCalendarModal = ({ isOpen, onClose, weeklyStats }: WeeklyCale
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
         <DialogHeader>
           <DialogTitle className="text-center">Calendrier d'activité</DialogTitle>
+          <DialogDescription className="text-center text-muted-foreground">
+            Consultez vos activités quotidiennes et cliquez sur un jour pour voir les détails
+          </DialogDescription>
         </DialogHeader>
 
         {/* Month Navigation */}
