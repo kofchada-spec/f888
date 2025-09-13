@@ -83,11 +83,12 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
     loadUserProfile();
   }, [user]);
 
-  const handleProfileUpdate = (updatedProfile: { weight: number; age: number }) => {
+  const handleProfileUpdate = (updatedProfile: { weight: number; age: number; avatar: string | null }) => {
     setUserProfile(prev => ({
       ...prev,
       weight: updatedProfile.weight,
-      age: updatedProfile.age
+      age: updatedProfile.age,
+      avatar: updatedProfile.avatar
     }));
   };
 
@@ -280,7 +281,8 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
           weight: userProfile.weight,
           age: userProfile.age,
           gender: userProfile.gender,
-          height: userProfile.height
+          height: userProfile.height,
+          avatar: userProfile.avatar
         }}
         onProfileUpdate={handleProfileUpdate}
       />

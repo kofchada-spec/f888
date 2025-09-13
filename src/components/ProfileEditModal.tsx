@@ -12,6 +12,21 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import avatar1 from '@/assets/avatars/avatar-1.png';
+import avatar2 from '@/assets/avatars/avatar-2.png';
+import avatar3 from '@/assets/avatars/avatar-3.png';
+import avatar4 from '@/assets/avatars/avatar-4.png';
+import avatar5 from '@/assets/avatars/avatar-5.png';
+import avatar6 from '@/assets/avatars/avatar-6.png';
+
+const avatarOptions = [
+  { id: 'avatar-1', src: avatar1, alt: 'Avatar 1' },
+  { id: 'avatar-2', src: avatar2, alt: 'Avatar 2' },
+  { id: 'avatar-3', src: avatar3, alt: 'Avatar 3' },
+  { id: 'avatar-4', src: avatar4, alt: 'Avatar 4' },
+  { id: 'avatar-5', src: avatar5, alt: 'Avatar 5' },
+  { id: 'avatar-6', src: avatar6, alt: 'Avatar 6' },
+];
 
 interface ProfileEditModalProps {
   isOpen: boolean;
@@ -21,8 +36,9 @@ interface ProfileEditModalProps {
     age: number;
     gender: string;
     height: number;
+    avatar: string | null;
   };
-  onProfileUpdate: (updatedProfile: { weight: number; age: number }) => void;
+  onProfileUpdate: (updatedProfile: { weight: number; age: number; avatar: string | null }) => void;
 }
 
 export const ProfileEditModal = ({ 
@@ -35,6 +51,7 @@ export const ProfileEditModal = ({
   const { toast } = useToast();
   const [weight, setWeight] = useState(currentProfile.weight || 70);
   const [age, setAge] = useState(currentProfile.age || 30);
+  const [selectedAvatar, setSelectedAvatar] = useState(currentProfile.avatar || null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -68,7 +85,8 @@ export const ProfileEditModal = ({
           .from('profiles')
           .update({ 
             weight_kg: weight, 
-            age_years: age 
+            age_years: age,
+            avatar_url: selectedAvatar
           })
           .eq('user_id', user.id);
 
@@ -79,11 +97,12 @@ export const ProfileEditModal = ({
         localStorage.setItem('userProfile', JSON.stringify({
           ...localProfile,
           weight_kg: weight,
-          age_years: age
+          age_years: age,
+          avatar_url: selectedAvatar
         }));
       }
 
-      onProfileUpdate({ weight, age });
+      onProfileUpdate({ weight, age, avatar: selectedAvatar });
       
       toast({
         title: "Profil mis à jour",
@@ -110,7 +129,37 @@ export const ProfileEditModal = ({
           <DialogTitle>Modifier mes informations</DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Section Avatar */}
+          <div>
+            <Label className="text-sm font-medium mb-3 block">Choisir un avatar</Label>
+            <div className="grid grid-cols-3 gap-3">
+              {avatarOptions.map((avatar) => (
+                <button
+                  key={avatar.id}
+                  type="button"
+                  onClick={() => setSelectedAvatar(avatar.src)}
+                  className={`relative w-16 h-16 rounded-full overflow-hidden border-2 transition-all hover:scale-105 ${
+                    selectedAvatar === avatar.src
+                      ? 'border-primary shadow-lg ring-2 ring-primary/20'
+                      : 'border-muted hover:border-primary/50'
+                  }`}
+                >
+                  <img 
+                    src={avatar.src} 
+                    alt={avatar.alt}
+                    className="w-full h-full object-cover"
+                  />
+                  {selectedAvatar === avatar.src && (
+                    <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                      <div className="w-3 h-3 bg-primary rounded-full"></div>
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+          
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="gender" className="text-muted-foreground">Genre</Label>
