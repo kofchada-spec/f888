@@ -111,6 +111,11 @@ export const WeeklyCalendarModal = ({ isOpen, onClose, weeklyStats }: WeeklyCale
           </Button>
         </div>
 
+        {/* Instructions */}
+        <div className="mb-4 text-center text-sm text-muted-foreground">
+          💡 Cliquez sur un jour pour voir les détails de votre activité
+        </div>
+
         {/* Calendar Grid */}
         <div className="grid grid-cols-7 gap-1 md:gap-2">
           {/* Day headers */}
@@ -124,16 +129,16 @@ export const WeeklyCalendarModal = ({ isOpen, onClose, weeklyStats }: WeeklyCale
           {calendarDays.map((dayInfo, index) => (
             <Card 
               key={index} 
-              className={`min-h-[80px] md:min-h-[120px] transition-all cursor-pointer hover:shadow-md ${
+              className={`min-h-[80px] md:min-h-[120px] transition-all duration-200 ${
                 !dayInfo 
                   ? 'invisible' 
                   : selectedDay?.dateISO === dayInfo.dateISO
-                    ? 'ring-2 ring-primary bg-primary/10'
+                    ? 'ring-2 ring-primary bg-primary/10 shadow-lg cursor-pointer'
                     : dayInfo.isToday 
-                      ? 'ring-1 md:ring-2 ring-primary' 
+                      ? 'ring-1 md:ring-2 ring-primary cursor-pointer hover:shadow-md hover:bg-primary/5' 
                       : dayInfo.stats && dayInfo.stats.steps > 0
-                        ? 'bg-muted/30 hover:bg-muted/50'
-                        : 'bg-background hover:bg-muted/20'
+                        ? 'bg-muted/30 hover:bg-muted/50 cursor-pointer hover:shadow-md hover:scale-105'
+                        : 'bg-background hover:bg-muted/20 cursor-pointer hover:shadow-sm'
               }`}
               onClick={() => dayInfo && handleDayClick(dayInfo)}
             >
@@ -182,64 +187,80 @@ export const WeeklyCalendarModal = ({ isOpen, onClose, weeklyStats }: WeeklyCale
 
         {/* Day Detail Section */}
         {selectedDay && (
-          <Card className="mt-6 bg-muted/20">
+          <Card className="mt-6 bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/20">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-foreground">
-                  {dayNames[selectedDay.date.getDay()]} {selectedDay.day} {monthNames[selectedDay.date.getMonth()]} {selectedDay.date.getFullYear()}
-                </h3>
-                {selectedDay.isToday && (
-                  <span className="text-sm bg-primary text-primary-foreground px-2 py-1 rounded-full">
-                    Aujourd'hui
-                  </span>
-                )}
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-foreground">
+                    {dayNames[selectedDay.date.getDay()]} {selectedDay.day} {monthNames[selectedDay.date.getMonth()]} {selectedDay.date.getFullYear()}
+                  </h3>
+                  {selectedDay.isToday && (
+                    <span className="inline-flex items-center text-sm bg-primary text-primary-foreground px-3 py-1 rounded-full mt-2">
+                      ✨ Aujourd'hui
+                    </span>
+                  )}
+                </div>
               </div>
               
               {selectedDay.stats && selectedDay.stats.steps > 0 ? (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-white/50 rounded-lg p-4 text-center">
-                    <div className="flex items-center justify-center mb-2">
-                      <Footprints className="h-6 w-6 text-primary" />
+                  <div className="bg-white rounded-xl p-6 text-center shadow-sm border border-primary/10">
+                    <div className="flex items-center justify-center mb-3">
+                      <div className="p-3 bg-primary/10 rounded-full">
+                        <Footprints className="h-6 w-6 text-primary" />
+                      </div>
                     </div>
-                    <p className="text-2xl font-bold text-foreground">{selectedDay.stats.steps.toLocaleString()}</p>
-                    <p className="text-sm text-muted-foreground">pas</p>
+                    <p className="text-3xl font-bold text-foreground mb-1">{selectedDay.stats.steps.toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground uppercase tracking-wide">pas</p>
                   </div>
                   
-                  <div className="bg-white/50 rounded-lg p-4 text-center">
-                    <div className="flex items-center justify-center mb-2">
-                      <MapPin className="h-6 w-6 text-secondary" />
+                  <div className="bg-white rounded-xl p-6 text-center shadow-sm border border-secondary/10">
+                    <div className="flex items-center justify-center mb-3">
+                      <div className="p-3 bg-secondary/10 rounded-full">
+                        <MapPin className="h-6 w-6 text-secondary" />
+                      </div>
                     </div>
-                    <p className="text-2xl font-bold text-foreground">{selectedDay.stats.distanceKm.toFixed(1)}</p>
-                    <p className="text-sm text-muted-foreground">kilomètres</p>
+                    <p className="text-3xl font-bold text-foreground mb-1">{selectedDay.stats.distanceKm.toFixed(1)}</p>
+                    <p className="text-sm text-muted-foreground uppercase tracking-wide">kilomètres</p>
                   </div>
                   
-                  <div className="bg-white/50 rounded-lg p-4 text-center">
-                    <div className="flex items-center justify-center mb-2">
-                      <Flame className="h-6 w-6 text-orange-500" />
+                  <div className="bg-white rounded-xl p-6 text-center shadow-sm border border-orange-200">
+                    <div className="flex items-center justify-center mb-3">
+                      <div className="p-3 bg-orange-100 rounded-full">
+                        <Flame className="h-6 w-6 text-orange-500" />
+                      </div>
                     </div>
-                    <p className="text-2xl font-bold text-foreground">{selectedDay.stats.kcal}</p>
-                    <p className="text-sm text-muted-foreground">calories</p>
+                    <p className="text-3xl font-bold text-foreground mb-1">{selectedDay.stats.kcal}</p>
+                    <p className="text-sm text-muted-foreground uppercase tracking-wide">calories</p>
                   </div>
                   
-                  <div className="bg-white/50 rounded-lg p-4 text-center">
-                    <div className="flex items-center justify-center mb-2">
-                      <Clock className="h-6 w-6 text-purple-500" />
+                  <div className="bg-white rounded-xl p-6 text-center shadow-sm border border-purple-200">
+                    <div className="flex items-center justify-center mb-3">
+                      <div className="p-3 bg-purple-100 rounded-full">
+                        <Clock className="h-6 w-6 text-purple-500" />
+                      </div>
                     </div>
-                    <p className="text-2xl font-bold text-foreground">{selectedDay.stats.walkMin}</p>
-                    <p className="text-sm text-muted-foreground">minutes de marche</p>
+                    <p className="text-3xl font-bold text-foreground mb-1">{selectedDay.stats.walkMin}</p>
+                    <p className="text-sm text-muted-foreground uppercase tracking-wide">minutes</p>
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <div className="text-muted-foreground/50 mb-2">
-                    <Footprints className="h-12 w-12 mx-auto" />
+                <div className="text-center py-12">
+                  <div className="text-muted-foreground/30 mb-4">
+                    <Footprints className="h-16 w-16 mx-auto" />
                   </div>
-                  <p className="text-lg text-muted-foreground">Aucune activité enregistrée</p>
+                  <p className="text-xl font-medium text-muted-foreground mb-2">Aucune activité enregistrée</p>
                   <p className="text-sm text-muted-foreground/80">Commencez votre journée avec une marche !</p>
                 </div>
               )}
             </CardContent>
           </Card>
+        )}
+
+        {!selectedDay && (
+          <div className="mt-6 text-center text-sm text-muted-foreground bg-muted/30 rounded-lg p-4">
+            👆 Sélectionnez un jour ci-dessus pour voir les détails de votre activité
+          </div>
         )}
 
         <div className="flex justify-between items-center mt-6">
