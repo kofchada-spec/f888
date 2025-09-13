@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Check, Crown, Sparkles, Clock, ArrowLeft } from 'lucide-react';
+import { Check, Crown, Sparkles, Clock, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 interface SubscriptionData {
@@ -123,11 +123,10 @@ const Subscription = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center gap-4 mb-8">
+        <div className="flex justify-end mb-8">
           <Link to="/">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Retour
+            <Button variant="ghost" size="sm" className="rounded-full w-10 h-10 p-0">
+              <X className="h-4 w-4" />
             </Button>
           </Link>
         </div>
