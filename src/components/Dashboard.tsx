@@ -9,7 +9,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 import { ProfileEditModal } from '@/components/ProfileEditModal';
 import { WeeklyStats } from '@/components/WeeklyStats';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 interface DashboardProps {
   onPlanifyWalk: () => void;
@@ -18,6 +18,7 @@ interface DashboardProps {
 const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
   const { signOut, user } = useAuth();
   const { subscriptionData } = useSubscription();
+  const navigate = useNavigate();
   const [userProfile, setUserProfile] = useState({
     firstName: "Utilisateur",
     gender: "-",
@@ -162,7 +163,10 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={signOut}
+              onClick={async () => {
+                await signOut();
+                navigate('/auth');
+              }}
               className="text-gray-500 hover:text-red-600 hover:bg-red-50"
             >
               <LogOut className="h-4 w-4 mr-2" />
