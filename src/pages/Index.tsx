@@ -39,6 +39,9 @@ const Index = () => {
     if (profileComplete) {
       setHasCompletedProfile(true);
     }
+    
+    // Auto-skip authentication
+    setSkipAuth(true);
   }, []);
 
   // Check for destination parameter to show destination selection
