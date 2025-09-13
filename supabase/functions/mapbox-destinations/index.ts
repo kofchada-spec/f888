@@ -137,19 +137,51 @@ serve(async (req) => {
       
       if (expandedPois.length > 0) {
         const randomPoi = expandedPois[Math.floor(Math.random() * expandedPois.length)];
-        bestDestination = {
-          id: randomPoi.id || `poi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          name: randomPoi.place_name?.split(',')[0] || randomPoi.text || 'Point d\'intérêt',
-          coordinates: { lat: randomPoi.center[1], lng: randomPoi.center[0] },
-          routeGeoJSON: null, // Sera une ligne droite
-          distanceKm: randomPoi.distance,
-          durationMin: Math.round(durationMin),
-          calories: calories
-        };
+        
+        // Calculer la route réelle même pour l'expanded POI
+        try {
+          const directionsUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${userLocation.lng},${userLocation.lat};${randomPoi.center[0]},${randomPoi.center[1]}?geometries=geojson&steps=true&access_token=${mapboxToken}`;
+          
+          const dirResponse = await fetch(directionsUrl);
+          const dirData = await dirResponse.json();
+          
+          let routeGeoJSON = null;
+          let actualDistanceKm = randomPoi.distance;
+          let actualDurationMin = Math.round(durationMin);
+          
+          if (dirData.routes && dirData.routes.length > 0) {
+            const route = dirData.routes[0];
+            routeGeoJSON = route.geometry;
+            actualDistanceKm = route.distance / 1000;
+            actualDurationMin = Math.round(route.duration / 60);
+          }
+          
+          bestDestination = {
+            id: randomPoi.id || `poi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            name: randomPoi.place_name?.split(',')[0] || randomPoi.text || 'Point d\'intérêt',
+            coordinates: { lat: randomPoi.center[1], lng: randomPoi.center[0] },
+            routeGeoJSON: routeGeoJSON,
+            distanceKm: actualDistanceKm,
+            durationMin: actualDurationMin,
+            calories: calories
+          };
+        } catch (error) {
+          console.log('Error calculating expanded POI route:', error);
+          // Fallback sans route réelle
+          bestDestination = {
+            id: randomPoi.id || `poi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            name: randomPoi.place_name?.split(',')[0] || randomPoi.text || 'Point d\'intérêt',
+            coordinates: { lat: randomPoi.center[1], lng: randomPoi.center[0] },
+            routeGeoJSON: null,
+            distanceKm: randomPoi.distance,
+            durationMin: Math.round(durationMin),
+            calories: calories
+          };
+        }
       }
     }
     
-    // Dernier fallback : destination générique
+    // Dernier fallback : destination générique avec route réelle
     if (!bestDestination) {
       const angle = Math.random() * 2 * Math.PI;
       const distance = targetOutKm * 1.1;
@@ -158,15 +190,46 @@ serve(async (req) => {
       const destLat = userLocation.lat + Math.sin(angle) * distanceInDegrees;
       const destLng = userLocation.lng + Math.cos(angle) * distanceInDegrees;
       
-      bestDestination = {
-        id: `fallback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        name: planningData.tripType === 'round-trip' ? 'Circuit Découverte' : 'Point de Vue',
-        coordinates: { lat: destLat, lng: destLng },
-        routeGeoJSON: null,
-        distanceKm: targetOutKm,
-        durationMin: Math.round(durationMin),
-        calories: calories
-      };
+      // Calculer la route réelle même pour le fallback générique
+      try {
+        const directionsUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${userLocation.lng},${userLocation.lat};${destLng},${destLat}?geometries=geojson&steps=true&access_token=${mapboxToken}`;
+        
+        const dirResponse = await fetch(directionsUrl);
+        const dirData = await dirResponse.json();
+        
+        let routeGeoJSON = null;
+        let actualDistanceKm = targetOutKm;
+        let actualDurationMin = Math.round(durationMin);
+        
+        if (dirData.routes && dirData.routes.length > 0) {
+          const route = dirData.routes[0];
+          routeGeoJSON = route.geometry;
+          actualDistanceKm = route.distance / 1000;
+          actualDurationMin = Math.round(route.duration / 60);
+        }
+        
+        bestDestination = {
+          id: `fallback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          name: planningData.tripType === 'round-trip' ? 'Circuit Découverte' : 'Point de Vue',
+          coordinates: { lat: destLat, lng: destLng },
+          routeGeoJSON: routeGeoJSON,
+          distanceKm: actualDistanceKm,
+          durationMin: actualDurationMin,
+          calories: calories
+        };
+      } catch (error) {
+        console.log('Error calculating generic fallback route:', error);
+        // Dernier recours sans route réelle
+        bestDestination = {
+          id: `fallback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          name: planningData.tripType === 'round-trip' ? 'Circuit Découverte' : 'Point de Vue',
+          coordinates: { lat: destLat, lng: destLng },
+          routeGeoJSON: null,
+          distanceKm: targetOutKm,
+          durationMin: Math.round(durationMin),
+          calories: calories
+        };
+      }
     }
 
     console.log('Generated single destination:', bestDestination.name);
@@ -269,15 +332,46 @@ async function generateThreeDestinations(
     const destLat = userLocation.lat + Math.sin(angle) * distanceInDegrees;
     const destLng = userLocation.lng + Math.cos(angle) * distanceInDegrees;
     
-    destinations.push({
-      id: `fallback_${destinations.length + 1}_${Date.now()}`,
-      name: `Destination ${destinations.length + 1}`,
-      coordinates: { lat: destLat, lng: destLng },
-      routeGeoJSON: null,
-      distanceKm: targetOutKm,
-      durationMin: Math.round(durationMin),
-      calories: calories
-    });
+    // Calculer la route réelle même pour les destinations fallback
+    try {
+      const directionsUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${userLocation.lng},${userLocation.lat};${destLng},${destLat}?geometries=geojson&steps=true&access_token=${mapboxToken}`;
+      
+      const dirResponse = await fetch(directionsUrl);
+      const dirData = await dirResponse.json();
+      
+      let routeGeoJSON = null;
+      let actualDistanceKm = targetOutKm;
+      let actualDurationMin = Math.round(durationMin);
+      
+      if (dirData.routes && dirData.routes.length > 0) {
+        const route = dirData.routes[0];
+        routeGeoJSON = route.geometry;
+        actualDistanceKm = route.distance / 1000;
+        actualDurationMin = Math.round(route.duration / 60);
+      }
+      
+      destinations.push({
+        id: `fallback_${destinations.length + 1}_${Date.now()}`,
+        name: `Destination ${destinations.length + 1}`,
+        coordinates: { lat: destLat, lng: destLng },
+        routeGeoJSON: routeGeoJSON,
+        distanceKm: actualDistanceKm,
+        durationMin: actualDurationMin,
+        calories: calories
+      });
+    } catch (error) {
+      console.log('Error calculating fallback route:', error);
+      // Si le calcul de route échoue, utiliser les données de base
+      destinations.push({
+        id: `fallback_${destinations.length + 1}_${Date.now()}`,
+        name: `Destination ${destinations.length + 1}`,
+        coordinates: { lat: destLat, lng: destLng },
+        routeGeoJSON: null,
+        distanceKm: targetOutKm,
+        durationMin: Math.round(durationMin),
+        calories: calories
+      });
+    }
   }
   
   console.log(`Generated ${destinations.length} destinations`);
