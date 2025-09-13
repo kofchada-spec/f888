@@ -33,6 +33,10 @@ const Index = () => {
     const onboardingComplete = localStorage.getItem('fitpas-onboarding-complete');
     const profileComplete = localStorage.getItem('fitpas-profile-complete');
     
+    // Auto-complete onboarding and profile
+    setHasCompletedOnboarding(true);
+    setHasCompletedProfile(true);
+    
     if (onboardingComplete) {
       setHasCompletedOnboarding(true);
     }
