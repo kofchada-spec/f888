@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +12,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { Upload, Trash2 } from 'lucide-react';
 import avatar1 from '@/assets/avatars/avatar-1.png';
 import avatar2 from '@/assets/avatars/avatar-2.png';
 import avatar3 from '@/assets/avatars/avatar-3.png';
@@ -49,10 +50,107 @@ export const ProfileEditModal = ({
 }: ProfileEditModalProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [weight, setWeight] = useState(currentProfile.weight || 70);
   const [age, setAge] = useState(currentProfile.age || 30);
   const [selectedAvatar, setSelectedAvatar] = useState(currentProfile.avatar || null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    // Validation du fichier
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast({
+        variant: "destructive",
+        title: "Fichier trop volumineux",
+        description: "La taille maximale autorisée est de 5MB.",
+      });
+      return;
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        variant: "destructive",
+        title: "Format non supporté",
+        description: "Seuls les formats JPG, PNG et WEBP sont autorisés.",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      // Supprimer l'ancien avatar s'il existe
+      if (selectedAvatar && selectedAvatar.includes('supabase')) {
+        const oldPath = selectedAvatar.split('/').slice(-2).join('/');
+        await supabase.storage.from('avatars').remove([oldPath]);
+      }
+
+      // Upload du nouveau fichier
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/avatar-${Date.now()}.${fileExt}`;
+      
+      const { data, error } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) throw error;
+
+      // Obtenir l'URL publique
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(data.path);
+
+      setSelectedAvatar(publicUrl);
+      
+      toast({
+        title: "Photo téléchargée",
+        description: "Votre photo de profil a été téléchargée avec succès.",
+      });
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      toast({
+        variant: "destructive",
+        title: "Erreur de téléchargement",
+        description: "Impossible de télécharger la photo.",
+      });
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDeleteCustomAvatar = async () => {
+    if (!selectedAvatar || !selectedAvatar.includes('supabase') || !user) return;
+
+    try {
+      const path = selectedAvatar.split('/').slice(-2).join('/');
+      await supabase.storage.from('avatars').remove([path]);
+      setSelectedAvatar(null);
+      
+      toast({
+        title: "Photo supprimée",
+        description: "Votre photo personnelle a été supprimée.",
+      });
+    } catch (error) {
+      console.error('Error deleting avatar:', error);
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible de supprimer la photo.",
+      });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,6 +231,61 @@ export const ProfileEditModal = ({
           {/* Section Avatar */}
           <div>
             <Label className="text-sm font-medium mb-3 block">Choisir un avatar</Label>
+            
+            {/* Avatar personnalisé actuel */}
+            {selectedAvatar && selectedAvatar.includes('supabase') && (
+              <div className="mb-4 p-3 border border-muted rounded-lg bg-muted/30">
+                <div className="flex items-center gap-3">
+                  <img 
+                    src={selectedAvatar} 
+                    alt="Avatar personnalisé"
+                    className="w-12 h-12 rounded-full object-cover"
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Photo personnelle</p>
+                    <p className="text-xs text-muted-foreground">Votre photo actuelle</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDeleteCustomAvatar}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            {/* Bouton de téléchargement */}
+            <div className="mb-4">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading || !user}
+                className="w-full mb-3"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {isUploading ? "Téléchargement..." : "Télécharger une photo"}
+              </Button>
+              {!user && (
+                <p className="text-xs text-muted-foreground text-center">
+                  Connectez-vous pour télécharger vos propres photos
+                </p>
+              )}
+            </div>
+            
+            {/* Avatars prédéfinis */}
+            <p className="text-xs text-muted-foreground mb-2">Ou choisissez un avatar prédéfini :</p>
             <div className="grid grid-cols-3 gap-3">
               {avatarOptions.map((avatar) => (
                 <button
