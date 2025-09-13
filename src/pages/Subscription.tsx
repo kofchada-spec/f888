@@ -124,11 +124,14 @@ const Subscription = () => {
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-end mb-8">
-          <Link to="/">
-            <Button variant="ghost" size="sm" className="rounded-full w-10 h-10 p-0">
-              <X className="h-4 w-4" />
-            </Button>
-          </Link>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="rounded-full w-10 h-10 p-0"
+            onClick={() => navigate('/')}
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
 
         <div className="max-w-4xl mx-auto">
