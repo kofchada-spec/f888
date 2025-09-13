@@ -117,7 +117,7 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
       <header className="bg-white shadow-sm border-b border-gray-100">
         <div className="px-6 py-4 flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => window.location.reload()}>
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => navigate('/')}>
             <img 
               src="/lovable-uploads/5216fdd6-d0d7-446b-9260-86d15d06f4ba.png" 
               alt="FitPaS" 
