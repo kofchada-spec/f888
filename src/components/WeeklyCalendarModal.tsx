@@ -84,9 +84,6 @@ export const WeeklyCalendarModal = ({ isOpen, onClose, weeklyStats }: WeeklyCale
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
         <DialogHeader>
           <DialogTitle className="text-center">Calendrier d'activité</DialogTitle>
-          <DialogDescription className="text-center text-muted-foreground">
-            Consultez vos activités quotidiennes et cliquez sur un jour pour voir les détails
-          </DialogDescription>
         </DialogHeader>
 
         {/* Month Navigation */}
