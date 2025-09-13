@@ -96,10 +96,10 @@ export const WeeklyCalendarModal = ({ isOpen, onClose, weeklyStats }: WeeklyCale
         </div>
 
         {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-2">
+        <div className="grid grid-cols-7 gap-1 md:gap-2">
           {/* Day headers */}
           {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map(day => (
-            <div key={day} className="text-center text-sm font-medium text-muted-foreground p-2">
+            <div key={day} className="text-center text-xs md:text-sm font-medium text-muted-foreground p-1 md:p-2">
               {day}
             </div>
           ))}
@@ -108,50 +108,50 @@ export const WeeklyCalendarModal = ({ isOpen, onClose, weeklyStats }: WeeklyCale
           {calendarDays.map((dayInfo, index) => (
             <Card 
               key={index} 
-              className={`min-h-[120px] ${
+              className={`min-h-[80px] md:min-h-[120px] ${
                 !dayInfo 
                   ? 'invisible' 
                   : dayInfo.isToday 
-                    ? 'ring-2 ring-primary' 
+                    ? 'ring-1 md:ring-2 ring-primary' 
                     : dayInfo.stats && dayInfo.stats.steps > 0
                       ? 'bg-muted/30'
                       : 'bg-background'
               }`}
             >
-              <CardContent className="p-2">
+              <CardContent className="p-1 md:p-2 h-full flex flex-col">
                 {dayInfo && (
                   <>
-                    <div className={`text-sm font-medium mb-2 ${
+                    <div className={`text-xs md:text-sm font-medium mb-1 md:mb-2 ${
                       dayInfo.isToday ? 'text-primary' : 'text-foreground'
                     }`}>
                       {dayInfo.day}
                     </div>
                     
                     {dayInfo.stats && dayInfo.stats.steps > 0 ? (
-                      <div className="space-y-1">
-                        <div className="flex items-center text-xs text-muted-foreground">
-                          <Footprints className="h-3 w-3 mr-1" />
-                          <span>{dayInfo.stats.steps.toLocaleString()}</span>
+                      <div className="space-y-0.5 md:space-y-1 flex-1 overflow-hidden">
+                        <div className="flex items-center text-xs text-muted-foreground truncate">
+                          <Footprints className="h-2.5 w-2.5 md:h-3 md:w-3 mr-1 flex-shrink-0" />
+                          <span className="truncate">{dayInfo.stats.steps > 999 ? `${Math.round(dayInfo.stats.steps/1000)}k` : dayInfo.stats.steps}</span>
                         </div>
                         
-                        <div className="flex items-center text-xs text-muted-foreground">
-                          <MapPin className="h-3 w-3 mr-1" />
-                          <span>{dayInfo.stats.distanceKm.toFixed(1)}km</span>
+                        <div className="flex items-center text-xs text-muted-foreground truncate">
+                          <MapPin className="h-2.5 w-2.5 md:h-3 md:w-3 mr-1 flex-shrink-0" />
+                          <span className="truncate">{dayInfo.stats.distanceKm.toFixed(1)}km</span>
                         </div>
                         
-                        <div className="flex items-center text-xs text-muted-foreground">
-                          <Flame className="h-3 w-3 mr-1" />
-                          <span>{dayInfo.stats.kcal}</span>
+                        <div className="flex items-center text-xs text-muted-foreground truncate">
+                          <Flame className="h-2.5 w-2.5 md:h-3 md:w-3 mr-1 flex-shrink-0" />
+                          <span className="truncate">{dayInfo.stats.kcal}</span>
                         </div>
                         
-                        <div className="flex items-center text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3 mr-1" />
-                          <span>{dayInfo.stats.walkMin}min</span>
+                        <div className="flex items-center text-xs text-muted-foreground truncate">
+                          <Clock className="h-2.5 w-2.5 md:h-3 md:w-3 mr-1 flex-shrink-0" />
+                          <span className="truncate">{dayInfo.stats.walkMin}min</span>
                         </div>
                       </div>
                     ) : (
                       <div className="text-xs text-muted-foreground/50">
-                        Pas d'activité
+                        -
                       </div>
                     )}
                   </>
