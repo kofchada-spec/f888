@@ -128,12 +128,8 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
             />
           </div>
 
-          {/* Salutation */}
-          <div className="text-center">
-            <h1 className="text-xl font-semibold text-gray-900">
-              Bonjour, {userProfile.firstName}
-            </h1>
-          </div>
+          {/* Espace central */}
+          <div className="flex-1"></div>
 
           {/* Avatar et actions */}
           <div className="flex items-center space-x-3">
