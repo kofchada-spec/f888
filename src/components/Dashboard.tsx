@@ -169,7 +169,7 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
               <LogOut className="h-4 w-4 mr-2" />
               Déconnexion
             </Button>
-            <Avatar className="h-10 w-10">
+            <Avatar className="h-10 w-10 cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all" onClick={() => setIsEditModalOpen(true)}>
               <AvatarImage src={userProfile.avatar || undefined} />
               <AvatarFallback className="bg-gradient-to-r from-green-500 to-blue-500 text-white font-semibold">
                 {userProfile.firstName.charAt(0)}
