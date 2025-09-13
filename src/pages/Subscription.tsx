@@ -128,7 +128,7 @@ const Subscription = () => {
             variant="ghost" 
             size="sm" 
             className="rounded-full w-10 h-10 p-0 hover:bg-muted/80 transition-all duration-200 hover:scale-110 group"
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/?dashboard=true')}
           >
             <X className="h-4 w-4 transition-transform duration-200 group-hover:rotate-90" />
           </Button>

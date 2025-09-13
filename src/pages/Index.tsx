@@ -48,10 +48,18 @@ const Index = () => {
     setSkipAuth(true);
   }, []);
 
-  // Check for destination parameter to show destination selection
+  // Check for URL parameters
   useEffect(() => {
     const destinationParam = searchParams.get('destination');
-    if (destinationParam === 'true' && hasCompletedOnboarding && hasCompletedProfile && (user || skipAuth)) {
+    const dashboardParam = searchParams.get('dashboard');
+    
+    if (dashboardParam === 'true') {
+      // Force return to dashboard
+      setShowWalkPlanning(false);
+      setShowDestinationSelection(false);
+      setShowWalkTracking(false);
+      setSelectedDestination(null);
+    } else if (destinationParam === 'true' && hasCompletedOnboarding && hasCompletedProfile && (user || skipAuth)) {
       setShowDestinationSelection(true);
     }
   }, [searchParams, hasCompletedOnboarding, hasCompletedProfile, user, skipAuth]);
