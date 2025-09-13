@@ -11,8 +11,17 @@ interface WeeklyCalendarModalProps {
   weeklyStats: DayStats[];
 }
 
+interface CalendarDay {
+  day: number;
+  date: Date;
+  dateISO: string;
+  stats?: DayStats;
+  isToday: boolean;
+}
+
 export const WeeklyCalendarModal = ({ isOpen, onClose, weeklyStats }: WeeklyCalendarModalProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null);
 
   // Get current month info
   const year = currentDate.getFullYear();
@@ -51,6 +60,8 @@ export const WeeklyCalendarModal = ({ isOpen, onClose, weeklyStats }: WeeklyCale
     'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
   ];
 
+  const dayNames = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+
   const navigateMonth = (direction: 'prev' | 'next') => {
     setCurrentDate(prev => {
       const newDate = new Date(prev);
@@ -61,6 +72,11 @@ export const WeeklyCalendarModal = ({ isOpen, onClose, weeklyStats }: WeeklyCale
       }
       return newDate;
     });
+    setSelectedDay(null); // Reset selection when changing month
+  };
+
+  const handleDayClick = (dayInfo: CalendarDay) => {
+    setSelectedDay(dayInfo);
   };
 
   return (
@@ -108,15 +124,18 @@ export const WeeklyCalendarModal = ({ isOpen, onClose, weeklyStats }: WeeklyCale
           {calendarDays.map((dayInfo, index) => (
             <Card 
               key={index} 
-              className={`min-h-[80px] md:min-h-[120px] ${
+              className={`min-h-[80px] md:min-h-[120px] transition-all cursor-pointer hover:shadow-md ${
                 !dayInfo 
                   ? 'invisible' 
-                  : dayInfo.isToday 
-                    ? 'ring-1 md:ring-2 ring-primary' 
-                    : dayInfo.stats && dayInfo.stats.steps > 0
-                      ? 'bg-muted/30'
-                      : 'bg-background'
+                  : selectedDay?.dateISO === dayInfo.dateISO
+                    ? 'ring-2 ring-primary bg-primary/10'
+                    : dayInfo.isToday 
+                      ? 'ring-1 md:ring-2 ring-primary' 
+                      : dayInfo.stats && dayInfo.stats.steps > 0
+                        ? 'bg-muted/30 hover:bg-muted/50'
+                        : 'bg-background hover:bg-muted/20'
               }`}
+              onClick={() => dayInfo && handleDayClick(dayInfo)}
             >
               <CardContent className="p-1 md:p-2 h-full flex flex-col">
                 {dayInfo && (
@@ -161,8 +180,77 @@ export const WeeklyCalendarModal = ({ isOpen, onClose, weeklyStats }: WeeklyCale
           ))}
         </div>
 
-        <div className="flex justify-end mt-6">
-          <Button onClick={onClose}>Fermer</Button>
+        {/* Day Detail Section */}
+        {selectedDay && (
+          <Card className="mt-6 bg-muted/20">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-foreground">
+                  {dayNames[selectedDay.date.getDay()]} {selectedDay.day} {monthNames[selectedDay.date.getMonth()]} {selectedDay.date.getFullYear()}
+                </h3>
+                {selectedDay.isToday && (
+                  <span className="text-sm bg-primary text-primary-foreground px-2 py-1 rounded-full">
+                    Aujourd'hui
+                  </span>
+                )}
+              </div>
+              
+              {selectedDay.stats && selectedDay.stats.steps > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-white/50 rounded-lg p-4 text-center">
+                    <div className="flex items-center justify-center mb-2">
+                      <Footprints className="h-6 w-6 text-primary" />
+                    </div>
+                    <p className="text-2xl font-bold text-foreground">{selectedDay.stats.steps.toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground">pas</p>
+                  </div>
+                  
+                  <div className="bg-white/50 rounded-lg p-4 text-center">
+                    <div className="flex items-center justify-center mb-2">
+                      <MapPin className="h-6 w-6 text-secondary" />
+                    </div>
+                    <p className="text-2xl font-bold text-foreground">{selectedDay.stats.distanceKm.toFixed(1)}</p>
+                    <p className="text-sm text-muted-foreground">kilomètres</p>
+                  </div>
+                  
+                  <div className="bg-white/50 rounded-lg p-4 text-center">
+                    <div className="flex items-center justify-center mb-2">
+                      <Flame className="h-6 w-6 text-orange-500" />
+                    </div>
+                    <p className="text-2xl font-bold text-foreground">{selectedDay.stats.kcal}</p>
+                    <p className="text-sm text-muted-foreground">calories</p>
+                  </div>
+                  
+                  <div className="bg-white/50 rounded-lg p-4 text-center">
+                    <div className="flex items-center justify-center mb-2">
+                      <Clock className="h-6 w-6 text-purple-500" />
+                    </div>
+                    <p className="text-2xl font-bold text-foreground">{selectedDay.stats.walkMin}</p>
+                    <p className="text-sm text-muted-foreground">minutes de marche</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-muted-foreground/50 mb-2">
+                    <Footprints className="h-12 w-12 mx-auto" />
+                  </div>
+                  <p className="text-lg text-muted-foreground">Aucune activité enregistrée</p>
+                  <p className="text-sm text-muted-foreground/80">Commencez votre journée avec une marche !</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="flex justify-between items-center mt-6">
+          {selectedDay && (
+            <Button variant="outline" onClick={() => setSelectedDay(null)}>
+              Désélectionner
+            </Button>
+          )}
+          <Button onClick={onClose} className={selectedDay ? "ml-auto" : "mx-auto"}>
+            Fermer
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
