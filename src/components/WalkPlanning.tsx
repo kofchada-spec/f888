@@ -16,12 +16,13 @@ interface WalkPlanningProps {
     weight: string;
   }) => void;
   onBack: () => void;
+  onGoToDashboard: () => void;
 }
 
 type WalkPace = 'slow' | 'moderate' | 'fast';
 type TripType = 'one-way' | 'round-trip';
 
-const WalkPlanning = ({ onComplete, onBack }: WalkPlanningProps) => {
+const WalkPlanning = ({ onComplete, onBack, onGoToDashboard }: WalkPlanningProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [steps, setSteps] = useState('3000');
@@ -154,7 +155,7 @@ const WalkPlanning = ({ onComplete, onBack }: WalkPlanningProps) => {
             <span>Retour</span>
           </button>
           
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => navigate('/')}>
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={onGoToDashboard}>
             <img 
               src="/lovable-uploads/5216fdd6-d0d7-446b-9260-86d15d06f4ba.png" 
               alt="FitPaS" 

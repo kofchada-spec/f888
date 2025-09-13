@@ -28,9 +28,10 @@ interface WalkTrackingProps {
     weight: string;
   };
   onBack: () => void;
+  onGoToDashboard: () => void;
 }
 
-const WalkTracking = ({ destination, planningData, onBack }: WalkTrackingProps) => {
+const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: WalkTrackingProps) => {
   const navigate = useNavigate();
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [isTracking, setIsTracking] = useState(false);
@@ -152,7 +153,7 @@ const WalkTracking = ({ destination, planningData, onBack }: WalkTrackingProps) 
             <span>Retour</span>
           </button>
           
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => navigate('/')}>
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={onGoToDashboard}>
             <img 
               src="/lovable-uploads/5216fdd6-d0d7-446b-9260-86d15d06f4ba.png" 
               alt="FitPaS" 

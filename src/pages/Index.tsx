@@ -77,6 +77,13 @@ const Index = () => {
     setShowDestinationSelection(true);
   };
 
+  const handleGoToDashboard = () => {
+    setShowWalkPlanning(false);
+    setShowDestinationSelection(false);
+    setShowWalkTracking(false);
+    setSelectedDestination(null);
+  };
+
   const handleBackToDashboard = () => {
     setShowWalkPlanning(false);
   };
@@ -127,7 +134,7 @@ const Index = () => {
 
   // Show Walk Planning if active
   if (showWalkPlanning) {
-    return <WalkPlanning onComplete={handleWalkPlanningComplete} onBack={handleBackToDashboard} />;
+    return <WalkPlanning onComplete={handleWalkPlanningComplete} onBack={handleBackToDashboard} onGoToDashboard={handleGoToDashboard} />;
   }
 
   // Show Destination Selection if active
@@ -136,6 +143,7 @@ const Index = () => {
       <DestinationSelection 
         onComplete={handleDestinationComplete} 
         onBack={handleBackToPlanning}
+        onGoToDashboard={handleGoToDashboard}
         planningData={planningData}
       />
     );
@@ -148,6 +156,7 @@ const Index = () => {
         destination={selectedDestination}
         planningData={planningData}
         onBack={handleBackToDestination}
+        onGoToDashboard={handleGoToDashboard}
       />
     );
   }

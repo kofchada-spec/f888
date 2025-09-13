@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 interface DestinationSelectionProps {
   onComplete: (destination: Destination) => void;
   onBack: () => void;
+  onGoToDashboard: () => void;
   planningData: {
     steps: string;
     pace: 'slow' | 'moderate' | 'fast';
@@ -34,7 +35,7 @@ interface Destination {
   calories: number;
 }
 
-const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationSelectionProps) => {
+const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningData }: DestinationSelectionProps) => {
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const mapRef = useRef<MapRef>(null);
   const { user } = useAuth();
@@ -148,7 +149,7 @@ const DestinationSelection = ({ onComplete, onBack, planningData }: DestinationS
             <span>Retour</span>
           </button>
           
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => navigate('/')}>
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={onGoToDashboard}>
             <img 
               src="/lovable-uploads/5216fdd6-d0d7-446b-9260-86d15d06f4ba.png" 
               alt="FitPaS" 
