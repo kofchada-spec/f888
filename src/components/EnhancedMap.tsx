@@ -52,7 +52,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
     const heightM = parseFloat(planningData.height);
     const strideM = 0.415 * heightM;
     const totalKm = (steps * strideM) / 1000;
-    return planningData.tripType === 'round-trip' ? totalKm / 2 : totalKm;
+    // Return the full target distance - radius calculation will be done elsewhere
+    return totalKm;
   }, [planningData]);
 
   // Calculate steps based on distance and user data
@@ -163,10 +164,12 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
     for (const bearing of bearings) {
       for (const multiplier of distanceMultipliers) {
         try {
-          // Calculate test destination
+          // Calculate test destination radius
+          // For round-trip: Mapbox will calculate start->dest->start, so we need radius = targetDistance/2
+          // For one-way: We want total distance = targetDistance, use slightly less due to street routing
           const testRadius = planningData.tripType === 'round-trip' ? 
-            (targetDistanceKm / 2) * multiplier : // For round-trip, use half distance as radius
-            targetDistanceKm * multiplier * 0.8; // For one-way, use slightly less due to street routing
+            (targetDistanceKm / 2) * multiplier : // Half target distance for round-trip
+            targetDistanceKm * multiplier * 0.8; // Adjusted for street routing in one-way
 
           const bearingRad = (bearing * Math.PI) / 180;
           const earthRadiusKm = 6371;
@@ -252,7 +255,9 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
   const calculateDefaultDestination = useCallback((userLoc: { lat: number; lng: number }) => {
     const targetKm = getTargetDistance();
     const bearing = 45; // Fixed bearing in degrees
-    const radiusKm = targetKm;
+    // For round-trip, use half the target distance as radius since route will be start->dest->start
+    // For one-way, use the full target distance as radius
+    const radiusKm = planningData.tripType === 'round-trip' ? targetKm / 2 : targetKm;
 
     // Convert to radians
     const bearingRad = (bearing * Math.PI) / 180;
