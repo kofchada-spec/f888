@@ -188,9 +188,9 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
     };
   }, [mapboxToken]);
 
-  // Update camera when userLocation changes
+  // Update camera when userLocation changes (only once on initialization)
   useEffect(() => {
-    if (map.current && userLocation) {
+    if (map.current && userLocation && markers.current.length === 0) {
       map.current.flyTo({
         center: [userLocation.lng, userLocation.lat],
         zoom: 14,
@@ -200,11 +200,26 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
     }
   }, [userLocation]);
 
-  // Update markers and routes when destinations or selection changes
+  // Update user location marker only (don't redraw routes)
   useEffect(() => {
     if (!map.current || !userLocation) return;
 
-    // Clear existing markers
+    // Update only user location marker, keep routes stable
+    const existingUserMarker = markers.current.find(marker => 
+      marker.getElement().classList.contains('user-location-marker')
+    );
+    
+    if (existingUserMarker) {
+      existingUserMarker.setLngLat([userLocation.lng, userLocation.lat]);
+      return;
+    }
+  }, [userLocation]);
+
+  // Initialize markers and routes (only when destinations actually change)
+  useEffect(() => {
+    if (!map.current || !userLocation) return;
+
+    // Clear existing markers only if destinations changed
     markers.current.forEach(marker => marker.remove());
     markers.current = [];
 
@@ -295,7 +310,6 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
           color: white;
           cursor: pointer;
           box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-          transition: all 0.3s ease;
           transform: ${isSelected ? 'scale(1.1)' : 'scale(1)'};
           font-size: 18px;
         ">
@@ -353,7 +367,7 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
         });
       }
     });
-  }, [destinations, selectedDestination, planningData, userLocation]);
+  }, [destinations, selectedDestination]); // Remove userLocation and planningData to prevent re-renders
 
   // IntersectionObserver to resize map when it becomes visible (must be before any returns)
   useEffect(() => {
@@ -428,7 +442,7 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
             'line-cap': 'round'
           },
           paint: {
-            'line-color': '#10b981', // Green
+            'line-color': '#10b981', // Green - STATIC, no animation
             'line-width': 5,
             'line-opacity': 0.9
           }
@@ -456,10 +470,10 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
             'line-cap': 'round'
           },
           paint: {
-            'line-color': '#3b82f6', // Blue
+            'line-color': '#3b82f6', // Blue - STATIC, no animation
             'line-width': 4,
             'line-opacity': 0.8,
-            'line-dasharray': [2, 3]
+            'line-dasharray': [2, 3] // Static dashed line
           }
         });
       }
@@ -559,7 +573,7 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
         'line-cap': 'round'
       },
       paint: {
-        'line-color': isSelected ? '#10b981' : '#6b7280',
+        'line-color': isSelected ? '#10b981' : '#6b7280', // STATIC colors, no animation
         'line-width': isSelected ? 4 : 2,
         'line-opacity': isSelected ? 1 : 0.6
       }

@@ -309,17 +309,17 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
             <span>Progression vers l'objectif</span>
             <span>{currentSteps} / {planningData.steps} pas (cible: {getEstimatedSteps()} pas estimés)</span>
           </div>
-          <div className="w-full bg-muted rounded-full h-3">
-            <div 
-              className="bg-primary h-3 rounded-full transition-all duration-300 ease-out"
-              style={{ width: `${getProgress()}%` }}
-            ></div>
-          </div>
+            <div className="w-full bg-muted rounded-full h-3">
+              <div 
+                className="bg-primary h-3 rounded-full"
+                style={{ width: `${getProgress()}%` }}
+              ></div>
+            </div>
         </div>
 
         {/* Carte de suivi */}
         <div className="bg-card rounded-2xl shadow-lg overflow-hidden mb-6" style={{ height: '400px' }}>
-          {userLocation ? (
+          {userLocation && destination.routeGeoJSON ? (
             <Map 
               ref={mapRef}
               userLocation={userLocation}
@@ -331,7 +331,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
                 calories: destination.calories,
                 description: `Destination à ${destination.distanceKm.toFixed(1)} km - ${getEstimatedSteps()} pas estimés`,
                 coordinates: destination.coordinates,
-                route: destination.routeGeoJSON
+                route: destination.routeGeoJSON // Pass the exact route from planning
               }]}
               selectedDestination={destination.id}
               onDestinationSelect={() => {}}
@@ -339,7 +339,13 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
             />
           ) : (
             <div className="h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10">
-              <p className="text-muted-foreground">Chargement de la carte...</p>
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Chargement de l'itinéraire...</p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Préparation de la navigation GPS
+                </p>
+              </div>
             </div>
           )}
         </div>

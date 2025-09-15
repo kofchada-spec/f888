@@ -348,15 +348,9 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
     };
   }, [getTargetDistance, planningData.tripType]);
 
-  // Initialize map
+  // Initialize map (prevent re-initialization)
   useEffect(() => {
-    if (!mapContainer.current || !mapboxToken || !userLocation) return;
-
-    // Reset any existing map
-    if (map.current) {
-      map.current.remove();
-      map.current = null;
-    }
+    if (!mapContainer.current || !mapboxToken || !userLocation || map.current) return;
 
     mapboxgl.accessToken = mapboxToken;
     
@@ -546,7 +540,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
               'line-cap': 'round'
             },
             paint: {
-              'line-color': '#10b981',
+              'line-color': '#10b981', // STATIC green - no animation
               'line-width': 5,
               'line-opacity': 0.9
             }
@@ -574,10 +568,10 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
               'line-cap': 'round'
             },
             paint: {
-              'line-color': '#3b82f6',
+              'line-color': '#3b82f6', // STATIC blue - no animation
               'line-width': 4,
               'line-opacity': 0.8,
-              'line-dasharray': [2, 3]
+              'line-dasharray': [2, 3] // Static dashed line
             }
           });
         } else {
@@ -603,7 +597,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
               'line-cap': 'round'
             },
             paint: {
-              'line-color': '#10b981',
+              'line-color': '#10b981', // STATIC green - no animation
               'line-width': 4,
               'line-opacity': 0.8
             }
