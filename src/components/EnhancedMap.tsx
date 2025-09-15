@@ -137,7 +137,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       const profile = 'walking';
       
       if (planningData.tripType === 'round-trip') {
-        // For round-trip, create outbound and return routes
+        // For round-trip, create non-retracing outbound and return routes
         const outboundCoords = `${start.lng},${start.lat};${end.lng},${end.lat}`;
         const outboundUrl = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${outboundCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
         const outboundResponse = await fetch(outboundUrl);
@@ -146,16 +146,10 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
         if (outboundData.routes && outboundData.routes.length > 0) {
           const outboundRoute = outboundData.routes[0];
           
-          // Try to get a different return path
-          const returnCoords = `${end.lng},${end.lat};${start.lng},${start.lat}`;
-          const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${returnCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full&alternatives=true`;
-          const returnResponse = await fetch(returnUrl);
-          const returnData = await returnResponse.json();
+          // Create non-retracing return route using strategic waypoints
+          const returnRoute = await computeNonRetracingReturn(start, end, outboundRoute.geometry.coordinates);
           
-          if (returnData.routes && returnData.routes.length > 0) {
-            // Use alternative route if available, otherwise primary
-            const returnRoute = returnData.routes.length > 1 ? returnData.routes[1] : returnData.routes[0];
-            
+          if (returnRoute) {
             const totalDistanceKm = (outboundRoute.distance + returnRoute.distance) / 1000;
             const steps = calculateSteps(totalDistanceKm);
             const durationMin = calculateTime(totalDistanceKm);
@@ -201,6 +195,141 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
     }
     return null;
   }, [mapboxToken, planningData.tripType, calculateSteps, calculateTime, calculateCalories]);
+
+  // Compute non-retracing return route using strategic waypoints
+  const computeNonRetracingReturn = useCallback(async (start: { lat: number; lng: number }, end: { lat: number; lng: number }, outboundCoords: number[][]): Promise<any> => {
+    if (!mapboxToken || outboundCoords.length < 2) return null;
+
+    try {
+      // Calculate strategic waypoints to avoid outbound path
+      const waypoints = calculateAvoidanceWaypoints(start, end, outboundCoords);
+      
+      // Try different waypoint combinations to find the best non-retracing route
+      const waypointAttempts = [
+        waypoints, // All waypoints
+        [waypoints[0], waypoints[waypoints.length - 1]], // Just first and last
+        waypoints.filter((_, i) => i % 2 === 0) // Every other waypoint
+      ];
+
+      for (const currentWaypoints of waypointAttempts) {
+        try {
+          // Build coordinates string with waypoints: end -> waypoint1 -> waypoint2 -> start
+          const waypointCoords = currentWaypoints.map(wp => `${wp.lng},${wp.lat}`).join(';');
+          const returnCoords = `${end.lng},${end.lat};${waypointCoords};${start.lng},${start.lat}`;
+          
+          const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${returnCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
+          const returnResponse = await fetch(returnUrl);
+          const returnData = await returnResponse.json();
+          
+          if (returnData.routes && returnData.routes.length > 0) {
+            const returnRoute = returnData.routes[0];
+            
+            // Check if return route sufficiently avoids outbound path
+            const overlapPercentage = calculatePathOverlap(outboundCoords, returnRoute.geometry.coordinates);
+            
+            if (overlapPercentage < 0.3) { // Less than 30% overlap is acceptable
+              return returnRoute;
+            }
+          }
+        } catch (error) {
+          continue; // Try next waypoint combination
+        }
+      }
+
+      // Fallback: Use simple alternative route if waypoint approach fails
+      const returnCoords = `${end.lng},${end.lat};${start.lng},${start.lat}`;
+      const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${returnCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full&alternatives=true`;
+      const returnResponse = await fetch(returnUrl);
+      const returnData = await returnResponse.json();
+      
+      if (returnData.routes && returnData.routes.length > 1) {
+        // Try alternative routes and pick the one with least overlap
+        let bestRoute = null;
+        let minOverlap = 1.0;
+        
+        for (const route of returnData.routes) {
+          const overlap = calculatePathOverlap(outboundCoords, route.geometry.coordinates);
+          if (overlap < minOverlap) {
+            minOverlap = overlap;
+            bestRoute = route;
+          }
+        }
+        
+        return bestRoute || returnData.routes[1]; // Return best or alternative
+      }
+
+      return returnData.routes?.[0] || null; // Fallback to primary route
+    } catch (error) {
+      console.error('Error computing non-retracing return:', error);
+      return null;
+    }
+  }, [mapboxToken]);
+
+  // Calculate waypoints that force route to avoid outbound path
+  const calculateAvoidanceWaypoints = useCallback((start: { lat: number; lng: number }, end: { lat: number; lng: number }, outboundCoords: number[][]) => {
+    const waypoints = [];
+    const numWaypoints = Math.min(3, Math.max(1, Math.floor(outboundCoords.length / 20))); // 1-3 waypoints based on route length
+    
+    // Calculate perpendicular offsets from key points on outbound path
+    for (let i = 1; i <= numWaypoints; i++) {
+      const segmentIndex = Math.floor((outboundCoords.length * i) / (numWaypoints + 1));
+      const point = outboundCoords[segmentIndex];
+      
+      if (point && segmentIndex > 0 && segmentIndex < outboundCoords.length - 1) {
+        // Calculate bearing of the outbound path at this point
+        const prevPoint = outboundCoords[segmentIndex - 1];
+        const nextPoint = outboundCoords[segmentIndex + 1];
+        
+        const bearing = Math.atan2(
+          nextPoint[0] - prevPoint[0],
+          nextPoint[1] - prevPoint[1]
+        );
+        
+        // Create waypoint perpendicular to outbound path (offset by ~50-100m)
+        const offsetDistance = 0.0008; // ~50-100m in degrees
+        const perpendicularBearing = bearing + Math.PI / 2; // 90 degrees offset
+        
+        const waypoint = {
+          lat: point[1] + Math.cos(perpendicularBearing) * offsetDistance,
+          lng: point[0] + Math.sin(perpendicularBearing) * offsetDistance
+        };
+        
+        waypoints.push(waypoint);
+      }
+    }
+    
+    return waypoints;
+  }, []);
+
+  // Calculate overlap percentage between two paths
+  const calculatePathOverlap = useCallback((path1: number[][], path2: number[][]) => {
+    if (!path1.length || !path2.length) return 0;
+    
+    const bufferRadius = 0.0001; // ~10m buffer in degrees
+    let overlapCount = 0;
+    
+    // Sample points from path2 and check how many are close to path1
+    const sampleSize = Math.min(50, path2.length); // Sample max 50 points
+    const sampleStep = Math.floor(path2.length / sampleSize);
+    
+    for (let i = 0; i < path2.length; i += sampleStep) {
+      const point2 = path2[i];
+      
+      for (const point1 of path1) {
+        const distance = Math.sqrt(
+          Math.pow(point2[0] - point1[0], 2) + 
+          Math.pow(point2[1] - point1[1], 2)
+        );
+        
+        if (distance < bufferRadius) {
+          overlapCount++;
+          break; // Found overlap for this point, move to next
+        }
+      }
+    }
+    
+    return overlapCount / sampleSize;
+  }, []);
 
   // Smart route generation that targets specific step count
   const generateOptimalRoute = useCallback(async (userLoc: { lat: number; lng: number }): Promise<{ route: RouteData; destination: { lat: number; lng: number } } | null> => {
