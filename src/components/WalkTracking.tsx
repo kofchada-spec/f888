@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { ArrowLeft, Play, Pause, Square, Clock, MapPin, Zap, Target, Timer } from 'lucide-react';
 import Map, { MapRef } from './Map';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 interface Destination {
   id: string;
@@ -40,7 +41,19 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
   const [currentSteps, setCurrentSteps] = useState(0);
   const mapRef = useRef<MapRef>(null);
 
-  // Timer pour le temps écoulé
+  // Simulate step counting during walk (could be enhanced with actual step detection)
+  useEffect(() => {
+    let stepInterval: NodeJS.Timeout;
+    if (isTracking && walkStartTime) {
+      // Simulate steps increment (roughly 2 steps per second during active walking)
+      stepInterval = setInterval(() => {
+        setCurrentSteps(prev => prev + Math.floor(Math.random() * 3) + 1); // 1-3 steps every second
+      }, 1000);
+    }
+    return () => {
+      if (stepInterval) clearInterval(stepInterval);
+    };
+  }, [isTracking, walkStartTime]);
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isTracking && walkStartTime) {
@@ -114,6 +127,38 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
   };
 
   const handleStopWalk = () => {
+    // Save walk session data before resetting
+    if (walkStartTime && elapsedTime > 0) {
+      const heightM = parseFloat(planningData.height) || 1.75;
+      const weightKg = parseFloat(planningData.weight) || 70;
+      const strideM = 0.415 * heightM;
+      const distanceKm = (currentSteps * strideM) / 1000;
+      const calories = Math.round(distanceKm * weightKg * 0.9); // Walking calories formula
+      const durationMin = Math.round(elapsedTime / 60);
+
+      // Save to localStorage for now - can be enhanced to sync with database later
+      const walkSession = {
+        id: `walk_${Date.now()}`,
+        date: new Date().toISOString().split('T')[0],
+        steps: currentSteps,
+        distanceKm: Number(distanceKm.toFixed(2)),
+        calories,
+        durationMin,
+        startTime: walkStartTime,
+        endTime: new Date()
+      };
+
+      // Get existing sessions and add new one
+      const existingSessions = JSON.parse(localStorage.getItem('walkSessions') || '[]');
+      existingSessions.push(walkSession);
+      localStorage.setItem('walkSessions', JSON.stringify(existingSessions));
+
+      console.log('Walk session saved:', walkSession);
+      
+      // Show success toast
+      toast.success(`Marche terminée ! ${currentSteps} pas, ${distanceKm.toFixed(1)} km, ${calories} kcal`);
+    }
+
     setIsTracking(false);
     setWalkStartTime(null);
     setElapsedTime(0);

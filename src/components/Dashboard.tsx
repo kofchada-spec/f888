@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User, Edit3, Footprints, MapPin, Flame, Clock, LogOut, Crown, Settings, UserCircle, CreditCard, HelpCircle } from 'lucide-react';
+import { useWalkStats } from '@/hooks/useWalkStats';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -20,6 +21,7 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
   const { signOut, user } = useAuth();
   const { subscriptionData } = useSubscription();
   const navigate = useNavigate();
+  const { getTodayStats } = useWalkStats();
   const [userProfile, setUserProfile] = useState({
     firstName: "Utilisateur",
     gender: "-",
@@ -94,24 +96,19 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
     }));
   };
 
-  const todayStats = {
-    steps: 8247,
-    distance: 6.2,
-    calories: 320,
-    walkTime: "1h 24min"
+  // Get today's actual stats from walk sessions
+  const todayStats = getTodayStats();
+  
+  // Format walk time for display
+  const formatWalkTime = (minutes: number) => {
+    if (minutes === 0) return "0min";
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours > 0) {
+      return mins > 0 ? `${hours}h ${mins}min` : `${hours}h`;
+    }
+    return `${mins}min`;
   };
-
-  const weeklySteps = [
-    { day: "L", steps: 7200 },
-    { day: "M", steps: 9100 },
-    { day: "M", steps: 6800 },
-    { day: "J", steps: 8900 },
-    { day: "V", steps: 10200 },
-    { day: "S", steps: 5400 },
-    { day: "D", steps: 8247 }
-  ];
-
-  const maxSteps = Math.max(...weeklySteps.map(d => d.steps));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-white">
@@ -275,39 +272,53 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
         </Card>
 
         {/* Statistiques du jour */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg border-0">
-            <CardContent className="p-4 text-center">
-              <Footprints className="h-8 w-8 mx-auto mb-2 opacity-90" />
-              <p className="text-2xl font-bold">{todayStats.steps.toLocaleString()}</p>
-              <p className="text-sm opacity-90">pas</p>
+        {todayStats.steps === 0 ? (
+          <Card className="bg-gradient-to-br from-gray-100 to-gray-200 border border-gray-300 shadow-lg">
+            <CardContent className="p-6 text-center">
+              <div className="text-gray-500">
+                <Footprints className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-semibold mb-2">Aucune marche aujourd'hui</h3>
+                <p className="text-sm text-muted-foreground">
+                  Commencez votre première marche pour voir vos statistiques apparaître ici !
+                </p>
+              </div>
             </CardContent>
           </Card>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg border-0">
+              <CardContent className="p-4 text-center">
+                <Footprints className="h-8 w-8 mx-auto mb-2 opacity-90" />
+                <p className="text-2xl font-bold">{todayStats.steps.toLocaleString()}</p>
+                <p className="text-sm opacity-90">pas</p>
+              </CardContent>
+            </Card>
 
-          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg border-0">
-            <CardContent className="p-4 text-center">
-              <MapPin className="h-8 w-8 mx-auto mb-2 opacity-90" />
-              <p className="text-2xl font-bold">{todayStats.distance}</p>
-              <p className="text-sm opacity-90">km</p>
-            </CardContent>
-          </Card>
+            <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg border-0">
+              <CardContent className="p-4 text-center">
+                <MapPin className="h-8 w-8 mx-auto mb-2 opacity-90" />
+                <p className="text-2xl font-bold">{todayStats.distanceKm.toFixed(1)}</p>
+                <p className="text-sm opacity-90">km</p>
+              </CardContent>
+            </Card>
 
-          <Card className="bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-lg border-0">
-            <CardContent className="p-4 text-center">
-              <Flame className="h-8 w-8 mx-auto mb-2 opacity-90" />
-              <p className="text-2xl font-bold">{todayStats.calories}</p>
-              <p className="text-sm opacity-90">kcal</p>
-            </CardContent>
-          </Card>
+            <Card className="bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-lg border-0">
+              <CardContent className="p-4 text-center">
+                <Flame className="h-8 w-8 mx-auto mb-2 opacity-90" />
+                <p className="text-2xl font-bold">{todayStats.calories}</p>
+                <p className="text-sm opacity-90">kcal</p>
+              </CardContent>
+            </Card>
 
-          <Card className="bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg border-0">
-            <CardContent className="p-4 text-center">
-              <Clock className="h-8 w-8 mx-auto mb-2 opacity-90" />
-              <p className="text-2xl font-bold">{todayStats.walkTime}</p>
-              <p className="text-sm opacity-90">marche</p>
-            </CardContent>
-          </Card>
-        </div>
+            <Card className="bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg border-0">
+              <CardContent className="p-4 text-center">
+                <Clock className="h-8 w-8 mx-auto mb-2 opacity-90" />
+                <p className="text-2xl font-bold">{formatWalkTime(todayStats.walkTime)}</p>
+                <p className="text-sm opacity-90">marche</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Statistiques de la semaine */}
         <WeeklyStats userProfile={{ height: userProfile.height, weight: userProfile.weight }} />

@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Footprints, MapPin, Flame, Clock } from 'lucide-react';
 import { WeeklyCalendarModal } from '@/components/WeeklyCalendarModal';
+import { useWalkStats } from '@/hooks/useWalkStats';
 
 export interface DayStats {
   dateISO: string;
@@ -20,68 +21,12 @@ interface WeeklyStatsProps {
 }
 
 export const WeeklyStats = ({ userProfile }: WeeklyStatsProps) => {
-  const [weeklyStats, setWeeklyStats] = useState<DayStats[]>([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-
-  // Générer des données de démonstration pour la semaine
-  const generateMockWeekData = (): DayStats[] => {
-    const days = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
-    const today = new Date();
-    const startOfWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay() + 1);
-    
-    return days.map((day, index) => {
-      const date = new Date(startOfWeek);
-      date.setDate(startOfWeek.getDate() + index);
-      
-      // Générer des steps aléatoires entre 0 et 12000
-      const steps = index === 6 ? 8247 : Math.floor(Math.random() * 12000);
-      
-      // Calculs basés sur les formules demandées
-      const strideM = 0.415 * (userProfile.height || 1.75);
-      const distanceKm = (steps * strideM) / 1000;
-      const weight = userProfile.weight || 70;
-      const kcal = Math.round(distanceKm * weight * 0.5); // coefficient modéré par défaut
-      const walkMin = Math.round(steps / 115); // cadence modérée par défaut
-      
-      return {
-        dateISO: date.toISOString().split('T')[0],
-        steps,
-        distanceKm: Math.round(distanceKm * 10) / 10,
-        kcal,
-        walkMin
-      };
-    });
-  };
-
-  useEffect(() => {
-    // Charger ou générer les données de la semaine
-    const savedStats = localStorage.getItem('weeklyStats');
-    if (savedStats) {
-      try {
-        const parsed = JSON.parse(savedStats);
-        setWeeklyStats(parsed);
-      } catch {
-        const newStats = generateMockWeekData();
-        setWeeklyStats(newStats);
-        localStorage.setItem('weeklyStats', JSON.stringify(newStats));
-      }
-    } else {
-      const newStats = generateMockWeekData();
-      setWeeklyStats(newStats);
-      localStorage.setItem('weeklyStats', JSON.stringify(newStats));
-    }
-  }, [userProfile.height, userProfile.weight]);
-
-  // Calculer les totaux
-  const weekTotals = weeklyStats.reduce(
-    (acc, day) => ({
-      steps: acc.steps + day.steps,
-      distanceKm: acc.distanceKm + day.distanceKm,
-      kcal: acc.kcal + day.kcal,
-      walkMin: acc.walkMin + day.walkMin
-    }),
-    { steps: 0, distanceKm: 0, kcal: 0, walkMin: 0 }
-  );
+  const { getWeeklyStats, getWeekTotals } = useWalkStats();
+  
+  // Get actual weekly data from walk sessions
+  const weeklyStats = getWeeklyStats();
+  const weekTotals = getWeekTotals();
 
   const dayNames = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
@@ -135,25 +80,28 @@ export const WeeklyStats = ({ userProfile }: WeeklyStatsProps) => {
           </div>
         </div>
 
-        {/* Graphique simple de la semaine */}
+        {/* Graphique de la semaine avec gradient */}
         <div className="bg-muted/30 rounded-lg p-4">
           <h3 className="text-sm font-medium text-foreground mb-3">Progression de la semaine</h3>
           <div className="flex items-end justify-between space-x-2 h-20">
             {dayNames.map((dayName, index) => {
               const dayData = weeklyStats[index];
               const steps = dayData?.steps || 0;
-              const maxSteps = Math.max(...weeklyStats.map(d => d.steps));
-              const heightPercent = maxSteps > 0 ? (steps / maxSteps) * 100 : 0;
+              const maxSteps = Math.max(...weeklyStats.map(d => d.steps), 1); // Avoid division by zero
+              const heightPercent = steps > 0 ? Math.max((steps / maxSteps) * 100, 8) : 0; // Minimum 8% for visibility
               
               return (
                 <div key={index} className="flex-1 flex flex-col items-center">
                   <div 
-                    className={`w-full rounded-t transition-all ${
-                      steps > 0 ? 'bg-primary' : 'bg-muted'
-                    }`}
-                    style={{ height: `${Math.max(heightPercent, steps > 0 ? 10 : 5)}%` }}
+                    className="w-full rounded-t transition-all relative overflow-hidden"
+                    style={{ 
+                      height: `${heightPercent}%`,
+                      background: steps > 0 ? 'linear-gradient(to top, #4169E1, #9400D3)' : '#e5e7eb',
+                      minHeight: steps > 0 ? '6px' : '2px'
+                    }}
                   />
                   <span className="text-xs text-muted-foreground mt-1">{dayName}</span>
+                  <span className="text-xs text-muted-foreground">{steps > 0 ? steps.toLocaleString() : ''}</span>
                 </div>
               );
             })}
