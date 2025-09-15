@@ -131,6 +131,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         title: "Erreur de déconnexion",
         description: error.message,
       });
+    } else {
+      // Reset onboarding and profile states to return to green background
+      localStorage.removeItem('fitpas-onboarding-complete');
+      localStorage.removeItem('fitpas-profile-complete');
     }
   };
 
