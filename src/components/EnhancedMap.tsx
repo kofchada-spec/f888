@@ -31,6 +31,8 @@ interface RouteData {
   calories: number;
   steps: number;
   coordinates: number[][]; // [lng, lat] pairs
+  outboundCoordinates?: number[][]; // For round-trip: outbound path
+  returnCoordinates?: number[][]; // For round-trip: return path
 }
 
 const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, className = '', onRouteCalculated }) => {
@@ -194,52 +196,156 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
 
           // Test this route
           const profile = 'walking';
-          let coordinates: string;
           
           if (planningData.tripType === 'round-trip') {
-            coordinates = `${userLoc.lng},${userLoc.lat};${testDestination.lng},${testDestination.lat};${userLoc.lng},${userLoc.lat}`;
-          } else {
-            coordinates = `${userLoc.lng},${userLoc.lat};${testDestination.lng},${testDestination.lat}`;
-          }
-
-          const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${coordinates}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
-          const response = await fetch(url);
-          const data = await response.json();
-
-          if (data.routes && data.routes.length > 0) {
-            const route = data.routes[0];
-            const routeDistanceKm = route.distance / 1000;
-            const routeSteps = Math.round((routeDistanceKm * 1000) / strideM);
+            // For round-trip, generate separate outbound and return paths
+            const outboundCoords = `${userLoc.lng},${userLoc.lat};${testDestination.lng},${testDestination.lat}`;
             
-            // Calculate how close this is to our target
-            const stepDifference = Math.abs(routeSteps - targetSteps);
-            const score = stepDifference / targetSteps; // Percentage difference
-
-            // If this route is within tolerance, prefer it
-            if (routeSteps >= minAcceptableSteps && routeSteps <= maxAcceptableSteps) {
-              if (score < bestScore) {
-                bestScore = score;
-                bestRoute = {
-                  distance: routeDistanceKm,
-                  duration: calculateTime(routeDistanceKm),
-                  calories: calculateCalories(routeDistanceKm),
-                  steps: routeSteps,
-                  coordinates: route.geometry.coordinates
-                };
-                bestDestination = testDestination;
+            // Get outbound route
+            const outboundUrl = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${outboundCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
+            const outboundResponse = await fetch(outboundUrl);
+            const outboundData = await outboundResponse.json();
+            
+            if (outboundData.routes && outboundData.routes.length > 0) {
+              const outboundRoute = outboundData.routes[0];
+              const outboundDistanceKm = outboundRoute.distance / 1000;
+              
+              // Try to find a different return path with similar distance
+              const returnBearings = [bearing + 30, bearing - 30, bearing + 60, bearing - 60, bearing + 90, bearing - 90];
+              let bestReturnRoute = null;
+              let bestReturnScore = Infinity;
+              
+              // First, try alternative return paths
+              for (const returnBearing of returnBearings) {
+                try {
+                  const returnBearingRad = (returnBearing * Math.PI) / 180;
+                  const returnLatRad = Math.asin(
+                    Math.sin((testDestination.lat * Math.PI) / 180) * Math.cos(outboundDistanceKm / 6371) +
+                    Math.cos((testDestination.lat * Math.PI) / 180) * Math.sin(outboundDistanceKm / 6371) * Math.cos(returnBearingRad)
+                  );
+                  const returnLngRad = (testDestination.lng * Math.PI) / 180 + Math.atan2(
+                    Math.sin(returnBearingRad) * Math.sin(outboundDistanceKm / 6371) * Math.cos((testDestination.lat * Math.PI) / 180),
+                    Math.cos(outboundDistanceKm / 6371) - Math.sin((testDestination.lat * Math.PI) / 180) * Math.sin(returnLatRad)
+                  );
+                  
+                  const returnWaypoint = {
+                    lat: (returnLatRad * 180) / Math.PI,
+                    lng: (returnLngRad * 180) / Math.PI
+                  };
+                  
+                  const returnCoords = `${testDestination.lng},${testDestination.lat};${returnWaypoint.lng},${returnWaypoint.lat};${userLoc.lng},${userLoc.lat}`;
+                  const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${returnCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
+                  const returnResponse = await fetch(returnUrl);
+                  const returnData = await returnResponse.json();
+                  
+                  if (returnData.routes && returnData.routes.length > 0) {
+                    const returnRoute = returnData.routes[0];
+                    const returnDistanceKm = returnRoute.distance / 1000;
+                    const targetReturnDistance = targetDistanceKm - outboundDistanceKm;
+                    const returnDistanceDiff = Math.abs(returnDistanceKm - targetReturnDistance);
+                    
+                    if (returnDistanceDiff < bestReturnScore) {
+                      bestReturnScore = returnDistanceDiff;
+                      bestReturnRoute = returnRoute;
+                    }
+                  }
+                } catch (returnError) {
+                  // Continue to next return bearing
+                }
               }
-            } else if (!bestRoute) {
-              // If no route within tolerance found yet, keep the closest one
-              if (score < bestScore) {
-                bestScore = score;
-                bestRoute = {
-                  distance: routeDistanceKm,
-                  duration: calculateTime(routeDistanceKm),
-                  calories: calculateCalories(routeDistanceKm),
-                  steps: routeSteps,
-                  coordinates: route.geometry.coordinates
-                };
-                bestDestination = testDestination;
+              
+              // If no good alternative return path found, use direct return
+              if (!bestReturnRoute) {
+                const directReturnCoords = `${testDestination.lng},${testDestination.lat};${userLoc.lng},${userLoc.lat}`;
+                const directReturnUrl = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${directReturnCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
+                const directReturnResponse = await fetch(directReturnUrl);
+                const directReturnData = await directReturnResponse.json();
+                
+                if (directReturnData.routes && directReturnData.routes.length > 0) {
+                  bestReturnRoute = directReturnData.routes[0];
+                }
+              }
+              
+              if (bestReturnRoute) {
+                const returnDistanceKm = bestReturnRoute.distance / 1000;
+                const totalDistanceKm = outboundDistanceKm + returnDistanceKm;
+                const routeSteps = Math.round((totalDistanceKm * 1000) / strideM);
+                
+                // Calculate how close this is to our target
+                const stepDifference = Math.abs(routeSteps - targetSteps);
+                const score = stepDifference / targetSteps;
+
+                // If this route is within tolerance, prefer it
+                if (routeSteps >= minAcceptableSteps && routeSteps <= maxAcceptableSteps) {
+                  if (score < bestScore) {
+                    bestScore = score;
+                    bestRoute = {
+                      distance: totalDistanceKm,
+                      duration: calculateTime(totalDistanceKm),
+                      calories: calculateCalories(totalDistanceKm),
+                      steps: routeSteps,
+                      coordinates: [...outboundRoute.geometry.coordinates, ...bestReturnRoute.geometry.coordinates],
+                      outboundCoordinates: outboundRoute.geometry.coordinates,
+                      returnCoordinates: bestReturnRoute.geometry.coordinates
+                    };
+                    bestDestination = testDestination;
+                  }
+                } else if (!bestRoute) {
+                  if (score < bestScore) {
+                    bestScore = score;
+                    bestRoute = {
+                      distance: totalDistanceKm,
+                      duration: calculateTime(totalDistanceKm),
+                      calories: calculateCalories(totalDistanceKm),
+                      steps: routeSteps,
+                      coordinates: [...outboundRoute.geometry.coordinates, ...bestReturnRoute.geometry.coordinates],
+                      outboundCoordinates: outboundRoute.geometry.coordinates,
+                      returnCoordinates: bestReturnRoute.geometry.coordinates
+                    };
+                    bestDestination = testDestination;
+                  }
+                }
+              }
+            }
+          } else {
+            // One-way route logic (unchanged)
+            const coordinates = `${userLoc.lng},${userLoc.lat};${testDestination.lng},${testDestination.lat}`;
+            const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${coordinates}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (data.routes && data.routes.length > 0) {
+              const route = data.routes[0];
+              const routeDistanceKm = route.distance / 1000;
+              const routeSteps = Math.round((routeDistanceKm * 1000) / strideM);
+              
+              const stepDifference = Math.abs(routeSteps - targetSteps);
+              const score = stepDifference / targetSteps;
+
+              if (routeSteps >= minAcceptableSteps && routeSteps <= maxAcceptableSteps) {
+                if (score < bestScore) {
+                  bestScore = score;
+                  bestRoute = {
+                    distance: routeDistanceKm,
+                    duration: calculateTime(routeDistanceKm),
+                    calories: calculateCalories(routeDistanceKm),
+                    steps: routeSteps,
+                    coordinates: route.geometry.coordinates
+                  };
+                  bestDestination = testDestination;
+                }
+              } else if (!bestRoute) {
+                if (score < bestScore) {
+                  bestScore = score;
+                  bestRoute = {
+                    distance: routeDistanceKm,
+                    duration: calculateTime(routeDistanceKm),
+                    calories: calculateCalories(routeDistanceKm),
+                    steps: routeSteps,
+                    coordinates: route.geometry.coordinates
+                  };
+                  bestDestination = testDestination;
+                }
               }
             }
           }
@@ -290,33 +396,64 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
 
     try {
       const profile = 'walking';
-      let coordinates: string;
       
       if (planningData.tripType === 'round-trip') {
-        coordinates = `${start.lng},${start.lat};${end.lng},${end.lat};${start.lng},${start.lat}`;
+        // For round-trip, generate separate outbound and return paths like in generateOptimalRoute
+        const outboundCoords = `${start.lng},${start.lat};${end.lng},${end.lat}`;
+        const outboundUrl = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${outboundCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
+        const outboundResponse = await fetch(outboundUrl);
+        const outboundData = await outboundResponse.json();
+        
+        if (outboundData.routes && outboundData.routes.length > 0) {
+          const outboundRoute = outboundData.routes[0];
+          
+          // Get return route (direct path for simplicity in manual selection)
+          const returnCoords = `${end.lng},${end.lat};${start.lng},${start.lat}`;
+          const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${returnCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
+          const returnResponse = await fetch(returnUrl);
+          const returnData = await returnResponse.json();
+          
+          if (returnData.routes && returnData.routes.length > 0) {
+            const returnRoute = returnData.routes[0];
+            const totalDistanceKm = (outboundRoute.distance + returnRoute.distance) / 1000;
+            const steps = calculateSteps(totalDistanceKm);
+            const durationMin = calculateTime(totalDistanceKm);
+            const calories = calculateCalories(totalDistanceKm);
+
+            return {
+              distance: totalDistanceKm,
+              duration: durationMin,
+              calories,
+              steps,
+              coordinates: [...outboundRoute.geometry.coordinates, ...returnRoute.geometry.coordinates],
+              outboundCoordinates: outboundRoute.geometry.coordinates,
+              returnCoordinates: returnRoute.geometry.coordinates
+            };
+          }
+        }
       } else {
-        coordinates = `${start.lng},${start.lat};${end.lng},${end.lat}`;
-      }
+        // One-way route
+        const coordinates = `${start.lng},${start.lat};${end.lng},${end.lat}`;
+        const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${coordinates}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
 
-      const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${coordinates}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
+        const response = await fetch(url);
+        const data = await response.json();
 
-      const response = await fetch(url);
-      const data = await response.json();
+        if (data.routes && data.routes.length > 0) {
+          const route = data.routes[0];
+          const distanceKm = route.distance / 1000;
+          const steps = calculateSteps(distanceKm);
+          const durationMin = calculateTime(distanceKm);
+          const calories = calculateCalories(distanceKm);
 
-      if (data.routes && data.routes.length > 0) {
-        const route = data.routes[0];
-        const distanceKm = route.distance / 1000;
-        const steps = calculateSteps(distanceKm);
-        const durationMin = calculateTime(distanceKm);
-        const calories = calculateCalories(distanceKm);
-
-        return {
-          distance: distanceKm,
-          duration: durationMin,
-          calories,
-          steps,
-          coordinates: route.geometry.coordinates
-        };
+          return {
+            distance: distanceKm,
+            duration: durationMin,
+            calories,
+            steps,
+            coordinates: route.geometry.coordinates
+          };
+        }
       }
     } catch (error) {
       console.error('Error computing route:', error);
@@ -479,45 +616,106 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
             });
           }
           
-          // Add route line to map
+          // Add route line(s) to map
           if (map.current && map.current.isStyleLoaded()) {
-            const routeId = 'walking-route';
-            
-            // Remove existing route
-            if (map.current.getLayer(routeId)) {
-              map.current.removeLayer(routeId);
-            }
-            if (map.current.getSource(routeId)) {
-              map.current.removeSource(routeId);
-            }
+            // Remove existing routes
+            ['walking-route', 'outbound-route', 'return-route'].forEach(routeId => {
+              if (map.current?.getLayer(routeId)) {
+                map.current.removeLayer(routeId);
+              }
+              if (map.current?.getSource(routeId)) {
+                map.current.removeSource(routeId);
+              }
+            });
 
-            // Add new route
-            map.current.addSource(routeId, {
-              type: 'geojson',
-              data: {
-                type: 'Feature',
-                properties: {},
-                geometry: {
-                  type: 'LineString',
-                  coordinates: route.coordinates
+            if (route.outboundCoordinates && route.returnCoordinates) {
+              // Round-trip: Show distinct outbound and return paths
+              
+              // Outbound route (green solid)
+              map.current.addSource('outbound-route', {
+                type: 'geojson',
+                data: {
+                  type: 'Feature',
+                  properties: {},
+                  geometry: {
+                    type: 'LineString',
+                    coordinates: route.outboundCoordinates
+                  }
                 }
-              }
-            });
+              });
 
-            map.current.addLayer({
-              id: routeId,
-              type: 'line',
-              source: routeId,
-              layout: {
-                'line-join': 'round',
-                'line-cap': 'round'
-              },
-              paint: {
-                'line-color': '#10b981',
-                'line-width': 4,
-                'line-opacity': 0.8
-              }
-            });
+              map.current.addLayer({
+                id: 'outbound-route',
+                type: 'line',
+                source: 'outbound-route',
+                layout: {
+                  'line-join': 'round',
+                  'line-cap': 'round'
+                },
+                paint: {
+                  'line-color': '#10b981',
+                  'line-width': 5,
+                  'line-opacity': 0.9
+                }
+              });
+
+              // Return route (blue dashed)
+              map.current.addSource('return-route', {
+                type: 'geojson',
+                data: {
+                  type: 'Feature',
+                  properties: {},
+                  geometry: {
+                    type: 'LineString',
+                    coordinates: route.returnCoordinates
+                  }
+                }
+              });
+
+              map.current.addLayer({
+                id: 'return-route',
+                type: 'line',
+                source: 'return-route',
+                layout: {
+                  'line-join': 'round',
+                  'line-cap': 'round'
+                },
+                paint: {
+                  'line-color': '#3b82f6',
+                  'line-width': 4,
+                  'line-opacity': 0.8,
+                  'line-dasharray': [2, 3]
+                }
+              });
+            } else {
+              // One-way: Show single route
+              map.current.addSource('walking-route', {
+                type: 'geojson',
+                data: {
+                  type: 'Feature',
+                  properties: {},
+                  geometry: {
+                    type: 'LineString',
+                    coordinates: route.coordinates
+                  }
+                }
+              });
+
+              map.current.addLayer({
+                id: 'walking-route',
+                type: 'line',
+                source: 'walking-route',
+                layout: {
+                  'line-join': 'round',
+                  'line-cap': 'round'
+                },
+                paint: {
+                  'line-color': '#10b981',
+                  'line-width': 4,
+                  'line-opacity': 0.8
+                }
+              });
+            }
 
             // Fit map to show entire route
             const bounds = new mapboxgl.LngLatBounds();
@@ -612,68 +810,82 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       )}
 
       {/* Route Summary Banner */}
-      {routeData && (
-        <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-sm rounded-lg p-4 shadow-lg">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-foreground">Itinéraire calculé</h3>
-            <div className="flex space-x-2">
-              <Button onClick={resetToDefault} size="sm" variant="outline">
-                <RotateCcw className="h-4 w-4" />
-              </Button>
+        {routeData && (
+          <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-sm rounded-lg p-4 shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold text-foreground">Itinéraire calculé</h3>
+              <div className="flex space-x-2">
+                <Button onClick={resetToDefault} size="sm" variant="outline">
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            
+            {/* Route type indicator for round-trip */}
+            {planningData.tripType === 'round-trip' && routeData.outboundCoordinates && routeData.returnCoordinates && (
+              <div className="flex items-center space-x-4 mb-3 text-xs">
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-0.5 bg-emerald-500"></div>
+                  <span className="text-muted-foreground">Aller</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-0.5 bg-blue-500 border-dashed border-t border-blue-500" style={{borderTopStyle: 'dashed'}}></div>
+                  <span className="text-muted-foreground">Retour</span>
+                </div>
+              </div>
+            )}
+            
+            <div className="grid grid-cols-4 gap-3 text-sm">
+              <div className="flex items-center space-x-2">
+                <MapPin className="h-4 w-4 text-primary" />
+                <div>
+                  <p className="font-medium">{routeData.distance.toFixed(1)} km</p>
+                  <p className="text-xs text-muted-foreground">Distance</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <div className="h-4 w-4 text-secondary flex items-center justify-center text-xs">👣</div>
+                <div>
+                  <p className="font-medium">{routeData.steps.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Steps
+                    {(() => {
+                      const targetSteps = parseInt(planningData.steps);
+                      const deviation = ((routeData.steps - targetSteps) / targetSteps) * 100;
+                      const isWithinTolerance = Math.abs(deviation) <= 5;
+                      
+                      if (!isWithinTolerance) {
+                        return (
+                          <span className={`ml-1 ${deviation > 0 ? 'text-orange-500' : 'text-blue-500'}`}>
+                            ({deviation > 0 ? '+' : ''}{deviation.toFixed(0)}%)
+                          </span>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Clock className="h-4 w-4 text-secondary" />
+                <div>
+                  <p className="font-medium">{routeData.duration} min</p>
+                  <p className="text-xs text-muted-foreground">Time</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Zap className="h-4 w-4 text-orange-500" />
+                <div>
+                  <p className="font-medium">{routeData.calories} cal</p>
+                  <p className="text-xs text-muted-foreground">Calories</p>
+                </div>
+              </div>
             </div>
           </div>
-          
-          <div className="grid grid-cols-4 gap-3 text-sm">
-            <div className="flex items-center space-x-2">
-              <MapPin className="h-4 w-4 text-primary" />
-              <div>
-                <p className="font-medium">{routeData.distance.toFixed(1)} km</p>
-                <p className="text-xs text-muted-foreground">Distance</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <div className="h-4 w-4 text-secondary flex items-center justify-center text-xs">👣</div>
-              <div>
-                <p className="font-medium">{routeData.steps.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">
-                  Steps
-                  {(() => {
-                    const targetSteps = parseInt(planningData.steps);
-                    const deviation = ((routeData.steps - targetSteps) / targetSteps) * 100;
-                    const isWithinTolerance = Math.abs(deviation) <= 5;
-                    
-                    if (!isWithinTolerance) {
-                      return (
-                        <span className={`ml-1 ${deviation > 0 ? 'text-orange-500' : 'text-blue-500'}`}>
-                          ({deviation > 0 ? '+' : ''}{deviation.toFixed(0)}%)
-                        </span>
-                      );
-                    }
-                    return null;
-                  })()}
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <Clock className="h-4 w-4 text-secondary" />
-              <div>
-                <p className="font-medium">{routeData.duration} min</p>
-                <p className="text-xs text-muted-foreground">Time</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <Zap className="h-4 w-4 text-orange-500" />
-              <div>
-                <p className="font-medium">{routeData.calories} cal</p>
-                <p className="text-xs text-muted-foreground">Calories</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
 
       {/* Instructions */}
       <div className="absolute top-4 left-4 right-4 bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-lg">
