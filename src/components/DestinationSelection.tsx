@@ -116,7 +116,8 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
     const heightM = parseFloat(planningData.height);
     const strideM = 0.415 * heightM;
     const totalKm = (steps * strideM) / 1000;
-    return planningData.tripType === 'round-trip' ? totalKm / 2 : totalKm;
+    // Return full target distance - route calculation handles round-trip logic internally
+    return totalKm;
   };
 
   const getDeviation = () => {
