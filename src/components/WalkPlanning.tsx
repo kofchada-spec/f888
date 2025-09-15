@@ -97,14 +97,14 @@ const WalkPlanning = ({ onComplete, onBack, onGoToDashboard }: WalkPlanningProps
     const heightInM = parseFloat(height);
     const weightInKg = parseFloat(weight);
     
-    // Formule de foulée : 0.415 × taille (m)
-    const strideLength = 0.415 * heightInM;
+    // Formule de foulée : 0.415 × taille (m) ou défaut 0.72m
+    const strideLength = heightInM > 0 ? 0.415 * heightInM : 0.72;
     
-    // Distance (km) = pas × foulée / 1000
-    let targetDistance = (stepCount * strideLength) / 1000;
+    // Distance cible (km) = pas × foulée / 1000
+    const targetDistanceKm = (stepCount * strideLength) / 1000;
     
-    // Si aller-retour, la distance affichée est le double
-    const displayDistance = tripType === 'round-trip' ? targetDistance * 2 : targetDistance;
+    // Pour l'affichage, on montre la distance totale du trajet
+    const displayDistance = tripType === 'round-trip' ? targetDistanceKm * 2 : targetDistanceKm;
     
     // Vitesse selon l'allure
     const paceSpeed = {
@@ -130,7 +130,9 @@ const WalkPlanning = ({ onComplete, onBack, onGoToDashboard }: WalkPlanningProps
       distance: displayDistance.toFixed(1),
       duration: Math.round(duration),
       calories: Math.round(calories),
-      strideLength: (strideLength * 100).toFixed(1) // en cm pour affichage
+      strideLength: (strideLength * 100).toFixed(1), // en cm pour affichage
+      targetDistanceKm, // Distance cible pour la génération de routes
+      targetSteps: stepCount // Pas cibles
     };
   };
 

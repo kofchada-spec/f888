@@ -443,7 +443,23 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
               <div className="h-4 w-4 text-secondary flex items-center justify-center text-xs">👣</div>
               <div>
                 <p className="font-medium">{routeData.steps.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">Steps</p>
+                <p className="text-xs text-muted-foreground">
+                  Steps
+                  {(() => {
+                    const targetSteps = parseInt(planningData.steps);
+                    const deviation = ((routeData.steps - targetSteps) / targetSteps) * 100;
+                    const isWithinTolerance = Math.abs(deviation) <= 5;
+                    
+                    if (!isWithinTolerance) {
+                      return (
+                        <span className={`ml-1 ${deviation > 0 ? 'text-orange-500' : 'text-blue-500'}`}>
+                          ({deviation > 0 ? '+' : ''}{deviation.toFixed(0)}%)
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
+                </p>
               </div>
             </div>
             

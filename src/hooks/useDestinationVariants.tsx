@@ -71,23 +71,25 @@ export const useDestinationVariants = () => {
   };
 
   const generateFallbackDestinations = (planningData: PlanningData): Destination[] => {
-    const calculateMetrics = (baseDistance: number) => {
+    const calculateMetrics = (targetDistanceKm: number) => {
       const steps = parseInt(planningData.steps);
       const heightInM = parseFloat(planningData.height);
-      const weightInKg = parseFloat(planningData.weight) || 70; // fallback weight
+      const weightInKg = parseFloat(planningData.weight) || 70;
       
-      // Formule de foulée : 0.415 × taille (m)
-      const strideLength = 0.415 * heightInM;
+      // Formule de foulée : 0.415 × taille (m) ou défaut 0.72m
+      const strideLength = heightInM > 0 ? 0.415 * heightInM : 0.72;
       
-      // Distance (km) = pas × foulée / 1000
-      let targetDistance = (steps * strideLength) / 1000;
+      // Distance cible (km) = pas × foulée / 1000  
+      const userTargetDistance = (steps * strideLength) / 1000;
       
-      if (planningData.tripType === 'round-trip') {
-        targetDistance = targetDistance / 2;
-      }
+      // Pour aller-retour, la distance de route est la moitié de la distance totale
+      const routeDistance = planningData.tripType === 'round-trip' ? userTargetDistance / 2 : userTargetDistance;
       
-      // Ajustement avec le ratio de base
-      const adjustedDistance = (baseDistance * targetDistance) / 5;
+      // Utiliser la distance cible de l'utilisateur avec de légères variations (±5%)
+      const variance = (Math.random() - 0.5) * 0.1; // -5% à +5%
+      const adjustedDistance = routeDistance * (1 + variance);
+      
+      // Distance totale pour l'affichage
       const displayDistance = planningData.tripType === 'round-trip' ? adjustedDistance * 2 : adjustedDistance;
       
       // Vitesse selon l'allure
@@ -122,38 +124,38 @@ export const useDestinationVariants = () => {
         id: 'A',
         name: 'Circuit du Parc',
         description: 'Boucle complète dans le parc avec retour au point de départ',
-        ...calculateMetrics(3.5)
+        ...calculateMetrics(0) // Use target distance calculation
       },
       {
         id: 'B', 
         name: 'Tour du Quartier',
         description: 'Circuit urbain avec découverte du quartier',
-        ...calculateMetrics(4.8)
+        ...calculateMetrics(0) // Use target distance calculation
       },
       {
         id: 'C',
         name: 'Promenade Riverside',
         description: 'Boucle le long de la rivière avec points d\'intérêt',
-        ...calculateMetrics(2.9)
+        ...calculateMetrics(0) // Use target distance calculation
       }
     ] : [
       {
         id: 'A',
         name: 'Parc de la Citadelle',
         description: 'Promenade paisible vers le parc historique',
-        ...calculateMetrics(4.2)
+        ...calculateMetrics(0) // Use target distance calculation
       },
       {
         id: 'B', 
         name: 'Bords de Seine',
         description: 'Marche le long des quais avec vue sur le fleuve',
-        ...calculateMetrics(5.8)
+        ...calculateMetrics(0) // Use target distance calculation
       },
       {
         id: 'C',
         name: 'Centre Historique',
         description: 'Découverte du patrimoine architectural en centre-ville',
-        ...calculateMetrics(3.6)
+        ...calculateMetrics(0) // Use target distance calculation
       }
     ];
 
