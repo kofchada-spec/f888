@@ -47,12 +47,12 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
 const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boolean }) => {
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="bg-primary rounded-3xl p-8 w-full max-w-sm h-[600px] flex flex-col items-center justify-between text-center relative overflow-hidden">
+      <div className="bg-transparent rounded-3xl p-8 w-full max-w-sm h-[600px] flex flex-col items-center justify-between text-center relative overflow-hidden">
         {/* Back button */}
         {showBack && (
           <button 
             onClick={() => {}} 
-            className="absolute top-6 left-6 text-white/70 hover:text-white"
+            className="absolute top-6 left-6 text-gray-600 hover:text-gray-800"
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
@@ -63,22 +63,22 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
             <img 
               src={fitpasLogo} 
               alt="FitPaS Logo" 
-              className="w-24 h-24 mx-auto filter brightness-0 invert"
+              className="w-24 h-24 mx-auto"
             />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-4">
+          <h1 className="text-3xl font-bold text-gray-800 mb-4">
             FitPaS
           </h1>
-          <p className="text-white/90 text-lg font-medium">
+          <p className="text-gray-600 text-lg font-medium">
             Ta marche, ton rythme, ton objectif.
           </p>
         </div>
 
         {/* Navigation dots */}
         <div className="flex gap-2 mb-6">
-          <div className="w-3 h-3 rounded-full bg-white"></div>
-          <div className="w-3 h-3 rounded-full bg-white/30"></div>
-          <div className="w-3 h-3 rounded-full bg-white/30"></div>
+          <div className="w-3 h-3 rounded-full bg-secondary"></div>
+          <div className="w-3 h-3 rounded-full bg-gray-300"></div>
+          <div className="w-3 h-3 rounded-full bg-gray-300"></div>
         </div>
 
         <Button 
