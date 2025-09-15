@@ -145,9 +145,10 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
         
         if (outboundData.routes && outboundData.routes.length > 0) {
           const outboundRoute = outboundData.routes[0];
+          const targetSteps = parseInt(planningData.steps);
           
           // Create non-retracing return route using strategic waypoints
-          const returnRoute = await computeNonRetracingReturn(start, end, outboundRoute.geometry.coordinates);
+          const returnRoute = await computeNonRetracingReturn(start, end, outboundRoute.geometry.coordinates, targetSteps);
           
           if (returnRoute) {
             const totalDistanceKm = (outboundRoute.distance + returnRoute.distance) / 1000;
@@ -155,15 +156,26 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
             const durationMin = calculateTime(totalDistanceKm);
             const calories = calculateCalories(totalDistanceKm);
 
-            return {
-              distance: totalDistanceKm,
-              duration: durationMin,
-              calories,
-              steps,
-              coordinates: [...outboundRoute.geometry.coordinates, ...returnRoute.geometry.coordinates],
-              outboundCoordinates: outboundRoute.geometry.coordinates,
-              returnCoordinates: returnRoute.geometry.coordinates
-            };
+            // Validate that total steps are within ±5% of target
+            const stepDeviation = Math.abs(steps - targetSteps) / targetSteps;
+            
+            if (stepDeviation <= 0.05) {
+              console.log(`Valid A-R route: ${steps} steps (target: ${targetSteps}, deviation: ${(stepDeviation * 100).toFixed(1)}%)`);
+              return {
+                distance: totalDistanceKm,
+                duration: durationMin,
+                calories,
+                steps,
+                coordinates: [...outboundRoute.geometry.coordinates, ...returnRoute.geometry.coordinates],
+                outboundCoordinates: outboundRoute.geometry.coordinates,
+                returnCoordinates: returnRoute.geometry.coordinates
+              };
+            } else {
+              console.warn(`A-R route step deviation too high: ${(stepDeviation * 100).toFixed(1)}% (target: ±5%)`);
+              throw new Error(`Route step count (${steps}) exceeds ±5% tolerance for target (${targetSteps})`);
+            }
+          } else {
+            throw new Error('No different return route found within your step goal. Please adjust your target.');
           }
         }
       } else {
@@ -196,81 +208,144 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
     return null;
   }, [mapboxToken, planningData.tripType, calculateSteps, calculateTime, calculateCalories]);
 
-  // Compute non-retracing return route using strategic waypoints
-  const computeNonRetracingReturn = useCallback(async (start: { lat: number; lng: number }, end: { lat: number; lng: number }, outboundCoords: number[][]): Promise<any> => {
+  // Compute non-retracing return route using aggressive different path strategy
+  const computeNonRetracingReturn = useCallback(async (start: { lat: number; lng: number }, end: { lat: number; lng: number }, outboundCoords: number[][], targetSteps: number): Promise<any> => {
     if (!mapboxToken || outboundCoords.length < 2) return null;
 
     try {
-      // Calculate strategic waypoints to avoid outbound path
-      const waypoints = calculateAvoidanceWaypoints(start, end, outboundCoords);
-      
-      // Try different waypoint combinations to find the best non-retracing route
-      const waypointAttempts = [
-        waypoints, // All waypoints
-        [waypoints[0], waypoints[waypoints.length - 1]], // Just first and last
-        waypoints.filter((_, i) => i % 2 === 0) // Every other waypoint
-      ];
-
-      for (const currentWaypoints of waypointAttempts) {
-        try {
-          // Build coordinates string with waypoints: end -> waypoint1 -> waypoint2 -> start
-          const waypointCoords = currentWaypoints.map(wp => `${wp.lng},${wp.lat}`).join(';');
-          const returnCoords = `${end.lng},${end.lat};${waypointCoords};${start.lng},${start.lat}`;
-          
-          const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${returnCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
-          const returnResponse = await fetch(returnUrl);
-          const returnData = await returnResponse.json();
-          
-          if (returnData.routes && returnData.routes.length > 0) {
-            const returnRoute = returnData.routes[0];
-            
-            // Check if return route sufficiently avoids outbound path
-            const overlapPercentage = calculatePathOverlap(outboundCoords, returnRoute.geometry.coordinates);
-            
-            if (overlapPercentage < 0.3) { // Less than 30% overlap is acceptable
-              return returnRoute;
-            }
-          }
-        } catch (error) {
-          continue; // Try next waypoint combination
-        }
-      }
-
-      // Fallback: Use simple alternative route if waypoint approach fails
+      // Step 1: Try Mapbox alternatives first (most likely to succeed)
       const returnCoords = `${end.lng},${end.lat};${start.lng},${start.lat}`;
-      const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${returnCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full&alternatives=true`;
-      const returnResponse = await fetch(returnUrl);
-      const returnData = await returnResponse.json();
+      const alternativesUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${returnCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full&alternatives=true&alternative_count=5`;
       
-      if (returnData.routes && returnData.routes.length > 1) {
-        // Try alternative routes and pick the one with least overlap
+      const alternativesResponse = await fetch(alternativesUrl);
+      const alternativesData = await alternativesResponse.json();
+      
+      if (alternativesData.routes && alternativesData.routes.length > 1) {
+        // Evaluate all alternative routes for overlap and step count
         let bestRoute = null;
-        let minOverlap = 1.0;
+        let bestScore = Infinity;
         
-        for (const route of returnData.routes) {
+        for (let i = 1; i < alternativesData.routes.length; i++) { // Skip index 0 (shortest route)
+          const route = alternativesData.routes[i];
           const overlap = calculatePathOverlap(outboundCoords, route.geometry.coordinates);
-          if (overlap < minOverlap) {
-            minOverlap = overlap;
+          
+          // Calculate total steps for outbound + return
+          const outboundDistance = outboundCoords.reduce((total, coord, index) => {
+            if (index === 0) return 0;
+            return total + calculateDistance(outboundCoords[index - 1], coord);
+          }, 0);
+          
+          const returnDistance = route.distance / 1000; // Convert to km
+          const totalDistance = outboundDistance + returnDistance;
+          const totalSteps = Math.round((totalDistance * 1000) / (parseFloat(planningData.height) * 0.415 || 0.72));
+          const stepDeviation = Math.abs(totalSteps - targetSteps) / targetSteps;
+          
+          // Score: prioritize low overlap and meeting step target
+          const score = overlap * 2 + stepDeviation; // Overlap weighted more heavily
+          
+          if (overlap < 0.15 && stepDeviation <= 0.05 && score < bestScore) { // Max 15% overlap, ±5% steps
+            bestScore = score;
             bestRoute = route;
           }
         }
         
-        return bestRoute || returnData.routes[1]; // Return best or alternative
+        if (bestRoute) {
+          console.log(`Found alternative return route with ${(bestScore * 100).toFixed(1)}% overlap`);
+          return bestRoute;
+        }
+      }
+      
+      // Step 2: Aggressive waypoint strategy with multiple perpendicular offsets
+      const aggressiveWaypoints = calculateAggressiveAvoidanceWaypoints(start, end, outboundCoords);
+      
+      const waypointStrategies = [
+        aggressiveWaypoints.slice(0, 2), // First 2 waypoints
+        aggressiveWaypoints.slice(-2), // Last 2 waypoints
+        [aggressiveWaypoints[0], aggressiveWaypoints[Math.floor(aggressiveWaypoints.length/2)]], // First and middle
+        aggressiveWaypoints // All waypoints (last resort)
+      ];
+
+      for (const waypoints of waypointStrategies) {
+        try {
+          const waypointCoords = waypoints.map(wp => `${wp.lng},${wp.lat}`).join(';');
+          const waypointedCoords = `${end.lng},${end.lat};${waypointCoords};${start.lng},${start.lat}`;
+          
+          const waypointUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${waypointedCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
+          const waypointResponse = await fetch(waypointUrl);
+          const waypointData = await waypointResponse.json();
+          
+          if (waypointData.routes && waypointData.routes.length > 0) {
+            const route = waypointData.routes[0];
+            const overlap = calculatePathOverlap(outboundCoords, route.geometry.coordinates);
+            
+            // Calculate step validation for waypoint route
+            const outboundDistance = outboundCoords.reduce((total, coord, index) => {
+              if (index === 0) return 0;
+              return total + calculateDistance(outboundCoords[index - 1], coord);
+            }, 0);
+            
+            const returnDistance = route.distance / 1000;
+            const totalDistance = outboundDistance + returnDistance;
+            const totalSteps = Math.round((totalDistance * 1000) / (parseFloat(planningData.height) * 0.415 || 0.72));
+            const stepDeviation = Math.abs(totalSteps - targetSteps) / targetSteps;
+            
+            if (overlap < 0.1 && stepDeviation <= 0.05) { // Very strict criteria: <10% overlap, ±5% steps
+              console.log(`Found waypointed return route with ${(overlap * 100).toFixed(1)}% overlap`);
+              return route;
+            }
+          }
+        } catch (error) {
+          continue;
+        }
       }
 
-      return returnData.routes?.[0] || null; // Fallback to primary route
+      // Step 3: Last resort - use best alternative even if not perfect
+      if (alternativesData.routes && alternativesData.routes.length > 1) {
+        let fallbackRoute = null;
+        let minOverlap = 1.0;
+        
+        for (let i = 1; i < alternativesData.routes.length; i++) {
+          const route = alternativesData.routes[i];
+          const overlap = calculatePathOverlap(outboundCoords, route.geometry.coordinates);
+          
+          if (overlap < minOverlap) {
+            minOverlap = overlap;
+            fallbackRoute = route;
+          }
+        }
+        
+        if (fallbackRoute && minOverlap < 0.4) { // Accept up to 40% overlap as last resort
+          console.warn(`Using fallback return route with ${(minOverlap * 100).toFixed(1)}% overlap`);
+          return fallbackRoute;
+        }
+      }
+
+      throw new Error('No suitable different return route found');
+      
     } catch (error) {
       console.error('Error computing non-retracing return:', error);
       return null;
     }
-  }, [mapboxToken]);
+  }, [mapboxToken, planningData.height]);
 
-  // Calculate waypoints that force route to avoid outbound path
-  const calculateAvoidanceWaypoints = useCallback((start: { lat: number; lng: number }, end: { lat: number; lng: number }, outboundCoords: number[][]) => {
+  // Helper function to calculate distance between two coordinates  
+  const calculateDistance = useCallback((coord1: number[], coord2: number[]): number => {
+    const R = 6371; // Earth's radius in km
+    const dLat = (coord2[1] - coord1[1]) * Math.PI / 180;
+    const dLon = (coord2[0] - coord1[0]) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(coord1[1] * Math.PI / 180) * Math.cos(coord2[1] * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }, []);
+
+  // Calculate aggressive waypoints that force route to use different streets
+  const calculateAggressiveAvoidanceWaypoints = useCallback((start: { lat: number; lng: number }, end: { lat: number; lng: number }, outboundCoords: number[][]) => {
     const waypoints = [];
-    const numWaypoints = Math.min(3, Math.max(1, Math.floor(outboundCoords.length / 20))); // 1-3 waypoints based on route length
+    const numWaypoints = Math.min(4, Math.max(2, Math.floor(outboundCoords.length / 15))); // 2-4 waypoints
     
-    // Calculate perpendicular offsets from key points on outbound path
+    // Calculate more aggressive perpendicular offsets from key points on outbound path
     for (let i = 1; i <= numWaypoints; i++) {
       const segmentIndex = Math.floor((outboundCoords.length * i) / (numWaypoints + 1));
       const point = outboundCoords[segmentIndex];
@@ -285,16 +360,26 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
           nextPoint[1] - prevPoint[1]
         );
         
-        // Create waypoint perpendicular to outbound path (offset by ~50-100m)
-        const offsetDistance = 0.0008; // ~50-100m in degrees
-        const perpendicularBearing = bearing + Math.PI / 2; // 90 degrees offset
+        // Create multiple waypoints with different offset strategies
+        const offsetDistances = [0.0015, 0.0020, 0.0025]; // ~100-200m in degrees - more aggressive
+        const perpendicularAngles = [Math.PI / 2, -Math.PI / 2, Math.PI / 3, -Math.PI / 3]; // Different angles
         
-        const waypoint = {
-          lat: point[1] + Math.cos(perpendicularBearing) * offsetDistance,
-          lng: point[0] + Math.sin(perpendicularBearing) * offsetDistance
-        };
-        
-        waypoints.push(waypoint);
+        for (const offsetDistance of offsetDistances) {
+          for (const angle of perpendicularAngles) {
+            const perpendicularBearing = bearing + angle;
+            
+            const waypoint = {
+              lat: point[1] + Math.cos(perpendicularBearing) * offsetDistance,
+              lng: point[0] + Math.sin(perpendicularBearing) * offsetDistance
+            };
+            
+            waypoints.push(waypoint);
+            
+            // Limit total waypoints to avoid overly complex routes
+            if (waypoints.length >= 6) break;
+          }
+          if (waypoints.length >= 6) break;
+        }
       }
     }
     
@@ -535,7 +620,12 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
         } else {
           const tolerance = Math.round(targetSteps * 0.05);
           console.warn(`No valid route found. Target: ${targetSteps} steps (±${tolerance} tolerance)`);
-          alert(`Aucun itinéraire trouvé correspondant à votre objectif de pas.\n\nObjectif: ${targetSteps} pas (tolérance: ±${tolerance} pas)\nVeuillez ajuster votre destination ou votre objectif de pas.`);
+          
+          if (planningData.tripType === 'round-trip') {
+            alert(`Aucun itinéraire aller-retour avec des trajets différents trouvé pour votre objectif de pas.\n\nObjectif: ${targetSteps} pas (tolérance: ±${tolerance} pas)\n\nVeuillez:\n• Ajuster votre destination\n• Modifier votre objectif de pas\n• Ou essayer un autre lieu`);
+          } else {
+            alert(`Aucun itinéraire trouvé correspondant à votre objectif de pas.\n\nObjectif: ${targetSteps} pas (tolérance: ±${tolerance} pas)\nVeuillez ajuster votre destination ou votre objectif de pas.`);
+          }
         }
       } catch (error) {
         console.error('Error calculating route:', error);
@@ -819,8 +909,12 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
         const tolerance = Math.round(targetSteps * 0.05);
         console.warn(`No optimal route found. Target: ${targetSteps} steps (±${tolerance} tolerance)`);
         
-        // Show user-friendly error message
-        alert(`Aucun itinéraire optimal trouvé.\n\nObjectif: ${targetSteps} pas\nVeuillez ajuster votre objectif de pas ou réessayer.`);
+        // Show user-friendly error message based on trip type
+        if (planningData.tripType === 'round-trip') {
+          alert(`Aucun itinéraire aller-retour optimal trouvé avec des trajets différents.\n\nObjectif: ${targetSteps} pas (±${tolerance} tolérance)\n\nSuggestions:\n• Ajustez votre objectif de pas\n• Essayez un autre lieu de départ\n• Ou utilisez le mode "Aller simple"`);
+        } else {
+          alert(`Aucun itinéraire optimal trouvé.\n\nObjectif: ${targetSteps} pas\nVeuillez ajuster votre objectif de pas ou réessayer.`);
+        }
         
         // Set default destination position
         const defaultDest = calculateDefaultDestination(userLocation);
