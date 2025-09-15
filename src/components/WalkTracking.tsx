@@ -424,7 +424,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
               className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 text-lg font-semibold shadow-lg hover:shadow-xl transition-all transform hover:scale-105"
             >
               <Play size={20} className="mr-2" />
-              Commencer la marche
+              Go!
             </Button>
           )}
           

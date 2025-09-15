@@ -38,6 +38,7 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
+  const lastDestinationKey = useRef<string>(''); // Track destination changes to prevent flicker
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
 
   // Expose map methods via ref
@@ -215,11 +216,22 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
     }
   }, [userLocation]);
 
-  // Initialize markers and routes (only when destinations actually change)
+  // Initialize markers and routes ONLY when destinations actually change - prevent route flicker
   useEffect(() => {
-    if (!map.current || !userLocation) return;
+    if (!map.current || !userLocation || destinations.length === 0) return;
 
-    // Clear existing markers only if destinations changed
+    // Only update if destinations array actually changed, not user location updates
+    const destinationKey = destinations.map(d => `${d.id}-${d.name}-${!!d.route}`).join('|');
+    
+    if (lastDestinationKey.current === destinationKey) {
+      console.log('Destinations unchanged, keeping stable routes');
+      return; // Skip re-render if destinations haven't actually changed
+    }
+    
+    lastDestinationKey.current = destinationKey;
+    console.log('Rendering routes for destinations:', destinationKey);
+
+    // Clear existing markers only when destinations actually change
     markers.current.forEach(marker => marker.remove());
     markers.current = [];
 
@@ -268,7 +280,7 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
 
     // Add destination markers
     destinations.forEach((destination, index) => {
-      console.log(`Ajout de la destination ${index + 1}:`, {
+      console.log(`Adding destination ${index + 1}:`, {
         id: destination.id,
         name: destination.name,
         coordinates: destination.coordinates,
@@ -281,14 +293,14 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
       if (destination.coordinates && destination.coordinates.lat && destination.coordinates.lng) {
         destLng = destination.coordinates.lng;
         destLat = destination.coordinates.lat;
-        console.log(`Utilisation des coordonnées réelles pour ${destination.name}:`, { lat: destLat, lng: destLng });
+        console.log(`Using real coordinates for ${destination.name}:`, { lat: destLat, lng: destLng });
       } else {
         // Fallback to calculated positions around user location
         const angle = (index * 120) * (Math.PI / 180);
         const distance = 0.01; // ~1km en degrés approximatifs
         destLng = userLocation.lng + Math.cos(angle) * distance;
         destLat = userLocation.lat + Math.sin(angle) * distance;
-        console.log(`Utilisation de coordonnées calculées pour ${destination.name}:`, { lat: destLat, lng: destLng });
+        console.log(`Using calculated coordinates for ${destination.name}:`, { lat: destLat, lng: destLng });
       }
 
       const markerEl = document.createElement('div');
@@ -348,9 +360,10 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
 
       markers.current.push(marker);
 
-      // Add route line when map is ready
+      // Add route immediately - stable rendering for navigation screen
       if (map.current?.isStyleLoaded()) {
         if (destination.route) {
+          console.log('Rendering preconfigured route from previous screen');
           addRouteFromGeometry(destination.id, destination.route, isSelected);
         } else {
           addRouteLine(destination.id, userLocation, { lat: destLat, lng: destLng }, isRoundTrip, isSelected);
@@ -359,6 +372,7 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
         map.current?.on('styledata', () => {
           if (map.current?.isStyleLoaded()) {
             if (destination.route) {
+              console.log('Rendering preconfigured route from previous screen (delayed)');
               addRouteFromGeometry(destination.id, destination.route, isSelected);
             } else {
               addRouteLine(destination.id, userLocation, { lat: destLat, lng: destLng }, isRoundTrip, isSelected);
@@ -367,7 +381,7 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
         });
       }
     });
-  }, [destinations, selectedDestination]); // Remove userLocation and planningData to prevent re-renders
+  }, [destinations, selectedDestination]); // STABLE dependencies - no userLocation changes
 
   // IntersectionObserver to resize map when it becomes visible (must be before any returns)
   useEffect(() => {
