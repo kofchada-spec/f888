@@ -140,6 +140,14 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
     return Math.min((currentSteps / targetSteps) * 100, 100);
   };
 
+  // Calculate estimated steps for the selected route
+  const getEstimatedSteps = () => {
+    const heightM = parseFloat(planningData.height);
+    const strideM = heightM ? 0.415 * heightM : 0.72;
+    const distanceM = destination.distanceKm * 1000;
+    return Math.round(distanceM / strideM);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
       {/* Header */}
@@ -194,7 +202,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
               <Target size={20} className="text-secondary" />
             </div>
             <div className="text-2xl font-bold text-foreground">{currentSteps}</div>
-            <div className="text-sm text-muted-foreground">Pas</div>
+            <div className="text-sm text-muted-foreground">Pas actuels</div>
           </Card>
           
           <Card className="p-4 text-center">
@@ -218,11 +226,43 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
           </Card>
         </div>
 
+        {/* Route planifiée - Estimation */}
+        <Card className="p-6 mb-6 bg-gradient-to-br from-primary/5 to-secondary/5">
+          <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center space-x-2">
+            <Target className="w-5 h-5 text-primary" />
+            <span>Route planifiée</span>
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-primary">{getEstimatedSteps()}</div>
+              <div className="text-sm text-muted-foreground">Pas estimés</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-secondary">{destination.distanceKm.toFixed(1)} km</div>
+              <div className="text-sm text-muted-foreground">Distance totale</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-orange-500">{destination.durationMin} min</div>
+              <div className="text-sm text-muted-foreground">Durée estimée</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-500">{destination.calories} kcal</div>
+              <div className="text-sm text-muted-foreground">Calories</div>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-border text-center">
+            <p className="text-sm text-muted-foreground">
+              {planningData.tripType === 'round-trip' ? '🔄 Aller-retour' : '➡️ Aller simple'} • 
+              Allure {getPaceText(planningData.pace)}
+            </p>
+          </div>
+        </Card>
+
         {/* Barre de progression */}
         <div className="mb-6">
           <div className="flex justify-between text-sm text-muted-foreground mb-2">
-            <span>Progression de la marche</span>
-            <span>{currentSteps} / {planningData.steps} pas</span>
+            <span>Progression vers l'objectif</span>
+            <span>{currentSteps} / {planningData.steps} pas (cible: {getEstimatedSteps()} pas estimés)</span>
           </div>
           <div className="w-full bg-muted rounded-full h-3">
             <div 
@@ -244,7 +284,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
                 distance: `${destination.distanceKm.toFixed(1)} km`,
                 duration: `${destination.durationMin} min`,
                 calories: destination.calories,
-                description: `Destination à ${destination.distanceKm.toFixed(1)} km`,
+                description: `Destination à ${destination.distanceKm.toFixed(1)} km - ${getEstimatedSteps()} pas estimés`,
                 coordinates: destination.coordinates,
                 route: destination.routeGeoJSON
               }]}
@@ -259,28 +299,6 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
           )}
         </div>
 
-        {/* Informations de la destination */}
-        <Card className="p-6 mb-6">
-          <h3 className="text-lg font-semibold text-foreground mb-4">Estimation de la marche en cours</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary">{destination.distanceKm.toFixed(1)} km</div>
-              <div className="text-sm text-muted-foreground">Distance {planningData.tripType === 'round-trip' ? 'aller' : 'totale'}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-secondary">{destination.durationMin} min</div>
-              <div className="text-sm text-muted-foreground">Durée estimée</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-orange-500">{destination.calories} cal</div>
-              <div className="text-sm text-muted-foreground">Calories</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-500">{getPaceText(planningData.pace)}</div>
-              <div className="text-sm text-muted-foreground">Allure</div>
-            </div>
-          </div>
-        </Card>
 
         {/* Contrôles de la marche */}
         <div className="flex justify-center space-x-4">
