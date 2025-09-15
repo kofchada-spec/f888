@@ -198,7 +198,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
           const profile = 'walking';
           
           if (planningData.tripType === 'round-trip') {
-            // For round-trip, generate separate outbound and return paths
+            // For round-trip, generate separate outbound and return paths that don't overlap
             const outboundCoords = `${userLoc.lng},${userLoc.lat};${testDestination.lng},${testDestination.lat}`;
             
             // Get outbound route
@@ -209,31 +209,53 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
             if (outboundData.routes && outboundData.routes.length > 0) {
               const outboundRoute = outboundData.routes[0];
               const outboundDistanceKm = outboundRoute.distance / 1000;
+              const targetReturnDistanceKm = targetDistanceKm - outboundDistanceKm;
               
-              // Try to find a different return path with similar distance
-              const returnBearings = [bearing + 30, bearing - 30, bearing + 60, bearing - 60, bearing + 90, bearing - 90];
+              // Generate intermediate waypoints to force different return paths
+              const returnWaypoints = [];
+              const centerLat = (userLoc.lat + testDestination.lat) / 2;
+              const centerLng = (userLoc.lng + testDestination.lng) / 2;
+              
+              // Create waypoints perpendicular to the direct line between destination and start
+              const directBearing = Math.atan2(
+                userLoc.lat - testDestination.lat,
+                userLoc.lng - testDestination.lng
+              ) * 180 / Math.PI;
+              
+              // Generate waypoints at 90° and 270° from direct bearing to force different paths
+              const perpendicularBearings = [directBearing + 90, directBearing - 90];
+              const waypointDistances = [0.3, 0.5, 0.7]; // Different distances in km from center point
+              
+              for (const perpBearing of perpendicularBearings) {
+                for (const distance of waypointDistances) {
+                  const bearingRad = (perpBearing * Math.PI) / 180;
+                  const earthRadiusKm = 6371;
+                  
+                  const waypointLatRad = Math.asin(
+                    Math.sin((centerLat * Math.PI) / 180) * Math.cos(distance / earthRadiusKm) +
+                    Math.cos((centerLat * Math.PI) / 180) * Math.sin(distance / earthRadiusKm) * Math.cos(bearingRad)
+                  );
+                  
+                  const waypointLngRad = (centerLng * Math.PI) / 180 + Math.atan2(
+                    Math.sin(bearingRad) * Math.sin(distance / earthRadiusKm) * Math.cos((centerLat * Math.PI) / 180),
+                    Math.cos(distance / earthRadiusKm) - Math.sin((centerLat * Math.PI) / 180) * Math.sin(waypointLatRad)
+                  );
+                  
+                  returnWaypoints.push({
+                    lat: (waypointLatRad * 180) / Math.PI,
+                    lng: (waypointLngRad * 180) / Math.PI
+                  });
+                }
+              }
+              
               let bestReturnRoute = null;
               let bestReturnScore = Infinity;
+              let bestOverlapScore = Infinity;
               
-              // First, try alternative return paths
-              for (const returnBearing of returnBearings) {
+              // Test return routes through different waypoints
+              for (const waypoint of returnWaypoints) {
                 try {
-                  const returnBearingRad = (returnBearing * Math.PI) / 180;
-                  const returnLatRad = Math.asin(
-                    Math.sin((testDestination.lat * Math.PI) / 180) * Math.cos(outboundDistanceKm / 6371) +
-                    Math.cos((testDestination.lat * Math.PI) / 180) * Math.sin(outboundDistanceKm / 6371) * Math.cos(returnBearingRad)
-                  );
-                  const returnLngRad = (testDestination.lng * Math.PI) / 180 + Math.atan2(
-                    Math.sin(returnBearingRad) * Math.sin(outboundDistanceKm / 6371) * Math.cos((testDestination.lat * Math.PI) / 180),
-                    Math.cos(outboundDistanceKm / 6371) - Math.sin((testDestination.lat * Math.PI) / 180) * Math.sin(returnLatRad)
-                  );
-                  
-                  const returnWaypoint = {
-                    lat: (returnLatRad * 180) / Math.PI,
-                    lng: (returnLngRad * 180) / Math.PI
-                  };
-                  
-                  const returnCoords = `${testDestination.lng},${testDestination.lat};${returnWaypoint.lng},${returnWaypoint.lat};${userLoc.lng},${userLoc.lat}`;
+                  const returnCoords = `${testDestination.lng},${testDestination.lat};${waypoint.lng},${waypoint.lat};${userLoc.lng},${userLoc.lat}`;
                   const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${returnCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
                   const returnResponse = await fetch(returnUrl);
                   const returnData = await returnResponse.json();
@@ -241,28 +263,56 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
                   if (returnData.routes && returnData.routes.length > 0) {
                     const returnRoute = returnData.routes[0];
                     const returnDistanceKm = returnRoute.distance / 1000;
-                    const targetReturnDistance = targetDistanceKm - outboundDistanceKm;
-                    const returnDistanceDiff = Math.abs(returnDistanceKm - targetReturnDistance);
+                    const totalDistanceKm = outboundDistanceKm + returnDistanceKm;
                     
-                    if (returnDistanceDiff < bestReturnScore) {
-                      bestReturnScore = returnDistanceDiff;
+                    // Calculate step deviation from target
+                    const totalSteps = Math.round((totalDistanceKm * 1000) / strideM);
+                    const stepDeviation = Math.abs(totalSteps - targetSteps) / targetSteps;
+                    
+                    // Calculate route overlap (simplified - check coordinate proximity)
+                    const overlapScore = calculateRouteOverlap(outboundRoute.geometry.coordinates, returnRoute.geometry.coordinates);
+                    
+                    // Combined score: prioritize low overlap, then step accuracy
+                    const combinedScore = overlapScore * 2 + stepDeviation;
+                    
+                    if (combinedScore < bestReturnScore) {
+                      bestReturnScore = combinedScore;
+                      bestOverlapScore = overlapScore;
                       bestReturnRoute = returnRoute;
                     }
                   }
                 } catch (returnError) {
-                  // Continue to next return bearing
+                  // Continue to next waypoint
                 }
               }
               
-              // If no good alternative return path found, use direct return
-              if (!bestReturnRoute) {
-                const directReturnCoords = `${testDestination.lng},${testDestination.lat};${userLoc.lng},${userLoc.lat}`;
-                const directReturnUrl = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${directReturnCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
-                const directReturnResponse = await fetch(directReturnUrl);
-                const directReturnData = await directReturnResponse.json();
-                
-                if (directReturnData.routes && directReturnData.routes.length > 0) {
-                  bestReturnRoute = directReturnData.routes[0];
+              // If no good waypoint route found, try direct return with different approach
+              if (!bestReturnRoute || bestOverlapScore > 0.5) {
+                try {
+                  const directReturnCoords = `${testDestination.lng},${testDestination.lat};${userLoc.lng},${userLoc.lat}`;
+                  const directReturnUrl = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${directReturnCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full&alternatives=true`;
+                  const directReturnResponse = await fetch(directReturnUrl);
+                  const directReturnData = await directReturnResponse.json();
+                  
+                  if (directReturnData.routes && directReturnData.routes.length > 0) {
+                    // Try alternative routes if available
+                    for (const alternativeRoute of directReturnData.routes) {
+                      const returnDistanceKm = alternativeRoute.distance / 1000;
+                      const totalDistanceKm = outboundDistanceKm + returnDistanceKm;
+                      const totalSteps = Math.round((totalDistanceKm * 1000) / strideM);
+                      const stepDeviation = Math.abs(totalSteps - targetSteps) / targetSteps;
+                      
+                      const overlapScore = calculateRouteOverlap(outboundRoute.geometry.coordinates, alternativeRoute.geometry.coordinates);
+                      const combinedScore = overlapScore * 2 + stepDeviation;
+                      
+                      if (combinedScore < bestReturnScore) {
+                        bestReturnScore = combinedScore;
+                        bestReturnRoute = alternativeRoute;
+                      }
+                    }
+                  }
+                } catch (directReturnError) {
+                  // Use the best waypoint route if direct alternatives fail
                 }
               }
               
@@ -358,6 +408,46 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
     return { route: bestRoute, destination: bestDestination };
   }, [mapboxToken, planningData, calculateTime, calculateCalories]);
 
+  // Helper function to calculate route overlap
+  const calculateRouteOverlap = useCallback((outboundCoords: number[][], returnCoords: number[][]) => {
+    const overlapThresholdKm = 0.05; // 50m threshold for considering overlap
+    let overlapCount = 0;
+    let totalReturnSegments = 0;
+    
+    for (let i = 0; i < returnCoords.length - 1; i++) {
+      totalReturnSegments++;
+      const returnPoint = returnCoords[i];
+      
+      // Check if this return point is close to any outbound segment
+      for (let j = 0; j < outboundCoords.length - 1; j++) {
+        const outboundPoint = outboundCoords[j];
+        const distance = getDistanceBetweenPoints(
+          { lat: returnPoint[1], lng: returnPoint[0] },
+          { lat: outboundPoint[1], lng: outboundPoint[0] }
+        );
+        
+        if (distance <= overlapThresholdKm) {
+          overlapCount++;
+          break; // Found overlap for this segment
+        }
+      }
+    }
+    
+    return totalReturnSegments > 0 ? overlapCount / totalReturnSegments : 0;
+  }, []);
+
+  // Helper function to calculate distance between two points in km
+  const getDistanceBetweenPoints = useCallback((point1: { lat: number; lng: number }, point2: { lat: number; lng: number }) => {
+    const earthRadiusKm = 6371;
+    const dLat = (point2.lat - point1.lat) * Math.PI / 180;
+    const dLng = (point2.lng - point1.lng) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(point1.lat * Math.PI / 180) * Math.cos(point2.lat * Math.PI / 180) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return earthRadiusKm * c;
+  }, []);
+
   // Calculate default destination position (fallback method)
   const calculateDefaultDestination = useCallback((userLoc: { lat: number; lng: number }) => {
     const targetKm = getTargetDistance();
@@ -398,7 +488,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       const profile = 'walking';
       
       if (planningData.tripType === 'round-trip') {
-        // For round-trip, generate separate outbound and return paths like in generateOptimalRoute
+        // For round-trip, generate separate outbound and return paths that avoid overlap
         const outboundCoords = `${start.lng},${start.lat};${end.lng},${end.lat}`;
         const outboundUrl = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${outboundCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
         const outboundResponse = await fetch(outboundUrl);
@@ -406,16 +496,92 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
         
         if (outboundData.routes && outboundData.routes.length > 0) {
           const outboundRoute = outboundData.routes[0];
+          const outboundDistanceKm = outboundRoute.distance / 1000;
           
-          // Get return route (direct path for simplicity in manual selection)
-          const returnCoords = `${end.lng},${end.lat};${start.lng},${start.lat}`;
-          const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${returnCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
-          const returnResponse = await fetch(returnUrl);
-          const returnData = await returnResponse.json();
+          // Generate alternative return paths using intermediate waypoints
+          const centerLat = (start.lat + end.lat) / 2;
+          const centerLng = (start.lng + end.lng) / 2;
           
-          if (returnData.routes && returnData.routes.length > 0) {
-            const returnRoute = returnData.routes[0];
-            const totalDistanceKm = (outboundRoute.distance + returnRoute.distance) / 1000;
+          const directBearing = Math.atan2(start.lat - end.lat, start.lng - end.lng) * 180 / Math.PI;
+          const perpendicularBearings = [directBearing + 90, directBearing - 90];
+          
+          let bestReturnRoute = null;
+          let bestReturnScore = Infinity;
+          
+          // Try return routes through perpendicular waypoints
+          for (const perpBearing of perpendicularBearings) {
+            for (const distance of [0.3, 0.5]) {
+              try {
+                const bearingRad = (perpBearing * Math.PI) / 180;
+                const earthRadiusKm = 6371;
+                
+                const waypointLatRad = Math.asin(
+                  Math.sin((centerLat * Math.PI) / 180) * Math.cos(distance / earthRadiusKm) +
+                  Math.cos((centerLat * Math.PI) / 180) * Math.sin(distance / earthRadiusKm) * Math.cos(bearingRad)
+                );
+                
+                const waypointLngRad = (centerLng * Math.PI) / 180 + Math.atan2(
+                  Math.sin(bearingRad) * Math.sin(distance / earthRadiusKm) * Math.cos((centerLat * Math.PI) / 180),
+                  Math.cos(distance / earthRadiusKm) - Math.sin((centerLat * Math.PI) / 180) * Math.sin(waypointLatRad)
+                );
+                
+                const waypoint = {
+                  lat: (waypointLatRad * 180) / Math.PI,
+                  lng: (waypointLngRad * 180) / Math.PI
+                };
+                
+                const returnCoords = `${end.lng},${end.lat};${waypoint.lng},${waypoint.lat};${start.lng},${start.lat}`;
+                const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${returnCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
+                const returnResponse = await fetch(returnUrl);
+                const returnData = await returnResponse.json();
+                
+                if (returnData.routes && returnData.routes.length > 0) {
+                  const returnRoute = returnData.routes[0];
+                  const overlapScore = calculateRouteOverlap(outboundRoute.geometry.coordinates, returnRoute.geometry.coordinates);
+                  
+                  if (overlapScore < bestReturnScore) {
+                    bestReturnScore = overlapScore;
+                    bestReturnRoute = returnRoute;
+                  }
+                }
+              } catch (error) {
+                // Continue to next waypoint
+              }
+            }
+          }
+          
+          // If no good alternative found, try alternatives=true for direct return
+          if (!bestReturnRoute || bestReturnScore > 0.3) {
+            try {
+              const directReturnCoords = `${end.lng},${end.lat};${start.lng},${start.lat}`;
+              const directReturnUrl = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${directReturnCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full&alternatives=true`;
+              const directReturnResponse = await fetch(directReturnUrl);
+              const directReturnData = await directReturnResponse.json();
+              
+              if (directReturnData.routes && directReturnData.routes.length > 1) {
+                // Try alternative routes
+                for (const alternativeRoute of directReturnData.routes.slice(1)) {
+                  const overlapScore = calculateRouteOverlap(outboundRoute.geometry.coordinates, alternativeRoute.geometry.coordinates);
+                  
+                  if (overlapScore < bestReturnScore) {
+                    bestReturnScore = overlapScore;
+                    bestReturnRoute = alternativeRoute;
+                  }
+                }
+              }
+              
+              // Fallback to primary route if no alternatives
+              if (!bestReturnRoute && directReturnData.routes && directReturnData.routes.length > 0) {
+                bestReturnRoute = directReturnData.routes[0];
+              }
+            } catch (error) {
+              // Continue with existing best route
+            }
+          }
+          
+          if (bestReturnRoute) {
+            const returnDistanceKm = bestReturnRoute.distance / 1000;
+            const totalDistanceKm = outboundDistanceKm + returnDistanceKm;
             const steps = calculateSteps(totalDistanceKm);
             const durationMin = calculateTime(totalDistanceKm);
             const calories = calculateCalories(totalDistanceKm);
@@ -425,9 +591,9 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
               duration: durationMin,
               calories,
               steps,
-              coordinates: [...outboundRoute.geometry.coordinates, ...returnRoute.geometry.coordinates],
+              coordinates: [...outboundRoute.geometry.coordinates, ...bestReturnRoute.geometry.coordinates],
               outboundCoordinates: outboundRoute.geometry.coordinates,
-              returnCoordinates: returnRoute.geometry.coordinates
+              returnCoordinates: bestReturnRoute.geometry.coordinates
             };
           }
         }
