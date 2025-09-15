@@ -48,7 +48,7 @@ const Index = () => {
     const dashboardParam = searchParams.get('dashboard');
     
     if (dashboardParam === 'true') {
-      // Force return to dashboard
+      // Force return to dashboard - hide green background if onboarding shows
       setShowWalkPlanning(false);
       setShowDestinationSelection(false);
       setShowWalkTracking(false);
@@ -128,7 +128,8 @@ const Index = () => {
 
   // Show onboarding if not completed
   if (!hasCompletedOnboarding) {
-    return <Onboarding onComplete={handleOnboardingComplete} />;
+    const dashboardParam = searchParams.get('dashboard');
+    return <Onboarding onComplete={handleOnboardingComplete} hideGreenBackground={dashboardParam === 'true'} />;
   }
 
   // Show auth if user is not authenticated and auth is not skipped

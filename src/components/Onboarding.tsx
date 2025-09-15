@@ -6,9 +6,10 @@ const fitpasLogo = '/lovable-uploads/4c20a048-5819-4d0f-b867-b91d67ca59ee.png';
 
 interface OnboardingProps {
   onComplete: () => void;
+  hideGreenBackground?: boolean;
 }
 
-const Onboarding = ({ onComplete }: OnboardingProps) => {
+const Onboarding = ({ onComplete, hideGreenBackground = false }: OnboardingProps) => {
   const [currentStep, setCurrentStep] = useState(0);
 
   const steps = [
@@ -17,6 +18,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
       component: <WelcomeScreen 
         onNext={() => setCurrentStep(1)} 
         showBack={false}
+        hideGreenBackground={hideGreenBackground}
       />
     },
     {
@@ -44,15 +46,15 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
   );
 };
 
-const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boolean }) => {
+const WelcomeScreen = ({ onNext, showBack, hideGreenBackground = false }: { onNext: () => void; showBack: boolean; hideGreenBackground?: boolean }) => {
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="bg-primary rounded-3xl p-8 w-full max-w-sm h-[600px] flex flex-col items-center justify-between text-center relative overflow-hidden">
+      <div className={`${hideGreenBackground ? 'bg-white' : 'bg-primary'} rounded-3xl p-8 w-full max-w-sm h-[600px] flex flex-col items-center justify-between text-center relative overflow-hidden`}>
         {/* Back button */}
         {showBack && (
           <button 
             onClick={() => {}} 
-            className="absolute top-6 left-6 text-white/70 hover:text-white"
+            className={`absolute top-6 left-6 ${hideGreenBackground ? 'text-gray-600 hover:text-gray-800' : 'text-white/70 hover:text-white'}`}
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
@@ -63,22 +65,22 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
             <img 
               src={fitpasLogo} 
               alt="FitPaS Logo" 
-              className="w-24 h-24 mx-auto filter brightness-0 invert"
+              className={`w-24 h-24 mx-auto ${hideGreenBackground ? '' : 'filter brightness-0 invert'}`}
             />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-4">
+          <h1 className={`text-3xl font-bold mb-4 ${hideGreenBackground ? 'text-gray-800' : 'text-white'}`}>
             FitPaS
           </h1>
-          <p className="text-white/90 text-lg font-medium">
+          <p className={`text-lg font-medium ${hideGreenBackground ? 'text-gray-600' : 'text-white/90'}`}>
             Ta marche, ton rythme, ton objectif.
           </p>
         </div>
 
         {/* Navigation dots */}
         <div className="flex gap-2 mb-6">
-          <div className="w-3 h-3 rounded-full bg-white"></div>
-          <div className="w-3 h-3 rounded-full bg-white/30"></div>
-          <div className="w-3 h-3 rounded-full bg-white/30"></div>
+          <div className={`w-3 h-3 rounded-full ${hideGreenBackground ? 'bg-secondary' : 'bg-white'}`}></div>
+          <div className={`w-3 h-3 rounded-full ${hideGreenBackground ? 'bg-gray-300' : 'bg-white/30'}`}></div>
+          <div className={`w-3 h-3 rounded-full ${hideGreenBackground ? 'bg-gray-300' : 'bg-white/30'}`}></div>
         </div>
 
         <Button 
