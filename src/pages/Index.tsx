@@ -16,6 +16,7 @@ const Index = () => {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [hasCompletedProfile, setHasCompletedProfile] = useState(false);
   const [skipAuth, setSkipAuth] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [showWalkPlanning, setShowWalkPlanning] = useState(false);
   const [showDestinationSelection, setShowDestinationSelection] = useState(false);
   const [showWalkTracking, setShowWalkTracking] = useState(false);
@@ -40,6 +41,9 @@ const Index = () => {
     
     // Set skipAuth based on localStorage (defaults to true if not set)
     setSkipAuth(skipAuthSaved !== null ? skipAuthSaved === 'true' : true);
+    
+    // Mark as initialized after reading localStorage
+    setIsInitialized(true);
   }, []);
 
   // Check for URL parameters
@@ -114,8 +118,8 @@ const Index = () => {
     setShowDestinationSelection(true);
   };
 
-  // Show loading while auth is loading
-  if (loading) {
+  // Show loading while auth or initialization is loading
+  if (loading || !isInitialized) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
