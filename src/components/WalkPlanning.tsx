@@ -100,11 +100,11 @@ const WalkPlanning = ({ onComplete, onBack, onGoToDashboard }: WalkPlanningProps
     // Formule de foulée : 0.415 × taille (m) ou défaut 0.72m
     const strideLength = heightInM > 0 ? 0.415 * heightInM : 0.72;
     
-    // Distance cible (km) = pas × foulée / 1000
+    // Distance cible (km) = pas × foulée / 1000 (total distance to walk)
     const targetDistanceKm = (stepCount * strideLength) / 1000;
     
-    // Pour l'affichage, on montre la distance totale du trajet
-    const displayDistance = tripType === 'round-trip' ? targetDistanceKm * 2 : targetDistanceKm;
+    // The target distance is already the total distance the user wants to walk
+    const displayDistance = targetDistanceKm;
     
     // Vitesse selon l'allure
     const paceSpeed = {
