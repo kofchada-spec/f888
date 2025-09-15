@@ -32,20 +32,14 @@ const Index = () => {
   useEffect(() => {
     const onboardingComplete = localStorage.getItem('fitpas-onboarding-complete');
     const profileComplete = localStorage.getItem('fitpas-profile-complete');
+    const skipAuthSaved = localStorage.getItem('fitpas-skip-auth');
     
-    // Auto-complete onboarding and profile
-    setHasCompletedOnboarding(true);
-    setHasCompletedProfile(true);
+    // Set completion states based on localStorage
+    setHasCompletedOnboarding(!!onboardingComplete);
+    setHasCompletedProfile(!!profileComplete);
     
-    if (onboardingComplete) {
-      setHasCompletedOnboarding(true);
-    }
-    if (profileComplete) {
-      setHasCompletedProfile(true);
-    }
-    
-    // Auto-skip authentication
-    setSkipAuth(true);
+    // Set skipAuth based on localStorage (defaults to true if not set)
+    setSkipAuth(skipAuthSaved !== null ? skipAuthSaved === 'true' : true);
   }, []);
 
   // Check for URL parameters

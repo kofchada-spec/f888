@@ -135,6 +135,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Reset onboarding and profile states to return to green background
       localStorage.removeItem('fitpas-onboarding-complete');
       localStorage.removeItem('fitpas-profile-complete');
+      localStorage.removeItem('fitpas-skip-auth');
     }
   };
 
