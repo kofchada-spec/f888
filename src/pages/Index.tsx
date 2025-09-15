@@ -5,7 +5,7 @@ import Auth from '@/components/Auth';
 import ProfileCompletion from '@/components/ProfileCompletion';
 import Dashboard from '@/components/Dashboard';
 import WalkPlanning from '@/components/WalkPlanning';
-import DestinationSelection from '@/components/DestinationSelection';
+import MapScreen from '@/components/MapScreen';
 import WalkTracking from '@/components/WalkTracking';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
@@ -87,6 +87,8 @@ const Index = () => {
   const handleWalkPlanningComplete = (data: { steps: string; pace: 'slow' | 'moderate' | 'fast'; tripType: 'one-way' | 'round-trip'; height: string; weight: string }) => {
     setPlanningData(data);
     setShowWalkPlanning(false);
+    // Reset any previous map/destination state when entering map screen
+    setSelectedDestination(null);
     setShowDestinationSelection(true);
   };
 
@@ -153,7 +155,7 @@ const Index = () => {
   // Show Destination Selection if active
   if (showDestinationSelection) {
     return (
-      <DestinationSelection 
+      <MapScreen 
         onComplete={handleDestinationComplete} 
         onBack={handleBackToPlanning}
         onGoToDashboard={handleGoToDashboard}
