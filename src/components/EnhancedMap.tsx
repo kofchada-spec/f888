@@ -20,6 +20,7 @@ interface RouteData {
   distance: number; // in km
   duration: number; // in minutes
   calories: number;
+  steps: number;
   coordinates: number[][]; // [lng, lat] pairs
 }
 
@@ -45,14 +46,27 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
     return planningData.tripType === 'round-trip' ? totalKm / 2 : totalKm;
   }, [planningData]);
 
+  // Calculate steps based on distance and user data
+  const calculateSteps = useCallback((distanceKm: number) => {
+    const heightM = parseFloat(planningData.height);
+    const strideM = heightM ? 0.415 * heightM : 0.72; // Use user height or default stride
+    const totalDistance = planningData.tripType === 'round-trip' ? distanceKm * 2 : distanceKm;
+    const distanceM = totalDistance * 1000;
+    return Math.round(distanceM / strideM);
+  }, [planningData.height, planningData.tripType]);
+
+  // Calculate time based on distance
+  const calculateTime = useCallback((distanceKm: number) => {
+    const walkingSpeedKmh = 5.0; // Default walking speed
+    const totalDistance = planningData.tripType === 'round-trip' ? distanceKm * 2 : distanceKm;
+    return Math.round((totalDistance / walkingSpeedKmh) * 60);
+  }, [planningData.tripType]);
+
   // Calculate calories based on distance and user data
   const calculateCalories = useCallback((distanceKm: number) => {
-    const weightKg = parseFloat(planningData.weight);
-    const heightM = parseFloat(planningData.height);
-    // Base metabolic rate calculation (simplified)
-    const caloriesPerKm = 0.75 * weightKg;
+    const weightKg = parseFloat(planningData.weight) || 70; // Default 70kg
     const totalDistance = planningData.tripType === 'round-trip' ? distanceKm * 2 : distanceKm;
-    return Math.round(totalDistance * caloriesPerKm);
+    return Math.round(weightKg * totalDistance * 0.9);
   }, [planningData.weight, planningData.tripType]);
 
   // Get Mapbox token
@@ -166,13 +180,15 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       if (data.routes && data.routes.length > 0) {
         const route = data.routes[0];
         const distanceKm = route.distance / 1000;
-        const durationMin = Math.round(route.duration / 60);
+        const steps = calculateSteps(distanceKm);
+        const durationMin = calculateTime(distanceKm);
         const calories = calculateCalories(distanceKm);
 
         return {
           distance: distanceKm,
           duration: durationMin,
           calories,
+          steps,
           coordinates: route.geometry.coordinates
         };
       }
@@ -414,14 +430,20 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
             </div>
           </div>
           
-          <div className="grid grid-cols-3 gap-3 text-sm">
+          <div className="grid grid-cols-4 gap-3 text-sm">
             <div className="flex items-center space-x-2">
               <MapPin className="h-4 w-4 text-primary" />
               <div>
                 <p className="font-medium">{routeData.distance.toFixed(1)} km</p>
-                <p className="text-xs text-muted-foreground">
-                  {deviation > 0 ? '+' : ''}{deviation.toFixed(1)}% cible
-                </p>
+                <p className="text-xs text-muted-foreground">Distance</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <div className="h-4 w-4 text-secondary flex items-center justify-center text-xs">👣</div>
+              <div>
+                <p className="font-medium">{routeData.steps.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Steps</p>
               </div>
             </div>
             
@@ -429,7 +451,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
               <Clock className="h-4 w-4 text-secondary" />
               <div>
                 <p className="font-medium">{routeData.duration} min</p>
-                <p className="text-xs text-muted-foreground">Durée estimée</p>
+                <p className="text-xs text-muted-foreground">Time</p>
               </div>
             </div>
             
