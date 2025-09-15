@@ -165,10 +165,11 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       for (const multiplier of distanceMultipliers) {
         try {
           // Calculate test destination radius
-          // For round-trip: Mapbox will calculate start->dest->start, so we need radius = targetDistance/2
-          // For one-way: We want total distance = targetDistance, use slightly less due to street routing
+          // For round-trip: Mapbox calculates start->dest->start, we need to be more conservative
+          // Street routing adds distance, so use less than half for round-trip
+          // For one-way: Use slightly less than target due to street routing
           const testRadius = planningData.tripType === 'round-trip' ? 
-            (targetDistanceKm / 2) * multiplier : // Half target distance for round-trip
+            (targetDistanceKm / 2.5) * multiplier : // More conservative for round-trip to account for street routing
             targetDistanceKm * multiplier * 0.8; // Adjusted for street routing in one-way
 
           const bearingRad = (bearing * Math.PI) / 180;
@@ -255,9 +256,9 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
   const calculateDefaultDestination = useCallback((userLoc: { lat: number; lng: number }) => {
     const targetKm = getTargetDistance();
     const bearing = 45; // Fixed bearing in degrees
-    // For round-trip, use half the target distance as radius since route will be start->dest->start
+    // For round-trip, use less than half target distance to account for street routing
     // For one-way, use the full target distance as radius
-    const radiusKm = planningData.tripType === 'round-trip' ? targetKm / 2 : targetKm;
+    const radiusKm = planningData.tripType === 'round-trip' ? targetKm / 2.5 : targetKm;
 
     // Convert to radians
     const bearingRad = (bearing * Math.PI) / 180;
