@@ -18,17 +18,41 @@ interface MapScreenProps {
 
 const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScreenProps) => {
   const [isReadyToStart, setIsReadyToStart] = useState(false);
+  const [routeData, setRouteData] = useState<{
+    distance: number;
+    duration: number;
+    calories: number;
+    steps: number;
+    startCoordinates: { lat: number; lng: number };
+    endCoordinates: { lat: number; lng: number };
+    routeGeoJSON?: any;
+  } | null>(null);
+
+  const handleRouteCalculated = (data: {
+    distance: number;
+    duration: number;
+    calories: number;
+    steps: number;
+    startCoordinates: { lat: number; lng: number };
+    endCoordinates: { lat: number; lng: number };
+    routeGeoJSON?: any;
+  }) => {
+    setRouteData(data);
+    setIsReadyToStart(true);
+  };
 
   const handleStartWalk = () => {
-    // Create a destination object that matches what's expected
-    // This is a simplified version - in a real app you'd get actual route data
+    if (!routeData) return;
+    
+    // Create destination object with the actual calculated route data
     const destination = {
       id: 'map-selected-destination',
       name: 'Destination sélectionnée',
-      coordinates: { lat: 0, lng: 0 }, // Would be filled by the map
-      distanceKm: 0, // Would be calculated by the map
-      durationMin: 0, // Would be calculated by the map
-      calories: 0, // Would be calculated by the map
+      coordinates: routeData.endCoordinates,
+      distanceKm: routeData.distance,
+      durationMin: routeData.duration,
+      calories: routeData.calories,
+      routeGeoJSON: routeData.routeGeoJSON
     };
     
     onComplete(destination);
@@ -109,6 +133,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
           <EnhancedMap 
             planningData={planningData}
             className="w-full"
+            onRouteCalculated={handleRouteCalculated}
           />
         </div>
 
@@ -116,10 +141,11 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
         <div className="text-center">
           <Button
             onClick={handleStartWalk}
+            disabled={!isReadyToStart}
             size="lg"
-            className="w-full max-w-md h-14 text-lg font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02]"
+            className="w-full max-w-md h-14 text-lg font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-50"
           >
-            Commencer la marche
+            {isReadyToStart ? 'Commencer la marche' : 'Calcul de l\'itinéraire...'}
           </Button>
           <p className="text-xs text-muted-foreground mt-2">
             L'itinéraire sera sauvegardé et le suivi GPS commencera

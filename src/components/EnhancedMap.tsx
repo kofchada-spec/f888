@@ -14,6 +14,15 @@ interface EnhancedMapProps {
   };
   onBack?: () => void;
   className?: string;
+  onRouteCalculated?: (routeData: {
+    distance: number;
+    duration: number;
+    calories: number;
+    steps: number;
+    startCoordinates: { lat: number; lng: number };
+    endCoordinates: { lat: number; lng: number };
+    routeGeoJSON?: any;
+  }) => void;
 }
 
 interface RouteData {
@@ -24,7 +33,7 @@ interface RouteData {
   coordinates: number[][]; // [lng, lat] pairs
 }
 
-const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, className = '' }) => {
+const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, className = '', onRouteCalculated }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const userMarker = useRef<mapboxgl.Marker | null>(null);
@@ -358,6 +367,22 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       if (optimalResult?.route && optimalResult?.destination) {
         setDestinationLocation(optimalResult.destination);
         setRouteData(optimalResult.route);
+        
+        // Notify parent component with complete route data
+        if (onRouteCalculated) {
+          onRouteCalculated({
+            distance: optimalResult.route.distance,
+            duration: optimalResult.route.duration,
+            calories: optimalResult.route.calories,
+            steps: optimalResult.route.steps,
+            startCoordinates: { lat: userLocation.lat, lng: userLocation.lng },
+            endCoordinates: { lat: optimalResult.destination.lat, lng: optimalResult.destination.lng },
+            routeGeoJSON: {
+              type: 'LineString',
+              coordinates: optimalResult.route.coordinates
+            }
+          });
+        }
       } else {
         // Fallback to default positioning
         const defaultDest = calculateDefaultDestination(userLocation);
@@ -431,6 +456,22 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       computeRoute(userLocation, destinationLocation).then(route => {
         if (route) {
           setRouteData(route);
+          
+          // Notify parent component with complete route data
+          if (onRouteCalculated) {
+            onRouteCalculated({
+              distance: route.distance,
+              duration: route.duration,
+              calories: route.calories,
+              steps: route.steps,
+              startCoordinates: { lat: userLocation.lat, lng: userLocation.lng },
+              endCoordinates: { lat: destinationLocation.lat, lng: destinationLocation.lng },
+              routeGeoJSON: {
+                type: 'LineString',
+                coordinates: route.coordinates
+              }
+            });
+          }
           
           // Add route line to map
           if (map.current && map.current.isStyleLoaded()) {
@@ -507,6 +548,22 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       if (optimalResult?.route && optimalResult?.destination) {
         setDestinationLocation(optimalResult.destination);
         setRouteData(optimalResult.route);
+        
+        // Notify parent component with complete route data
+        if (onRouteCalculated) {
+          onRouteCalculated({
+            distance: optimalResult.route.distance,
+            duration: optimalResult.route.duration,
+            calories: optimalResult.route.calories,
+            steps: optimalResult.route.steps,
+            startCoordinates: { lat: userLocation.lat, lng: userLocation.lng },
+            endCoordinates: { lat: optimalResult.destination.lat, lng: optimalResult.destination.lng },
+            routeGeoJSON: {
+              type: 'LineString',
+              coordinates: optimalResult.route.coordinates
+            }
+          });
+        }
       } else {
         const defaultDest = calculateDefaultDestination(userLocation);
         setDestinationLocation(defaultDest);
