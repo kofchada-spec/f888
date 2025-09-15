@@ -348,7 +348,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
     };
   }, [getTargetDistance, planningData.tripType]);
 
-  // Initialize map (prevent re-initialization)
+  // Initialize map only once (prevent re-initialization)
   useEffect(() => {
     if (!mapContainer.current || !mapboxToken || !userLocation || map.current) return;
 
@@ -364,6 +364,10 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
     // Add navigation controls
     map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
+    // Store initial values to avoid dependency changes
+    const initialUserLocation = userLocation;
+    const targetSteps = parseInt(planningData.steps);
+    
     // Handle map click for destination selection with validation
     map.current.on('click', async (e) => {
       const clickedDestination = {
@@ -373,70 +377,88 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       
       setIsLoading(true);
       
-      const validatedResult = await validateAndAdjustRoute(userLocation, clickedDestination);
-      
-      if (validatedResult) {
-        setDestinationLocation(validatedResult.destination);
-        setRouteData(validatedResult.route);
+      try {
+        const validatedResult = await validateAndAdjustRoute(initialUserLocation, clickedDestination);
         
-        if (onRouteCalculated) {
-          onRouteCalculated({
+        if (validatedResult) {
+          setDestinationLocation(validatedResult.destination);
+          setRouteData(validatedResult.route);
+          
+          // Simplified route data to prevent DataCloneError
+          const simpleRouteData = {
             distance: validatedResult.route.distance,
             duration: validatedResult.route.duration,
             calories: validatedResult.route.calories,
             steps: validatedResult.route.steps,
-            startCoordinates: { lat: userLocation.lat, lng: userLocation.lng },
+            startCoordinates: { lat: initialUserLocation.lat, lng: initialUserLocation.lng },
             endCoordinates: validatedResult.destination,
             routeGeoJSON: {
               type: 'LineString',
-              coordinates: validatedResult.route.coordinates,
-              outboundCoordinates: validatedResult.route.outboundCoordinates,
-              returnCoordinates: validatedResult.route.returnCoordinates
+              coordinates: validatedResult.route.coordinates.slice(), // Clone coordinates array
+              outboundCoordinates: validatedResult.route.outboundCoordinates ? validatedResult.route.outboundCoordinates.slice() : undefined,
+              returnCoordinates: validatedResult.route.returnCoordinates ? validatedResult.route.returnCoordinates.slice() : undefined
             }
-          });
+          };
+          
+          if (onRouteCalculated) {
+            onRouteCalculated(simpleRouteData);
+          }
+        } else {
+          const tolerance = Math.round(targetSteps * 0.05);
+          console.warn(`No valid route found. Target: ${targetSteps} steps (±${tolerance} tolerance)`);
+          alert(`Aucun itinéraire trouvé correspondant à votre objectif de pas.\n\nObjectif: ${targetSteps} pas (tolérance: ±${tolerance} pas)\nVeuillez ajuster votre destination ou votre objectif de pas.`);
         }
-      } else {
-        const targetSteps = parseInt(planningData.steps);
-        const tolerance = Math.round(targetSteps * 0.05);
-        alert(`Aucun itinéraire trouvé correspondant à votre objectif de pas.\n\nObjectif: ${targetSteps} pas (tolérance: ±${tolerance} pas)\nVeuillez ajuster votre destination ou votre objectif de pas.`);
+      } catch (error) {
+        console.error('Error calculating route:', error);
+        alert('Erreur lors du calcul de l\'itinéraire. Veuillez réessayer.');
       }
       
       setIsLoading(false);
     });
 
-    // Generate optimal route on map load
+    // Generate optimal route on map load (only once)
     map.current.on('load', async () => {
       setIsLoading(true);
-      const optimalResult = await generateOptimalRoute(userLocation);
       
-      if (optimalResult?.route && optimalResult?.destination) {
-        setDestinationLocation(optimalResult.destination);
-        setRouteData(optimalResult.route);
+      try {
+        const optimalResult = await generateOptimalRoute(initialUserLocation);
         
-        if (onRouteCalculated) {
-          onRouteCalculated({
+        if (optimalResult?.route && optimalResult?.destination) {
+          setDestinationLocation(optimalResult.destination);
+          setRouteData(optimalResult.route);
+          
+          // Simplified route data to prevent DataCloneError
+          const simpleRouteData = {
             distance: optimalResult.route.distance,
             duration: optimalResult.route.duration,
             calories: optimalResult.route.calories,
             steps: optimalResult.route.steps,
-            startCoordinates: { lat: userLocation.lat, lng: userLocation.lng },
+            startCoordinates: { lat: initialUserLocation.lat, lng: initialUserLocation.lng },
             endCoordinates: { lat: optimalResult.destination.lat, lng: optimalResult.destination.lng },
             routeGeoJSON: {
               type: 'LineString',
-              coordinates: optimalResult.route.coordinates,
-              outboundCoordinates: optimalResult.route.outboundCoordinates,
-              returnCoordinates: optimalResult.route.returnCoordinates
+              coordinates: optimalResult.route.coordinates.slice(), // Clone coordinates array
+              outboundCoordinates: optimalResult.route.outboundCoordinates ? optimalResult.route.outboundCoordinates.slice() : undefined,
+              returnCoordinates: optimalResult.route.returnCoordinates ? optimalResult.route.returnCoordinates.slice() : undefined
             }
-          });
+          };
+          
+          if (onRouteCalculated) {
+            onRouteCalculated(simpleRouteData);
+          }
+        } else {
+          console.warn(`No route found matching step goal. Target: ${targetSteps} steps`);
+          // Set default destination without route
+          const defaultDest = calculateDefaultDestination(initialUserLocation);
+          setDestinationLocation(defaultDest);
         }
-      } else {
-        const targetSteps = parseInt(planningData.steps);
-        const tolerance = Math.round(targetSteps * 0.05);
-        console.warn(`No route found matching step goal. Target: ${targetSteps} steps (±${tolerance} tolerance)`);
-        
-        const defaultDest = calculateDefaultDestination(userLocation);
+      } catch (error) {
+        console.error('Error generating optimal route:', error);
+        // Set default destination on error
+        const defaultDest = calculateDefaultDestination(initialUserLocation);
         setDestinationLocation(defaultDest);
       }
+      
       setIsLoading(false);
     });
 
@@ -446,79 +468,34 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
         map.current = null;
       }
     };
-  }, [mapboxToken, userLocation, generateOptimalRoute, validateAndAdjustRoute, onRouteCalculated, planningData.steps, calculateDefaultDestination]);
+  }, [mapboxToken, userLocation]); // Only essential dependencies
 
-  // Update markers and route when locations change
+  // Static route display - only update when route data changes, not on user location updates  
   useEffect(() => {
-    if (!map.current || !userLocation) return;
+    if (!map.current || !routeData || !destinationLocation || !userLocation) return;
 
-    // Add/update user marker
-    if (userMarker.current) {
-      userMarker.current.remove();
-    }
-
-    const userEl = document.createElement('div');
-    userEl.className = 'user-marker';
-    userEl.innerHTML = `
-      <div style="
-        width: 20px;
-        height: 20px;
-        background: #ef4444;
-        border: 3px solid white;
-        border-radius: 50%;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-      "></div>
-    `;
-
-    userMarker.current = new mapboxgl.Marker(userEl)
-      .setLngLat([userLocation.lng, userLocation.lat])
-      .addTo(map.current);
-
-    // Add/update destination marker
-    if (destinationLocation) {
-      if (destinationMarker.current) {
-        destinationMarker.current.remove();
+    // Wait for map to be loaded before drawing
+    const addRouteToMap = () => {
+      if (!map.current?.isStyleLoaded()) {
+        map.current?.on('styledata', addRouteToMap);
+        return;
       }
 
-      const destEl = document.createElement('div');
-      destEl.innerHTML = `
-        <div style="
-          width: 30px;
-          height: 30px;
-          background: #10b981;
-          border: 2px solid white;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: bold;
-          color: white;
-          cursor: pointer;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-          font-size: 16px;
-        ">🎯</div>
-      `;
+      // Remove existing routes (clean slate)
+      ['walking-route', 'outbound-route', 'return-route'].forEach(routeId => {
+        if (map.current?.getLayer(routeId)) {
+          map.current.removeLayer(routeId);
+        }
+        if (map.current?.getSource(routeId)) {
+          map.current.removeSource(routeId);
+        }
+      });
 
-      destinationMarker.current = new mapboxgl.Marker(destEl)
-        .setLngLat([destinationLocation.lng, destinationLocation.lat])
-        .addTo(map.current);
-
-      // Add route line(s) to map if route data exists
-      if (routeData && map.current.isStyleLoaded()) {
-        // Remove existing routes
-        ['walking-route', 'outbound-route', 'return-route'].forEach(routeId => {
-          if (map.current?.getLayer(routeId)) {
-            map.current.removeLayer(routeId);
-          }
-          if (map.current?.getSource(routeId)) {
-            map.current.removeSource(routeId);
-          }
-        });
-
+      try {
         if (routeData.outboundCoordinates && routeData.returnCoordinates) {
           // Round-trip: Show distinct outbound and return paths
           
-          // Outbound route (green solid)
+          // Outbound route (green solid) - STATIC
           map.current.addSource('outbound-route', {
             type: 'geojson',
             data: {
@@ -540,13 +517,13 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
               'line-cap': 'round'
             },
             paint: {
-              'line-color': '#10b981', // STATIC green - no animation
+              'line-color': '#10b981', // STATIC green - NO ANIMATION
               'line-width': 5,
               'line-opacity': 0.9
             }
           });
 
-          // Return route (blue dashed)
+          // Return route (blue dashed) - STATIC
           map.current.addSource('return-route', {
             type: 'geojson',
             data: {
@@ -568,14 +545,14 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
               'line-cap': 'round'
             },
             paint: {
-              'line-color': '#3b82f6', // STATIC blue - no animation
+              'line-color': '#3b82f6', // STATIC blue - NO ANIMATION
               'line-width': 4,
               'line-opacity': 0.8,
               'line-dasharray': [2, 3] // Static dashed line
             }
           });
         } else {
-          // One-way: Show single route
+          // One-way: Show single route - STATIC
           map.current.addSource('walking-route', {
             type: 'geojson',
             data: {
@@ -597,56 +574,135 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
               'line-cap': 'round'
             },
             paint: {
-              'line-color': '#10b981', // STATIC green - no animation
+              'line-color': '#10b981', // STATIC green - NO ANIMATION
               'line-width': 4,
               'line-opacity': 0.8
             }
           });
         }
 
-        // Fit map to show entire route
+        // Fit map to show entire route ONCE
         const bounds = new mapboxgl.LngLatBounds();
         routeData.coordinates.forEach((coord: number[]) => bounds.extend([coord[0], coord[1]]));
         map.current.fitBounds(bounds, { padding: 50 });
+        
+        console.log('Route displayed successfully - STATIC, no more updates');
+      } catch (error) {
+        console.error('Error displaying route:', error);
+      }
+    };
+
+    addRouteToMap();
+  }, [routeData]); // Only depend on routeData, not user location
+
+  // Separate effect for markers only - prevent route redraw
+  useEffect(() => {
+    if (!map.current || !userLocation) return;
+
+    // Update/create user marker
+    if (userMarker.current) {
+      // Just update position, don't recreate
+      userMarker.current.setLngLat([userLocation.lng, userLocation.lat]);
+    } else {
+      const userEl = document.createElement('div');
+      userEl.className = 'user-marker';
+      userEl.innerHTML = `
+        <div style="
+          width: 20px;
+          height: 20px;
+          background: #ef4444;
+          border: 3px solid white;
+          border-radius: 50%;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        "></div>
+      `;
+
+      userMarker.current = new mapboxgl.Marker(userEl)
+        .setLngLat([userLocation.lng, userLocation.lat])
+        .addTo(map.current);
+    }
+
+    // Update/create destination marker
+    if (destinationLocation) {
+      if (destinationMarker.current) {
+        // Just update position, don't recreate
+        destinationMarker.current.setLngLat([destinationLocation.lng, destinationLocation.lat]);
+      } else {
+        const destEl = document.createElement('div');
+        destEl.innerHTML = `
+          <div style="
+            width: 30px;
+            height: 30px;
+            background: #10b981;
+            border: 2px solid white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            font-size: 16px;
+          ">🎯</div>
+        `;
+
+        destinationMarker.current = new mapboxgl.Marker(destEl)
+          .setLngLat([destinationLocation.lng, destinationLocation.lat])
+          .addTo(map.current);
       }
     }
-  }, [userLocation, destinationLocation, routeData]);
+  }, [userLocation, destinationLocation]); // Update markers when locations change
 
   const resetToDefault = async () => {
-    if (userLocation) {
-      setIsLoading(true);
+    if (!userLocation) return;
+    
+    setIsLoading(true);
+    
+    try {
       const optimalResult = await generateOptimalRoute(userLocation);
       
       if (optimalResult?.route && optimalResult?.destination) {
         setDestinationLocation(optimalResult.destination);
         setRouteData(optimalResult.route);
         
+        // Simplified route data to prevent DataCloneError
+        const simpleRouteData = {
+          distance: optimalResult.route.distance,
+          duration: optimalResult.route.duration,
+          calories: optimalResult.route.calories,
+          steps: optimalResult.route.steps,
+          startCoordinates: { lat: userLocation.lat, lng: userLocation.lng },
+          endCoordinates: { lat: optimalResult.destination.lat, lng: optimalResult.destination.lng },
+          routeGeoJSON: {
+            type: 'LineString',
+            coordinates: optimalResult.route.coordinates.slice(),
+            outboundCoordinates: optimalResult.route.outboundCoordinates ? optimalResult.route.outboundCoordinates.slice() : undefined,
+            returnCoordinates: optimalResult.route.returnCoordinates ? optimalResult.route.returnCoordinates.slice() : undefined
+          }
+        };
+        
         if (onRouteCalculated) {
-          onRouteCalculated({
-            distance: optimalResult.route.distance,
-            duration: optimalResult.route.duration,
-            calories: optimalResult.route.calories,
-            steps: optimalResult.route.steps,
-            startCoordinates: { lat: userLocation.lat, lng: userLocation.lng },
-            endCoordinates: { lat: optimalResult.destination.lat, lng: optimalResult.destination.lng },
-            routeGeoJSON: {
-              type: 'LineString',
-              coordinates: optimalResult.route.coordinates,
-              outboundCoordinates: optimalResult.route.outboundCoordinates,
-              returnCoordinates: optimalResult.route.returnCoordinates
-            }
-          });
+          onRouteCalculated(simpleRouteData);
         }
       } else {
         const targetSteps = parseInt(planningData.steps);
         const tolerance = Math.round(targetSteps * 0.05);
-        alert(`Aucun itinéraire trouvé correspondant à votre objectif de pas.\n\nObjectif: ${targetSteps} pas (tolérance: ±${tolerance} pas)\nVeuillez ajuster votre objectif de pas dans les paramètres de planification.`);
+        console.warn(`No optimal route found. Target: ${targetSteps} steps (±${tolerance} tolerance)`);
         
+        // Show user-friendly error message
+        alert(`Aucun itinéraire optimal trouvé.\n\nObjectif: ${targetSteps} pas\nVeuillez ajuster votre objectif de pas ou réessayer.`);
+        
+        // Set default destination position
         const defaultDest = calculateDefaultDestination(userLocation);
         setDestinationLocation(defaultDest);
       }
-      setIsLoading(false);
+    } catch (error) {
+      console.error('Error resetting to default route:', error);
+      alert('Erreur lors de la génération de l\'itinéraire. Veuillez réessayer.');
     }
+    
+    setIsLoading(false);
   };
 
   if (!mapboxToken || !userLocation) {
