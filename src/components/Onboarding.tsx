@@ -46,13 +46,13 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
 
 const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boolean }) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-white flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: '#27AE60' }}>
       <div className="bg-transparent rounded-3xl p-8 w-full max-w-sm h-[600px] flex flex-col items-center justify-between text-center relative overflow-hidden">
         {/* Back button */}
         {showBack && (
           <button 
             onClick={() => {}} 
-            className="absolute top-6 left-6 text-gray-600 hover:text-gray-800"
+            className="absolute top-6 left-6 text-white hover:text-white/80"
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
@@ -66,30 +66,30 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
               className="w-24 h-24 mx-auto"
             />
           </div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-4">
-            FitPaS
+          <h1 className="text-3xl font-bold text-white mb-4">
+            Bienvenue
           </h1>
-          <p className="text-gray-600 text-lg font-medium">
+          <p className="text-white/90 text-lg font-medium">
             Ta marche, ton rythme, ton objectif.
           </p>
         </div>
 
         {/* Navigation dots */}
         <div className="flex gap-2 mb-6">
-          <div className="w-3 h-3 rounded-full bg-secondary"></div>
-          <div className="w-3 h-3 rounded-full bg-gray-300"></div>
-          <div className="w-3 h-3 rounded-full bg-gray-300"></div>
+          <div className="w-3 h-3 rounded-full bg-white"></div>
+          <div className="w-3 h-3 rounded-full bg-white/40"></div>
+          <div className="w-3 h-3 rounded-full bg-white/40"></div>
         </div>
 
         <Button 
           onClick={onNext}
-          className="w-full py-4 text-lg font-semibold rounded-2xl bg-secondary hover:bg-secondary/90 text-white border-0"
+          className="w-full py-4 text-lg font-semibold rounded-2xl bg-white text-green-700 hover:bg-white/90 border-0"
         >
           Suivant
         </Button>
 
         {/* Bottom indicator */}
-        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-12 h-1 bg-black/20 rounded-full"></div>
+        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-12 h-1 bg-white/30 rounded-full"></div>
       </div>
     </div>
   );
