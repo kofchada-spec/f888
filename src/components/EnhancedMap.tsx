@@ -50,24 +50,24 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
   const calculateSteps = useCallback((distanceKm: number) => {
     const heightM = parseFloat(planningData.height);
     const strideM = heightM ? 0.415 * heightM : 0.72; // Use user height or default stride
-    const totalDistance = planningData.tripType === 'round-trip' ? distanceKm * 2 : distanceKm;
-    const distanceM = totalDistance * 1000;
+    // distanceKm is already the total route distance from Mapbox (including round-trip if requested)
+    const distanceM = distanceKm * 1000;
     return Math.round(distanceM / strideM);
-  }, [planningData.height, planningData.tripType]);
+  }, [planningData.height]);
 
   // Calculate time based on distance
   const calculateTime = useCallback((distanceKm: number) => {
     const walkingSpeedKmh = 5.0; // Default walking speed
-    const totalDistance = planningData.tripType === 'round-trip' ? distanceKm * 2 : distanceKm;
-    return Math.round((totalDistance / walkingSpeedKmh) * 60);
-  }, [planningData.tripType]);
+    // distanceKm is already the total route distance from Mapbox (including round-trip if requested)
+    return Math.round((distanceKm / walkingSpeedKmh) * 60);
+  }, []);
 
   // Calculate calories based on distance and user data
   const calculateCalories = useCallback((distanceKm: number) => {
     const weightKg = parseFloat(planningData.weight) || 70; // Default 70kg
-    const totalDistance = planningData.tripType === 'round-trip' ? distanceKm * 2 : distanceKm;
-    return Math.round(weightKg * totalDistance * 0.9);
-  }, [planningData.weight, planningData.tripType]);
+    // distanceKm is already the total route distance from Mapbox (including round-trip if requested)
+    return Math.round(weightKg * distanceKm * 0.9);
+  }, [planningData.weight]);
 
   // Get Mapbox token
   useEffect(() => {
