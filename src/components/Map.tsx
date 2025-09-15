@@ -386,36 +386,116 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
   ) => {
     if (!map.current) return;
 
-    const sourceId = `route-${destId}`;
-    const layerId = `route-layer-${destId}`;
+    // Check if this is a round-trip route with separate outbound/return paths
+    if (routeGeometry.outboundCoordinates && routeGeometry.returnCoordinates) {
+      // Remove existing routes
+      const outboundLayerId = `outbound-route-${destId}`;
+      const returnLayerId = `return-route-${destId}`;
+      const outboundSourceId = `outbound-source-${destId}`;
+      const returnSourceId = `return-source-${destId}`;
 
-    // Remove existing route if it exists
-    if (map.current.getLayer(layerId)) {
-      map.current.removeLayer(layerId);
-    }
-    if (map.current.getSource(sourceId)) {
-      map.current.removeSource(sourceId);
-    }
+      [outboundLayerId, returnLayerId].forEach(layerId => {
+        if (map.current?.getLayer(layerId)) {
+          map.current.removeLayer(layerId);
+        }
+      });
+      [outboundSourceId, returnSourceId].forEach(sourceId => {
+        if (map.current?.getSource(sourceId)) {
+          map.current.removeSource(sourceId);
+        }
+      });
 
-    map.current.addSource(sourceId, {
-      type: 'geojson',
-      data: routeGeometry
-    });
+      if (isSelected) {
+        // Add outbound route (green solid)
+        map.current.addSource(outboundSourceId, {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: routeGeometry.outboundCoordinates
+            }
+          }
+        });
 
-    map.current.addLayer({
-      id: layerId,
-      type: 'line',
-      source: sourceId,
-      layout: {
-        'line-join': 'round',
-        'line-cap': 'round'
-      },
-      paint: {
-        'line-color': isSelected ? '#10b981' : '#6b7280',
-        'line-width': isSelected ? 4 : 2,
-        'line-opacity': isSelected ? 1 : 0.6
+        map.current.addLayer({
+          id: outboundLayerId,
+          type: 'line',
+          source: outboundSourceId,
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': '#10b981', // Green
+            'line-width': 5,
+            'line-opacity': 0.9
+          }
+        });
+
+        // Add return route (blue dashed)
+        map.current.addSource(returnSourceId, {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: routeGeometry.returnCoordinates
+            }
+          }
+        });
+
+        map.current.addLayer({
+          id: returnLayerId,
+          type: 'line',
+          source: returnSourceId,
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': '#3b82f6', // Blue
+            'line-width': 4,
+            'line-opacity': 0.8,
+            'line-dasharray': [2, 3]
+          }
+        });
       }
-    });
+    } else {
+      // Legacy single route format
+      const sourceId = `route-${destId}`;
+      const layerId = `route-layer-${destId}`;
+
+      // Remove existing route if it exists
+      if (map.current.getLayer(layerId)) {
+        map.current.removeLayer(layerId);
+      }
+      if (map.current.getSource(sourceId)) {
+        map.current.removeSource(sourceId);
+      }
+
+      map.current.addSource(sourceId, {
+        type: 'geojson',
+        data: routeGeometry
+      });
+
+      map.current.addLayer({
+        id: layerId,
+        type: 'line',
+        source: sourceId,
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': isSelected ? '#10b981' : '#6b7280',
+          'line-width': isSelected ? 4 : 2,
+          'line-opacity': isSelected ? 1 : 0.6
+        }
+      });
+    }
   };
 
   const addRouteLine = (
@@ -481,8 +561,7 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
       paint: {
         'line-color': isSelected ? '#10b981' : '#6b7280',
         'line-width': isSelected ? 4 : 2,
-        'line-opacity': isSelected ? 1 : 0.6,
-        'line-dasharray': [2, 2]
+        'line-opacity': isSelected ? 1 : 0.6
       }
     });
   };
@@ -517,10 +596,24 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
           <div className="w-4 h-4 bg-blue-500 rounded-full border border-white"></div>
           <span>{planningData.tripType === 'round-trip' ? 'Point de départ/arrivée' : 'Point de départ'}</span>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 mb-2">
           <div className="w-4 h-4 bg-gray-500 rounded-full border border-white"></div>
           <span>{planningData.tripType === 'round-trip' ? 'Points de passage' : 'Destinations'}</span>
         </div>
+        {/* Route legend for round-trip */}
+        {planningData.tripType === 'round-trip' && selectedDestination && destinations.length > 0 && destinations[0].route?.outboundCoordinates && (
+          <>
+            <div className="border-t border-border my-2"></div>
+            <div className="flex items-center space-x-2 mb-1">
+              <div className="w-4 h-0.5 bg-emerald-500"></div>
+              <span className="text-muted-foreground">Aller</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-0.5 bg-blue-500 border-dashed border-t border-blue-500" style={{borderTopStyle: 'dashed'}}></div>
+              <span className="text-muted-foreground">Retour</span>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Info trajet */}

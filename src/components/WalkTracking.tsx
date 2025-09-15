@@ -12,7 +12,7 @@ interface Destination {
     lat: number;
     lng: number;
   };
-  routeGeoJSON?: any;
+  routeGeoJSON?: any; // Can contain outboundCoordinates and returnCoordinates for round-trip
   distanceKm: number;
   durationMin: number;
   calories: number;

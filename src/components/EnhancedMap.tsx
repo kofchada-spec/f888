@@ -688,7 +688,10 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
             endCoordinates: { lat: optimalResult.destination.lat, lng: optimalResult.destination.lng },
             routeGeoJSON: {
               type: 'LineString',
-              coordinates: optimalResult.route.coordinates
+              coordinates: optimalResult.route.coordinates,
+              // Include outbound/return data for round-trip routes
+              outboundCoordinates: optimalResult.route.outboundCoordinates,
+              returnCoordinates: optimalResult.route.returnCoordinates
             }
           });
         }
@@ -777,7 +780,10 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
               endCoordinates: { lat: destinationLocation.lat, lng: destinationLocation.lng },
               routeGeoJSON: {
                 type: 'LineString',
-                coordinates: route.coordinates
+                coordinates: route.coordinates,
+                // Include outbound/return data for round-trip routes
+                outboundCoordinates: route.outboundCoordinates,
+                returnCoordinates: route.returnCoordinates
               }
             });
           }
@@ -930,7 +936,10 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
             endCoordinates: { lat: optimalResult.destination.lat, lng: optimalResult.destination.lng },
             routeGeoJSON: {
               type: 'LineString',
-              coordinates: optimalResult.route.coordinates
+              coordinates: optimalResult.route.coordinates,
+              // Include outbound/return data for round-trip routes
+              outboundCoordinates: optimalResult.route.outboundCoordinates,
+              returnCoordinates: optimalResult.route.returnCoordinates
             }
           });
         }
