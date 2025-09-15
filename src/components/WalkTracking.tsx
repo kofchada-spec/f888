@@ -5,6 +5,8 @@ import { ArrowLeft, Play, Pause, Square, Clock, MapPin, Zap, Target, Timer } fro
 import Map, { MapRef } from './Map';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { Motion } from '@capacitor/motion';
+import { Capacitor } from '@capacitor/core';
 
 interface Destination {
   id: string;
@@ -39,21 +41,77 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
   const [walkStartTime, setWalkStartTime] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [currentSteps, setCurrentSteps] = useState(0);
+  const [isMovementDetected, setIsMovementDetected] = useState(false);
+  const [lastStepCount, setLastStepCount] = useState(0);
   const mapRef = useRef<MapRef>(null);
+  const motionListenerId = useRef<(() => void) | null>(null);
 
-  // Simulate step counting during walk (could be enhanced with actual step detection)
+  // Real step detection using device motion sensors
   useEffect(() => {
-    let stepInterval: NodeJS.Timeout;
-    if (isTracking && walkStartTime) {
-      // Simulate steps increment (roughly 2 steps per second during active walking)
-      stepInterval = setInterval(() => {
-        setCurrentSteps(prev => prev + Math.floor(Math.random() * 3) + 1); // 1-3 steps every second
-      }, 1000);
-    }
-    return () => {
-      if (stepInterval) clearInterval(stepInterval);
+    const startMotionDetection = async () => {
+      if (isTracking && Capacitor.isNativePlatform()) {
+        try {
+          // Start motion listener for acceleration data
+          const listenerId = await Motion.addListener('accel', (event) => {
+            // Calculate magnitude of acceleration
+            const magnitude = Math.sqrt(
+              event.acceleration.x ** 2 + 
+              event.acceleration.y ** 2 + 
+              event.acceleration.z ** 2
+            );
+            
+            // Detect movement threshold (typical walking is 1.5-4 m/s²)
+            if (magnitude > 1.2) {
+              setIsMovementDetected(true);
+              
+              // Simple step detection based on acceleration peaks
+              // This is a basic implementation - could be enhanced with more sophisticated algorithms
+              if (magnitude > 2.5) {
+                setCurrentSteps(prev => prev + 1);
+              }
+            }
+          });
+          
+          motionListenerId.current = listenerId.remove;
+        } catch (error) {
+          console.log('Motion detection error:', error);
+          // Fallback to web-based detection
+          fallbackStepDetection();
+        }
+      } else if (isTracking) {
+        // Web fallback - use simulated movement detection
+        fallbackStepDetection();
+      }
     };
-  }, [isTracking, walkStartTime]);
+
+    const fallbackStepDetection = () => {
+      // For web or when motion sensors are not available
+      const detectMovement = () => {
+        if (navigator.geolocation) {
+          navigator.geolocation.watchPosition(
+            (position) => {
+              setIsMovementDetected(true);
+              // Simulate step increment based on GPS movement
+              setCurrentSteps(prev => prev + Math.floor(Math.random() * 2) + 1);
+            },
+            (error) => console.log('GPS error:', error),
+            { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
+          );
+        }
+      };
+      
+      setTimeout(detectMovement, 2000); // Wait 2 seconds before starting fallback
+    };
+
+    startMotionDetection();
+
+    return () => {
+      if (motionListenerId.current) {
+        motionListenerId.current();
+        motionListenerId.current = null;
+      }
+    };
+  }, [isTracking]);
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isTracking && walkStartTime) {
@@ -117,9 +175,13 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
 
   const handleStartWalk = () => {
     setIsTracking(true);
-    setWalkStartTime(new Date());
+    setWalkStartTime(new Date()); // Timer starts immediately
     setCurrentSteps(0);
     setElapsedTime(0);
+    setIsMovementDetected(false);
+    setLastStepCount(0);
+    
+    toast.info("Timer started! Steps will count when movement is detected.");
   };
 
   const handlePauseWalk = () => {
@@ -244,18 +306,20 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
           
           <Card className="p-4 text-center">
             <div className="flex items-center justify-center mb-2">
-              <Target size={20} className="text-secondary" />
+              <Target size={20} className={isMovementDetected ? "text-secondary" : "text-muted-foreground"} />
             </div>
             <div className="text-2xl font-bold text-foreground">{currentSteps}</div>
-            <div className="text-sm text-muted-foreground">Pas actuels</div>
+            <div className="text-sm text-muted-foreground">
+              {isTracking && !isMovementDetected ? "En attente du mouvement..." : "Pas actuels"}
+            </div>
           </Card>
           
           <Card className="p-4 text-center">
             <div className="flex items-center justify-center mb-2">
-              <MapPin size={20} className="text-orange-500" />
+              <MapPin size={20} className={isMovementDetected ? "text-orange-500" : "text-muted-foreground"} />
             </div>
             <div className="text-2xl font-bold text-foreground">
-              {((currentSteps * 0.415 * parseFloat(planningData.height)) / 1000).toFixed(1)}
+              {isMovementDetected ? ((currentSteps * 0.415 * parseFloat(planningData.height)) / 1000).toFixed(1) : "0.0"}
             </div>
             <div className="text-sm text-muted-foreground">km parcourus</div>
           </Card>
