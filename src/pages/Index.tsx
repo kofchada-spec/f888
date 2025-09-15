@@ -128,8 +128,7 @@ const Index = () => {
 
   // Show onboarding if not completed
   if (!hasCompletedOnboarding) {
-    const dashboardParam = searchParams.get('dashboard');
-    return <Onboarding onComplete={handleOnboardingComplete} hideGreenBackground={dashboardParam === 'true'} />;
+    return <Onboarding onComplete={handleOnboardingComplete} />;
   }
 
   // Show auth if user is not authenticated and auth is not skipped
