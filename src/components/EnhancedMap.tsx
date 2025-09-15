@@ -128,7 +128,118 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
     getUserLocation();
   }, []);
 
-  // Calculate default destination position
+  // Smart route generation that targets specific step count
+  const generateOptimalRoute = useCallback(async (userLoc: { lat: number; lng: number }) => {
+    if (!mapboxToken) return null;
+
+    const targetSteps = parseInt(planningData.steps);
+    const heightM = parseFloat(planningData.height);
+    const strideM = heightM ? 0.415 * heightM : 0.72;
+    const targetDistanceKm = (targetSteps * strideM) / 1000;
+    
+    // For round-trip, we need to find a destination that creates a route with total distance = targetDistanceKm
+    // For one-way, we need a route with distance = targetDistanceKm
+    const tolerance = 0.05; // 5% tolerance
+    const minAcceptableSteps = targetSteps * (1 - tolerance);
+    const maxAcceptableSteps = targetSteps * (1 + tolerance);
+
+    // Try different bearings and distances to find the best match
+    const bearings = [45, 90, 135, 180, 225, 270, 315, 0]; // 8 directions
+    const distanceMultipliers = [0.8, 1.0, 1.2, 0.6, 1.4]; // Try different distances from target
+
+    let bestRoute = null;
+    let bestScore = Infinity;
+    let bestDestination = null;
+
+    for (const bearing of bearings) {
+      for (const multiplier of distanceMultipliers) {
+        try {
+          // Calculate test destination
+          const testRadius = planningData.tripType === 'round-trip' ? 
+            (targetDistanceKm / 2) * multiplier : // For round-trip, use half distance as radius
+            targetDistanceKm * multiplier * 0.8; // For one-way, use slightly less due to street routing
+
+          const bearingRad = (bearing * Math.PI) / 180;
+          const earthRadiusKm = 6371;
+          const userLatRad = (userLoc.lat * Math.PI) / 180;
+          const userLngRad = (userLoc.lng * Math.PI) / 180;
+
+          const destLatRad = Math.asin(
+            Math.sin(userLatRad) * Math.cos(testRadius / earthRadiusKm) +
+            Math.cos(userLatRad) * Math.sin(testRadius / earthRadiusKm) * Math.cos(bearingRad)
+          );
+
+          const destLngRad = userLngRad + Math.atan2(
+            Math.sin(bearingRad) * Math.sin(testRadius / earthRadiusKm) * Math.cos(userLatRad),
+            Math.cos(testRadius / earthRadiusKm) - Math.sin(userLatRad) * Math.sin(destLatRad)
+          );
+
+          const testDestination = {
+            lat: (destLatRad * 180) / Math.PI,
+            lng: (destLngRad * 180) / Math.PI
+          };
+
+          // Test this route
+          const profile = 'walking';
+          let coordinates: string;
+          
+          if (planningData.tripType === 'round-trip') {
+            coordinates = `${userLoc.lng},${userLoc.lat};${testDestination.lng},${testDestination.lat};${userLoc.lng},${userLoc.lat}`;
+          } else {
+            coordinates = `${userLoc.lng},${userLoc.lat};${testDestination.lng},${testDestination.lat}`;
+          }
+
+          const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${coordinates}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
+          const response = await fetch(url);
+          const data = await response.json();
+
+          if (data.routes && data.routes.length > 0) {
+            const route = data.routes[0];
+            const routeDistanceKm = route.distance / 1000;
+            const routeSteps = Math.round((routeDistanceKm * 1000) / strideM);
+            
+            // Calculate how close this is to our target
+            const stepDifference = Math.abs(routeSteps - targetSteps);
+            const score = stepDifference / targetSteps; // Percentage difference
+
+            // If this route is within tolerance, prefer it
+            if (routeSteps >= minAcceptableSteps && routeSteps <= maxAcceptableSteps) {
+              if (score < bestScore) {
+                bestScore = score;
+                bestRoute = {
+                  distance: routeDistanceKm,
+                  duration: calculateTime(routeDistanceKm),
+                  calories: calculateCalories(routeDistanceKm),
+                  steps: routeSteps,
+                  coordinates: route.geometry.coordinates
+                };
+                bestDestination = testDestination;
+              }
+            } else if (!bestRoute) {
+              // If no route within tolerance found yet, keep the closest one
+              if (score < bestScore) {
+                bestScore = score;
+                bestRoute = {
+                  distance: routeDistanceKm,
+                  duration: calculateTime(routeDistanceKm),
+                  calories: calculateCalories(routeDistanceKm),
+                  steps: routeSteps,
+                  coordinates: route.geometry.coordinates
+                };
+                bestDestination = testDestination;
+              }
+            }
+          }
+        } catch (error) {
+          console.log(`Error testing route at bearing ${bearing}, multiplier ${multiplier}:`, error);
+        }
+      }
+    }
+
+    return { route: bestRoute, destination: bestDestination };
+  }, [mapboxToken, planningData, calculateTime, calculateCalories]);
+
+  // Calculate default destination position (fallback method)
   const calculateDefaultDestination = useCallback((userLoc: { lat: number; lng: number }) => {
     const targetKm = getTargetDistance();
     const bearing = 45; // Fixed bearing in degrees
@@ -239,10 +350,20 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       setDestinationLocation(newDestination);
     });
 
-    map.current.on('load', () => {
-      // Initialize with default destination
-      const defaultDest = calculateDefaultDestination(userLocation);
-      setDestinationLocation(defaultDest);
+    map.current.on('load', async () => {
+      // Generate optimal route that matches target steps
+      setIsLoading(true);
+      const optimalResult = await generateOptimalRoute(userLocation);
+      
+      if (optimalResult?.route && optimalResult?.destination) {
+        setDestinationLocation(optimalResult.destination);
+        setRouteData(optimalResult.route);
+      } else {
+        // Fallback to default positioning
+        const defaultDest = calculateDefaultDestination(userLocation);
+        setDestinationLocation(defaultDest);
+      }
+      setIsLoading(false);
     });
 
     return () => {
@@ -251,7 +372,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
         map.current = null;
       }
     };
-  }, [mapboxToken, userLocation, calculateDefaultDestination]);
+  }, [mapboxToken, userLocation, calculateDefaultDestination, generateOptimalRoute]);
 
   // Update markers and route when locations change
   useEffect(() => {
@@ -378,10 +499,19 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
     }
   };
 
-  const resetToDefault = () => {
+  const resetToDefault = async () => {
     if (userLocation) {
-      const defaultDest = calculateDefaultDestination(userLocation);
-      setDestinationLocation(defaultDest);
+      setIsLoading(true);
+      const optimalResult = await generateOptimalRoute(userLocation);
+      
+      if (optimalResult?.route && optimalResult?.destination) {
+        setDestinationLocation(optimalResult.destination);
+        setRouteData(optimalResult.route);
+      } else {
+        const defaultDest = calculateDefaultDestination(userLocation);
+        setDestinationLocation(defaultDest);
+      }
+      setIsLoading(false);
     }
   };
 
