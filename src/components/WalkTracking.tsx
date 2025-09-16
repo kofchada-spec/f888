@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ArrowLeft, Play, Pause, Square, Clock, MapPin, Zap, Target, Timer } from 'lucide-react';
-import Map, { MapRef } from './Map';
+import Map, { MapRef } from './OptimizedMap';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Motion } from '@capacitor/motion';

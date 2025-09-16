@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
-import EnhancedMap from './EnhancedMap';
+import OptimizedMap from './OptimizedMap';
+import { useSingleDestination } from '@/hooks/useSingleDestination';
 
 interface MapScreenProps {
   onComplete: (destination: any) => void;
@@ -27,8 +28,41 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     endCoordinates: { lat: number; lng: number };
     routeGeoJSON?: any;
   } | null>(null);
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
 
-  const handleRouteCalculated = (data: {
+  const { currentDestination, loading, fetchDestinations } = useSingleDestination();
+
+  // Get user location and fetch destinations on mount  
+  React.useEffect(() => {
+    const getUserLocation = () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const location = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            };
+            setUserLocation(location);
+            
+            // Fetch optimized destinations
+            try {
+              await fetchDestinations(location, planningData);
+            } catch (error) {
+              console.error('Failed to fetch destinations:', error);
+            }
+          },
+          (error) => {
+            console.error('Geolocation error:', error);
+            // Default to Paris if geolocation fails
+            setUserLocation({ lat: 48.8566, lng: 2.3522 });
+          }
+        );
+      }
+    };
+    getUserLocation();
+  }, [fetchDestinations, planningData]);
+
+  const handleRouteCalculated = useCallback((data: {
     distance: number;
     duration: number;
     calories: number;
@@ -37,26 +71,35 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     endCoordinates: { lat: number; lng: number };
     routeGeoJSON?: any;
   }) => {
+    console.log('🎯 Route calculated:', data);
     setRouteData(data);
     setIsReadyToStart(true);
-  };
+  }, []);
 
-  const handleStartWalk = () => {
-    if (!routeData) return;
+  const handleStartWalk = useCallback(() => {
+    if (!routeData && !currentDestination) return;
     
-    // Create destination object with the actual calculated route data
-    const destination = {
+    // Prioritize currentDestination from optimized routing, fallback to routeData
+    const destination = currentDestination ? {
+      id: currentDestination.id,
+      name: currentDestination.name,
+      coordinates: currentDestination.coordinates,
+      distanceKm: currentDestination.distanceKm,
+      durationMin: currentDestination.durationMin,
+      calories: currentDestination.calories,
+      routeGeoJSON: currentDestination.routeGeoJSON
+    } : {
       id: 'map-selected-destination',
       name: 'Destination sélectionnée',
-      coordinates: routeData.endCoordinates,
-      distanceKm: routeData.distance,
-      durationMin: routeData.duration,
-      calories: routeData.calories,
-      routeGeoJSON: routeData.routeGeoJSON
+      coordinates: routeData!.endCoordinates,
+      distanceKm: routeData!.distance,
+      durationMin: routeData!.duration,
+      calories: routeData!.calories,
+      routeGeoJSON: routeData!.routeGeoJSON
     };
     
     onComplete(destination);
-  };
+  }, [routeData, currentDestination, onComplete]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
@@ -128,27 +171,64 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
           </div>
         </div>
 
-        {/* Enhanced Map */}
+        {/* Optimized Map */}
         <div className="mb-6">
-          <EnhancedMap 
-            planningData={planningData}
-            className="w-full"
-            onRouteCalculated={handleRouteCalculated}
-          />
+          {userLocation && (
+            <OptimizedMap 
+              userLocation={userLocation}
+              destinations={currentDestination ? [{
+                id: currentDestination.id,
+                name: currentDestination.name,
+                distance: `${currentDestination.distanceKm} km`,
+                duration: `${currentDestination.durationMin} min`,
+                calories: currentDestination.calories,
+                description: 'Generated optimized destination',
+                coordinates: currentDestination.coordinates,
+                route: currentDestination.routeGeoJSON
+              }] : []}
+              selectedDestination={currentDestination?.id}
+              planningData={planningData}
+              onDestinationSelect={(id) => {
+                console.log('🎯 Destination selected:', id);
+                if (currentDestination) {
+                  handleRouteCalculated({
+                    distance: currentDestination.distanceKm,
+                    duration: currentDestination.durationMin,
+                    calories: currentDestination.calories,
+                    steps: parseInt(planningData.steps),
+                    startCoordinates: userLocation,
+                    endCoordinates: currentDestination.coordinates,
+                    routeGeoJSON: currentDestination.routeGeoJSON
+                  });
+                }
+              }}
+            />
+          )}
+          
+          {!userLocation && (
+            <div className="w-full h-96 bg-muted rounded-lg flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                <p className="text-muted-foreground">Getting your location...</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action Button */}
         <div className="text-center">
           <Button
             onClick={handleStartWalk}
-            disabled={!isReadyToStart}
+            disabled={!isReadyToStart && !currentDestination}
             size="lg"
             className="w-full max-w-md h-14 text-lg font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-50"
           >
-            {isReadyToStart ? 'Commencer la marche' : 'Calcul de l\'itinéraire...'}
+            {loading ? 'Loading optimal route...' :
+             currentDestination ? 'Start Walk' :
+             !isReadyToStart ? 'Calculating route...' : 'Start Walk'}
           </Button>
           <p className="text-xs text-muted-foreground mt-2">
-            L'itinéraire sera sauvegardé et le suivi GPS commencera
+            {currentDestination ? 'Optimized route ready for tracking' : 'Route will be saved and GPS tracking will begin'}
           </p>
         </div>
       </div>
