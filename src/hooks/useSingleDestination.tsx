@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useOptimizedRouting } from './useOptimizedRouting';
-import { useMapPerformance } from './useMapPerformance';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Destination {
   id: string;
@@ -38,9 +37,8 @@ export const useSingleDestination = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [refreshRemaining, setRefreshRemaining] = useState(2);
   const [destinationsList, setDestinationsList] = useState<Destination[]>([]);
-  
-  const { loading, error, fetchOptimizedRoute, clearCache } = useOptimizedRouting();
-  const { startTimer, logPerformanceSummary, resetMetrics } = useMapPerformance();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Fonction pour générer une clé de scénario
   const generateScenarioKey = useCallback((
@@ -59,21 +57,28 @@ export const useSingleDestination = () => {
     planningData: PlanningData,
     profileData?: ProfileData
   ) => {
-    resetMetrics();
-    const endGeocodeTimer = startTimer('geocode');
+    setLoading(true);
+    setError(null);
     
     try {
-      console.log('🚀 Starting optimized destination fetch');
+      const scenarioKey = generateScenarioKey(userLocation, planningData);
       
-      // End geocode timer (location already available)
-      endGeocodeTimer();
+      // Force un nouveau fetch en ignorant le cache temporairement pour tester les nouvelles routes
+      console.log('Forçage du nouveau fetch pour tester les routes réelles');
       
-      const endRoutingTimer = startTimer('routing');
+      // Générer 3 nouvelles destinations
+      const { data, error } = await supabase.functions.invoke('mapbox-destinations', {
+        body: { 
+          userLocation, 
+          planningData,
+          profileData,
+          generateThree: true
+        }
+      });
       
-      // Use optimized routing with caching and debouncing
-      const data = await fetchOptimizedRoute(userLocation, planningData, profileData);
-      
-      endRoutingTimer();
+      if (error) {
+        throw error;
+      }
       
       if (data?.destinations && data.destinations.length > 0) {
         const list = data.destinations;
@@ -82,16 +87,19 @@ export const useSingleDestination = () => {
         setCurrentIndex(0);
         setRefreshRemaining(2);
         
-        console.log('✅ Optimized destinations loaded:', list[0]);
-        logPerformanceSummary();
+        // Sauvegarder en cache (commenté temporairement pour forcer le refresh)
+        // localStorage.setItem(`destinations_${scenarioKey}`, JSON.stringify({ list }));
+        console.log('Nouvelles destinations générées avec routes:', list[0]);
       } else {
-        throw new Error('No destinations found');
+        throw new Error('Aucune destination trouvée');
       }
     } catch (err) {
-      console.error('❌ Error fetching destinations:', err);
-      throw err; // Let the optimized routing handle error states
+      console.error('Erreur lors de la récupération des destinations:', err);
+      setError(err instanceof Error ? err.message : 'Erreur inconnue');
+    } finally {
+      setLoading(false);
     }
-  }, [generateScenarioKey, fetchOptimizedRoute, startTimer, logPerformanceSummary, resetMetrics]);
+  }, [generateScenarioKey]);
 
   const refreshDestination = useCallback(() => {
     if (refreshRemaining <= 0 || currentIndex >= destinationsList.length - 1) return;
@@ -107,9 +115,8 @@ export const useSingleDestination = () => {
     setCurrentIndex(0);
     setDestinationsList([]);
     setCurrentDestination(null);
-    clearCache();
-    resetMetrics();
-  }, [clearCache, resetMetrics]);
+    setError(null);
+  }, []);
 
   return {
     currentDestination,
