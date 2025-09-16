@@ -110,7 +110,8 @@ serve(async (req) => {
                 coordinates: { lat: poi.center[1], lng: poi.center[0] },
                 routeGeoJSON: {
                   outboundCoordinates: routeResult.outboundRoute.geometry.coordinates,
-                  returnCoordinates: routeResult.returnRoute.geometry.coordinates
+                  returnCoordinates: routeResult.returnRoute.geometry.coordinates,
+                  samePathReturn: routeResult.samePathReturn
                 },
                 distanceKm: totalDistanceKm,
                 durationMin: Math.round((routeResult.outboundRoute.duration + routeResult.returnRoute.duration) / 60),
@@ -179,7 +180,8 @@ serve(async (req) => {
                 coordinates: { lat: randomPoi.center[1], lng: randomPoi.center[0] },
                 routeGeoJSON: {
                   outboundCoordinates: routeResult.outboundRoute.geometry.coordinates,
-                  returnCoordinates: routeResult.returnRoute.geometry.coordinates
+                  returnCoordinates: routeResult.returnRoute.geometry.coordinates,
+                  samePathReturn: routeResult.samePathReturn
                 },
                 distanceKm: totalDistanceKm,
                 durationMin: Math.round((routeResult.outboundRoute.duration + routeResult.returnRoute.duration) / 60),
@@ -251,7 +253,8 @@ serve(async (req) => {
               coordinates: { lat: destLat, lng: destLng },
               routeGeoJSON: {
                 outboundCoordinates: routeResult.outboundRoute.geometry.coordinates,
-                returnCoordinates: routeResult.returnRoute.geometry.coordinates
+                returnCoordinates: routeResult.returnRoute.geometry.coordinates,
+                samePathReturn: routeResult.samePathReturn
               },
               distanceKm: totalDistanceKm,
               durationMin: Math.round((routeResult.outboundRoute.duration + routeResult.returnRoute.duration) / 60),
@@ -340,7 +343,7 @@ function calculateStepsFromDistance(distanceKm: number, heightM: number): number
   return Math.round(distanceM / stride);
 }
 
-// Calculate separate outbound and return routes for round trips
+// Calculate separate outbound and return routes for round trips with meaningful differentiation
 async function calculateRoundTripRoute(
   start: { lat: number; lng: number }, 
   destination: { lat: number; lng: number },
@@ -350,8 +353,14 @@ async function calculateRoundTripRoute(
   returnRoute: any; 
   outboundDistance: number;
   returnDistance: number;
+  samePathReturn?: boolean;
 } | null> {
+  const startTime = Date.now();
+  const MAX_ROUTING_TIME = 5000; // 5 seconds max
+  
   try {
+    console.log('Starting round-trip route calculation...');
+    
     // Calculate outbound route
     const outboundUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${start.lng},${start.lat};${destination.lng},${destination.lat}?geometries=geojson&steps=true&access_token=${mapboxToken}`;
     const outboundResponse = await fetch(outboundUrl);
@@ -362,46 +371,110 @@ async function calculateRoundTripRoute(
     }
     
     const outboundRoute = outboundData.routes[0];
+    console.log(`Outbound route calculated: ${(outboundRoute.distance / 1000).toFixed(2)}km`);
     
-    // Calculate return route with alternatives to avoid retracing
-    const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${destination.lng},${destination.lat};${start.lng},${start.lat}?geometries=geojson&steps=true&alternatives=true&access_token=${mapboxToken}`;
-    const returnResponse = await fetch(returnUrl);
-    const returnData = await returnResponse.json();
-    
-    if (!returnData.routes || returnData.routes.length === 0) {
-      return null;
-    }
-    
-    // Try to find a return route that's different from outbound
-    let bestReturnRoute = returnData.routes[0];
+    // Try to find alternative return routes with progressively relaxed constraints
+    const bufferSizes = [40, 30, 20]; // meters, gradually relaxed
+    const maxAttempts = 10;
+    let bestReturnRoute = null;
     let minOverlap = 1.0;
+    let samePathReturn = false;
     
-    // Check all alternative routes and pick the one with least overlap
-    for (const route of returnData.routes) {
-      const overlap = calculatePathOverlap(
-        outboundRoute.geometry.coordinates,
-        route.geometry.coordinates
-      );
+    // First, try basic alternatives without penalty
+    try {
+      const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${destination.lng},${destination.lat};${start.lng},${start.lat}?geometries=geojson&steps=true&alternatives=true&access_token=${mapboxToken}`;
+      const returnResponse = await fetch(returnUrl);
+      const returnData = await returnResponse.json();
       
-      if (overlap < minOverlap) {
-        minOverlap = overlap;
-        bestReturnRoute = route;
+      if (returnData.routes && returnData.routes.length > 0) {
+        // Check all alternative routes
+        for (const route of returnData.routes.slice(0, maxAttempts)) {
+          if (Date.now() - startTime > MAX_ROUTING_TIME) break;
+          
+          const overlap = calculatePathOverlap(
+            outboundRoute.geometry.coordinates,
+            route.geometry.coordinates
+          );
+          
+          console.log(`Alternative route overlap: ${(overlap * 100).toFixed(1)}%`);
+          
+          if (overlap < minOverlap) {
+            minOverlap = overlap;
+            bestReturnRoute = route;
+          }
+          
+          // If we found a route with ≤30% overlap, use it
+          if (overlap <= 0.30) {
+            console.log(`Found suitable alternative with ${(overlap * 100).toFixed(1)}% overlap`);
+            break;
+          }
+        }
+      }
+    } catch (error) {
+      console.log('Error fetching basic alternatives:', error);
+    }
+    
+    // If no good alternative found, try waypoint-based routing
+    if ((!bestReturnRoute || minOverlap > 0.30) && Date.now() - startTime < MAX_ROUTING_TIME) {
+      console.log('Trying waypoint-based routing to avoid outbound path...');
+      
+      for (const bufferSize of bufferSizes) {
+        if (Date.now() - startTime > MAX_ROUTING_TIME) break;
+        
+        const waypointRoute = await calculateWaypointReturn(
+          start, 
+          destination, 
+          outboundRoute.geometry.coordinates, 
+          mapboxToken,
+          bufferSize
+        );
+        
+        if (waypointRoute) {
+          const waypointOverlap = calculatePathOverlap(
+            outboundRoute.geometry.coordinates,
+            waypointRoute.geometry.coordinates
+          );
+          
+          console.log(`Waypoint route (${bufferSize}m buffer) overlap: ${(waypointOverlap * 100).toFixed(1)}%`);
+          
+          if (waypointOverlap < minOverlap) {
+            minOverlap = waypointOverlap;
+            bestReturnRoute = waypointRoute;
+          }
+          
+          // If we found a route with ≤30% overlap, use it
+          if (waypointOverlap <= 0.30) {
+            console.log(`Found suitable waypoint route with ${(waypointOverlap * 100).toFixed(1)}% overlap`);
+            break;
+          }
+        }
       }
     }
     
-    // If still too much overlap, try waypoint-based routing
-    if (minOverlap > 0.4) {
-      const waypointRoute = await calculateWaypointReturn(start, destination, outboundRoute.geometry.coordinates, mapboxToken);
-      if (waypointRoute) {
-        bestReturnRoute = waypointRoute;
-      }
+    // Fallback: if still no good alternative, use reverse of outbound route
+    if (!bestReturnRoute || minOverlap > 0.30) {
+      console.log(`No alternative found with ≤30% overlap (best: ${(minOverlap * 100).toFixed(1)}%). Using same path return.`);
+      
+      // Create reverse route from outbound route
+      bestReturnRoute = {
+        ...outboundRoute,
+        geometry: {
+          ...outboundRoute.geometry,
+          coordinates: [...outboundRoute.geometry.coordinates].reverse()
+        }
+      };
+      samePathReturn = true;
     }
+    
+    const totalTime = Date.now() - startTime;
+    console.log(`Round-trip calculation completed in ${totalTime}ms. Final overlap: ${(minOverlap * 100).toFixed(1)}%`);
     
     return {
       outboundRoute,
       returnRoute: bestReturnRoute,
       outboundDistance: outboundRoute.distance / 1000,
-      returnDistance: bestReturnRoute.distance / 1000
+      returnDistance: bestReturnRoute.distance / 1000,
+      samePathReturn
     };
     
   } catch (error) {
@@ -410,80 +483,185 @@ async function calculateRoundTripRoute(
   }
 }
 
-// Calculate path overlap percentage
+// Calculate path overlap percentage using improved algorithm
 function calculatePathOverlap(path1: number[][], path2: number[][]): number {
   if (!path1.length || !path2.length) return 0;
   
   const bufferRadius = 0.0002; // ~20m buffer in degrees
-  let overlapCount = 0;
-  const sampleSize = Math.min(30, path2.length);
-  const sampleStep = Math.floor(path2.length / sampleSize);
+  let overlappingSegments = 0;
+  const totalPath2Segments = path2.length - 1;
   
-  for (let i = 0; i < path2.length; i += sampleStep) {
-    const point2 = path2[i];
+  if (totalPath2Segments <= 0) return 0;
+  
+  // Check each segment of path2 against all segments of path1
+  for (let i = 0; i < path2.length - 1; i++) {
+    const seg2Start = path2[i];
+    const seg2End = path2[i + 1];
     
-    for (const point1 of path1) {
-      const distance = Math.sqrt(
-        Math.pow(point2[0] - point1[0], 2) + 
-        Math.pow(point2[1] - point1[1], 2)
-      );
+    let segmentOverlaps = false;
+    for (let j = 0; j < path1.length - 1; j++) {
+      const seg1Start = path1[j];
+      const seg1End = path1[j + 1];
       
-      if (distance < bufferRadius) {
-        overlapCount++;
+      // Check if segments are within buffer distance
+      if (segmentsWithinBuffer(seg1Start, seg1End, seg2Start, seg2End, bufferRadius)) {
+        segmentOverlaps = true;
         break;
       }
     }
+    
+    if (segmentOverlaps) {
+      overlappingSegments++;
+    }
   }
   
-  return overlapCount / sampleSize;
+  return overlappingSegments / totalPath2Segments;
 }
 
-// Calculate return route with strategic waypoints to avoid outbound path
+// Check if two line segments are within buffer distance
+function segmentsWithinBuffer(
+  seg1Start: number[], seg1End: number[], 
+  seg2Start: number[], seg2End: number[], 
+  buffer: number
+): boolean {
+  // Simple point-to-segment distance check
+  const distances = [
+    pointToSegmentDistance(seg2Start, seg1Start, seg1End),
+    pointToSegmentDistance(seg2End, seg1Start, seg1End),
+    pointToSegmentDistance(seg1Start, seg2Start, seg2End),
+    pointToSegmentDistance(seg1End, seg2Start, seg2End)
+  ];
+  
+  return Math.min(...distances) <= buffer;
+}
+
+// Calculate distance from point to line segment
+function pointToSegmentDistance(point: number[], segStart: number[], segEnd: number[]): number {
+  const A = point[0] - segStart[0];
+  const B = point[1] - segStart[1];
+  const C = segEnd[0] - segStart[0];
+  const D = segEnd[1] - segStart[1];
+  
+  const dot = A * C + B * D;
+  const lenSq = C * C + D * D;
+  
+  if (lenSq === 0) {
+    return Math.sqrt(A * A + B * B);
+  }
+  
+  const param = dot / lenSq;
+  
+  let xx, yy;
+  if (param < 0) {
+    xx = segStart[0];
+    yy = segStart[1];
+  } else if (param > 1) {
+    xx = segEnd[0];
+    yy = segEnd[1];
+  } else {
+    xx = segStart[0] + param * C;
+    yy = segStart[1] + param * D;
+  }
+  
+  const dx = point[0] - xx;
+  const dy = point[1] - yy;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+// Try to calculate return route with waypoints to avoid the outbound path
 async function calculateWaypointReturn(
   start: { lat: number; lng: number },
-  destination: { lat: number; lng: number }, 
-  outboundCoords: number[][],
-  mapboxToken: string
+  destination: { lat: number; lng: number },
+  outboundCoordinates: number[][],
+  mapboxToken: string,
+  bufferMeters: number = 30
 ): Promise<any | null> {
   try {
-    // Calculate perpendicular waypoint to force different path
-    const midIndex = Math.floor(outboundCoords.length / 2);
-    const midPoint = outboundCoords[midIndex];
+    console.log(`Calculating waypoint return with ${bufferMeters}m buffer...`);
     
-    if (!midPoint) return null;
+    // Create multiple waypoint candidates to avoid the outbound path
+    const waypoints = findAvoidanceWaypoints(start, destination, outboundCoordinates, bufferMeters);
     
-    // Calculate bearing of outbound path at midpoint
-    const prevPoint = outboundCoords[Math.max(0, midIndex - 5)];
-    const nextPoint = outboundCoords[Math.min(outboundCoords.length - 1, midIndex + 5)];
+    if (!waypoints.length) {
+      console.log('No suitable waypoints found');
+      return null;
+    }
     
-    const bearing = Math.atan2(
-      nextPoint[0] - prevPoint[0],
-      nextPoint[1] - prevPoint[1]
-    );
-    
-    // Create waypoint perpendicular to outbound path
-    const offsetDistance = 0.002; // ~200m offset
-    const perpendicularBearing = bearing + Math.PI / 2;
-    
-    const waypoint = {
-      lat: midPoint[1] + Math.cos(perpendicularBearing) * offsetDistance,
-      lng: midPoint[0] + Math.sin(perpendicularBearing) * offsetDistance
-    };
-    
-    // Calculate route: destination -> waypoint -> start
-    const waypointUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${destination.lng},${destination.lat};${waypoint.lng},${waypoint.lat};${start.lng},${start.lat}?geometries=geojson&steps=true&access_token=${mapboxToken}`;
-    const waypointResponse = await fetch(waypointUrl);
-    const waypointData = await waypointResponse.json();
-    
-    if (waypointData.routes && waypointData.routes.length > 0) {
-      return waypointData.routes[0];
+    // Try each waypoint configuration
+    for (const waypoint of waypoints) {
+      try {
+        const waypointUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${destination.lng},${destination.lat};${waypoint.lng},${waypoint.lat};${start.lng},${start.lat}?geometries=geojson&steps=true&access_token=${mapboxToken}`;
+        
+        const response = await fetch(waypointUrl);
+        const data = await response.json();
+        
+        if (data.routes && data.routes.length > 0) {
+          const route = data.routes[0];
+          console.log(`Waypoint route found via ${waypoint.lng.toFixed(4)},${waypoint.lat.toFixed(4)}: ${(route.distance / 1000).toFixed(2)}km`);
+          return route;
+        }
+      } catch (error) {
+        console.log('Error with waypoint:', waypoint, error);
+        continue;
+      }
     }
     
     return null;
   } catch (error) {
-    console.log('Error calculating waypoint return route:', error);
+    console.log('Error calculating waypoint return:', error);
     return null;
   }
+}
+
+// Find waypoints that help avoid the outbound path
+function findAvoidanceWaypoints(
+  start: { lat: number; lng: number },
+  destination: { lat: number; lng: number },
+  outboundCoordinates: number[][],
+  bufferMeters: number
+): { lat: number; lng: number }[] {
+  if (!outboundCoordinates.length) return [];
+  
+  const waypoints: { lat: number; lng: number }[] = [];
+  const bufferDegrees = bufferMeters / 111320; // Convert meters to degrees (approximate)
+  
+  // Strategy 1: Perpendicular waypoint from path midpoint
+  const midIndex = Math.floor(outboundCoordinates.length / 2);
+  const pathMidpoint = outboundCoordinates[midIndex];
+  
+  const mainAngle = Math.atan2(
+    destination.lat - start.lat,
+    destination.lng - start.lng
+  );
+  
+  // Create waypoints on both sides of the path
+  const offsetDistance = bufferDegrees * 3; // 3x buffer distance for clear avoidance
+  const perpendicularAngles = [mainAngle + Math.PI / 2, mainAngle - Math.PI / 2];
+  
+  for (const perpAngle of perpendicularAngles) {
+    waypoints.push({
+      lat: pathMidpoint[1] + Math.sin(perpAngle) * offsetDistance,
+      lng: pathMidpoint[0] + Math.cos(perpAngle) * offsetDistance
+    });
+  }
+  
+  // Strategy 2: Wide arc waypoints
+  const centerLat = (start.lat + destination.lat) / 2;
+  const centerLng = (start.lng + destination.lng) / 2;
+  const radius = offsetDistance * 1.5;
+  
+  // Create waypoints in an arc around the center
+  const arcAngles = [-Math.PI/3, -Math.PI/6, Math.PI/6, Math.PI/3];
+  for (const arcAngle of arcAngles) {
+    const adjustedAngle = mainAngle + arcAngle;
+    waypoints.push({
+      lat: centerLat + Math.sin(adjustedAngle) * radius,
+      lng: centerLng + Math.cos(adjustedAngle) * radius
+    });
+  }
+  
+  console.log(`Generated ${waypoints.length} avoidance waypoints with ${bufferMeters}m buffer`);
+  return waypoints;
 }
 
 // Fonction pour générer exactement 3 destinations déterministiques
@@ -522,6 +700,7 @@ async function generateThreeDestinations(
               outboundRoute: routeResult.outboundRoute,
               returnRoute: routeResult.returnRoute,
               routeDistanceKm: totalDistanceKm,
+              samePathReturn: routeResult.samePathReturn,
               score: stepDeviation
             });
           }
@@ -569,10 +748,11 @@ async function generateThreeDestinations(
         id: `dest_${i + 1}_${poi.id || Math.random().toString(36).substr(2, 9)}`,
         name: poi.place_name?.split(',')[0] || poi.text || `Destination ${i + 1}`,
         coordinates: { lat: poi.center[1], lng: poi.center[0] },
-        routeGeoJSON: {
-          outboundCoordinates: poi.outboundRoute.geometry.coordinates,
-          returnCoordinates: poi.returnRoute.geometry.coordinates
-        },
+            routeGeoJSON: {
+              outboundCoordinates: poi.outboundRoute.geometry.coordinates,
+              returnCoordinates: poi.returnRoute.geometry.coordinates,
+              samePathReturn: poi.samePathReturn
+            },
         distanceKm: poi.routeDistanceKm,
         durationMin: Math.round((poi.outboundRoute.duration + poi.returnRoute.duration) / 60),
         calories: calories
