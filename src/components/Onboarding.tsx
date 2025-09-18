@@ -174,7 +174,7 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
           </div>
 
           <h1 className="text-2xl font-bold text-gray-800 mb-6 max-w-xs leading-tight text-center">
-            Choisis ta destination parmi 3 proposées afin d'atteindre ton objectif de pas.
+            FitPaS te propose des destinations selon tes objectifs à atteindre.
           </h1>
 
           <p className="text-base text-gray-600 max-w-xs leading-relaxed text-center">
