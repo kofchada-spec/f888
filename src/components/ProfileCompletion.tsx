@@ -3,10 +3,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
+import { ProfilePickerModal } from './ProfilePickerModal';
 
 interface ProfileCompletionProps {
   onComplete: () => void;
@@ -46,41 +46,68 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [heightInput, setHeightInput] = useState('');
-  const [weightInput, setWeightInput] = useState('');
+  const [selectedGender, setSelectedGender] = useState('');
+  const [selectedHeight, setSelectedHeight] = useState<number | null>(null);
+  const [selectedWeight, setSelectedWeight] = useState<number | null>(null);
+  const [selectedBirthDate, setSelectedBirthDate] = useState<Date | null>(null);
+  const [modalType, setModalType] = useState<'height' | 'weight' | 'birthDate' | null>(null);
 
   const { 
-    register, 
     handleSubmit, 
-    formState: { errors, isValid }, 
+    formState: { errors }, 
     setValue, 
-    trigger
+    trigger,
+    watch
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
     mode: 'onChange'
   });
 
-  const handleHeightChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setHeightInput(value);
-    
-    const numValue = parseFloat(value.replace(',', '.'));
-    if (!isNaN(numValue)) {
-      setValue('height', numValue);
+  const formData = watch();
+
+  const handlePickerConfirm = async (type: 'height' | 'weight' | 'birthDate', value: any) => {
+    if (type === 'height') {
+      const heightInMeters = value / 100; // Convert cm to meters
+      setSelectedHeight(value);
+      setValue('height', heightInMeters);
       await trigger('height');
+    } else if (type === 'weight') {
+      setSelectedWeight(value);
+      setValue('weight', value);
+      await trigger('weight');
+    } else if (type === 'birthDate') {
+      setSelectedBirthDate(value);
+      const day = value.getDate().toString().padStart(2, '0');
+      const month = (value.getMonth() + 1).toString().padStart(2, '0');
+      const year = value.getFullYear();
+      setValue('birthDate', `${day}/${month}/${year}`);
+      await trigger('birthDate');
     }
+    setModalType(null);
   };
 
-  const handleWeightChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGenderChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
-    setWeightInput(value);
-    
-    const numValue = parseFloat(value);
-    if (!isNaN(numValue)) {
-      setValue('weight', numValue);
-      await trigger('weight');
-    }
+    setSelectedGender(value);
+    setValue('gender', value);
+    await trigger('gender');
   };
+
+  const formatDisplayValue = (type: 'height' | 'weight' | 'birthDate') => {
+    if (type === 'height' && selectedHeight) {
+      return `${selectedHeight} cm`;
+    } else if (type === 'weight' && selectedWeight) {
+      return `${selectedWeight} kg`;
+    } else if (type === 'birthDate' && selectedBirthDate) {
+      const day = selectedBirthDate.getDate().toString().padStart(2, '0');
+      const month = (selectedBirthDate.getMonth() + 1).toString().padStart(2, '0');
+      const year = selectedBirthDate.getFullYear();
+      return `${day}/${month}/${year}`;
+    }
+    return '';
+  };
+
+  const isFormValid = selectedGender && selectedHeight && selectedWeight && selectedBirthDate;
 
   const onSubmit = async (data: ProfileFormData) => {
     setIsSubmitting(true);
@@ -151,7 +178,8 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
             </Label>
             <select
               id="gender"
-              {...register('gender')}
+              value={selectedGender}
+              onChange={handleGenderChange}
               className={cn(
                 "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
                 errors.gender && "border-red-500 focus:border-red-500"
@@ -170,20 +198,19 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
           {/* Taille */}
           <div className="space-y-2">
             <Label htmlFor="height" className="text-sm font-medium text-gray-700">
-              Taille (m)
+              Taille
             </Label>
-            <Input
-              id="height"
-              type="text"
-              inputMode="decimal"
-              placeholder="1,68"
-              value={heightInput}
-              onChange={handleHeightChange}
+            <button
+              type="button"
+              onClick={() => setModalType('height')}
               className={cn(
-                "text-base",
+                "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 text-left",
+                !selectedHeight && "text-muted-foreground",
                 errors.height && "border-red-500 focus:border-red-500"
               )}
-            />
+            >
+              {formatDisplayValue('height') || 'Sélectionner votre taille'}
+            </button>
             {errors.height && (
               <p className="text-sm text-red-600">{errors.height.message}</p>
             )}
@@ -192,20 +219,19 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
           {/* Poids */}
           <div className="space-y-2">
             <Label htmlFor="weight" className="text-sm font-medium text-gray-700">
-              Poids (kg)
+              Poids
             </Label>
-            <Input
-              id="weight"
-              type="number"
-              inputMode="numeric"
-              placeholder="70"
-              value={weightInput}
-              onChange={handleWeightChange}
+            <button
+              type="button"
+              onClick={() => setModalType('weight')}
               className={cn(
-                "text-base",
+                "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 text-left",
+                !selectedWeight && "text-muted-foreground",
                 errors.weight && "border-red-500 focus:border-red-500"
               )}
-            />
+            >
+              {formatDisplayValue('weight') || 'Sélectionner votre poids'}
+            </button>
             {errors.weight && (
               <p className="text-sm text-red-600">{errors.weight.message}</p>
             )}
@@ -216,16 +242,17 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
             <Label htmlFor="birthDate" className="text-sm font-medium text-gray-700">
               Date de naissance
             </Label>
-            <Input
-              id="birthDate"
-              type="text"
-              placeholder="JJ/MM/AAAA"
-              {...register('birthDate')}
+            <button
+              type="button"
+              onClick={() => setModalType('birthDate')}
               className={cn(
-                "text-base",
+                "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 text-left",
+                !selectedBirthDate && "text-muted-foreground",
                 errors.birthDate && "border-red-500 focus:border-red-500"
               )}
-            />
+            >
+              {formatDisplayValue('birthDate') || 'Sélectionner votre date de naissance'}
+            </button>
             {errors.birthDate && (
               <p className="text-sm text-red-600">{errors.birthDate.message}</p>
             )}
@@ -234,12 +261,27 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
           {/* Bouton Continuer */}
           <Button
             type="submit"
-            disabled={!isValid || isSubmitting}
+            disabled={!isFormValid || isSubmitting}
             className="w-full h-12 text-base font-semibold rounded-[14px] bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
           >
             {isSubmitting ? 'Enregistrement...' : 'Continuer'}
           </Button>
         </form>
+
+        {/* Profile Picker Modals */}
+        {modalType && (
+          <ProfilePickerModal
+            isOpen={true}
+            onClose={() => setModalType(null)}
+            type={modalType}
+            initialValue={
+              modalType === 'height' ? selectedHeight :
+              modalType === 'weight' ? selectedWeight :
+              selectedBirthDate
+            }
+            onConfirm={(value) => handlePickerConfirm(modalType, value)}
+          />
+        )}
 
         {/* Message informatif */}
         <p className="text-xs text-gray-500 text-center mt-6 leading-relaxed">
