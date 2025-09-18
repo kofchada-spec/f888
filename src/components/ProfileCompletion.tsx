@@ -150,7 +150,7 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
           birth_date: birthDate.toISOString().split('T')[0],
           age_years: finalAge
         };
-        localStorage.setItem('fitpas-profile-data', JSON.stringify(profileData));
+        localStorage.setItem('userProfile', JSON.stringify(profileData));
       }
       
       onComplete();
