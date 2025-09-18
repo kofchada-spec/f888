@@ -120,7 +120,7 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
           </div>
 
           <h1 className="text-2xl font-bold text-gray-800 mb-6 leading-tight max-w-xs">
-            Planifie ta marche en fonction de tes pas à atteindre.
+            Planifie ta marche en fonction de ton objectif de pas à atteindre.
           </h1>
 
           <p className="text-base text-gray-600 max-w-xs leading-relaxed text-center">
