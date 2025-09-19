@@ -19,14 +19,16 @@ import avatar3 from '@/assets/avatars/avatar-3.png';
 import avatar4 from '@/assets/avatars/avatar-4.png';
 import avatar5 from '@/assets/avatars/avatar-5.png';
 import avatar6 from '@/assets/avatars/avatar-6.png';
+import avatar7 from '@/assets/avatars/avatar-7.png';
 
 const avatarOptions = [
-  { id: 'avatar-1', src: avatar1, alt: 'Lion' },
-  { id: 'avatar-2', src: avatar2, alt: 'Éléphant' },
-  { id: 'avatar-3', src: avatar3, alt: 'Chat' },
   { id: 'avatar-4', src: avatar4, alt: 'Chien' },
-  { id: 'avatar-5', src: avatar5, alt: 'Ours' },
-  { id: 'avatar-6', src: avatar6, alt: 'Renard' },
+  { id: 'avatar-3', src: avatar3, alt: 'Chat' },
+  { id: 'avatar-7', src: avatar7, alt: 'Perroquet' },
+  { id: 'avatar-2', src: avatar2, alt: 'Éléphant' },
+  { id: 'avatar-5', src: avatar5, alt: 'Serpent' },
+  { id: 'avatar-1', src: avatar1, alt: 'Lion' },
+  { id: 'avatar-6', src: avatar6, alt: 'Dragon' },
 ];
 
 interface ProfileEditModalProps {
@@ -127,7 +129,7 @@ export const ProfileEditModal = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Modifier mes informations</DialogTitle>
+          <DialogTitle>Mes paramètres</DialogTitle>
           <DialogDescription>
             Modifiez votre poids, âge et avatar de profil.
           </DialogDescription>
