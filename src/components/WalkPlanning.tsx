@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
 import { ArrowLeft, User, Ruler, Weight, Target, Timer, Zap } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,7 +26,7 @@ type TripType = 'one-way' | 'round-trip';
 const WalkPlanning = ({ onComplete, onBack, onGoToDashboard }: WalkPlanningProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [steps, setSteps] = useState('3000');
+  const [steps, setSteps] = useState(3000);
   const [selectedPace, setSelectedPace] = useState<WalkPace>('moderate');
   const [tripType, setTripType] = useState<TripType>('one-way');
   const [height, setHeight] = useState('1.70');
@@ -83,7 +84,7 @@ const WalkPlanning = ({ onComplete, onBack, onGoToDashboard }: WalkPlanningProps
 
   const handleValidate = () => {
     onComplete({
-      steps,
+      steps: steps.toString(),
       pace: selectedPace,
       tripType,
       height,
@@ -93,7 +94,7 @@ const WalkPlanning = ({ onComplete, onBack, onGoToDashboard }: WalkPlanningProps
 
   // Calculs préliminaires pour affichage
   const calculatePreview = () => {
-    const stepCount = parseInt(steps);
+    const stepCount = steps;
     const heightInM = parseFloat(height);
     const weightInKg = parseFloat(weight);
     
@@ -183,74 +184,29 @@ const WalkPlanning = ({ onComplete, onBack, onGoToDashboard }: WalkPlanningProps
         </div>
 
         <div className="bg-card rounded-2xl shadow-lg p-8 space-y-8">
-          {/* Paramètres personnels */}
+          {/* Objectif de pas */}
           <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-medium text-foreground mb-4 flex items-center space-x-2">
-                <User className="w-5 h-5 text-primary" />
-                <span>Paramètres personnels</span>
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Taille */}
-                <div className="space-y-2">
-                  <Label htmlFor="height" className="text-sm font-medium text-foreground flex items-center space-x-2">
-                    <Ruler className="w-4 h-4 text-primary" />
-                    <span>Taille (m)</span>
-                  </Label>
-                  <Input
-                    id="height"
-                    type="number"
-                    step="0.01"
-                    min="1.20"
-                    max="2.50"
-                    value={height}
-                    onChange={(e) => setHeight(e.target.value)}
-                    className="w-full"
-                    placeholder="1.70"
-                    disabled={isLoading}
-                  />
-                </div>
-
-                {/* Poids */}
-                <div className="space-y-2">
-                  <Label htmlFor="weight" className="text-sm font-medium text-foreground flex items-center space-x-2">
-                    <Weight className="w-4 h-4 text-primary" />
-                    <span>Poids (kg)</span>
-                  </Label>
-                  <Input
-                    id="weight"
-                    type="number"
-                    step="1"
-                    min="30"
-                    max="200"
-                    value={weight}
-                    onChange={(e) => setWeight(e.target.value)}
-                    className="w-full"
-                    placeholder="70"
-                    disabled={isLoading}
-                  />
-                </div>
+            <Label className="text-lg font-medium text-foreground flex items-center space-x-2">
+              <Target className="w-5 h-5 text-primary" />
+              <span>Nombre de pas souhaités</span>
+            </Label>
+            
+            <div className="space-y-4">
+              <div className="px-6">
+                <Slider
+                  value={[steps]}
+                  onValueChange={(value) => setSteps(value[0])}
+                  max={50000}
+                  min={1000}
+                  step={500}
+                  className="w-full"
+                />
               </div>
-            </div>
-
-            {/* Objectif de pas */}
-            <div className="space-y-2">
-              <Label htmlFor="steps" className="text-sm font-medium text-foreground flex items-center space-x-2">
-                <Target className="w-4 h-4 text-primary" />
-                <span>Nombre de pas souhaités</span>
-              </Label>
-              <Input
-                id="steps"
-                type="number"
-                step="100"
-                min="1000"
-                max="50000"
-                value={steps}
-                onChange={(e) => setSteps(e.target.value)}
-                className="w-full text-lg h-12 text-center"
-                placeholder="3000"
-              />
+              
+              <div className="text-center">
+                <div className="text-3xl font-bold text-primary">{steps.toLocaleString()}</div>
+                <div className="text-sm text-muted-foreground">pas</div>
+              </div>
             </div>
           </div>
 
