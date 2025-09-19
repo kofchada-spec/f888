@@ -196,7 +196,7 @@ const WalkPlanning = ({ onComplete, onBack, onGoToDashboard }: WalkPlanningProps
                 <Slider
                   value={[steps]}
                   onValueChange={(value) => setSteps(value[0])}
-                  max={50000}
+                  max={100000}
                   min={1000}
                   step={500}
                   className="w-full"
