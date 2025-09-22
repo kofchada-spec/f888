@@ -47,9 +47,9 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
   const [routeData, setRouteData] = useState<RouteData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
-  const [validClickAttempts, setValidClickAttempts] = useState(0);
+  const [clickCount, setClickCount] = useState(0);
   const [showWarningMessage, setShowWarningMessage] = useState<string | null>(null);
-  const [isDefinitivelyBlocked, setIsDefinitivelyBlocked] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
 
   // Calculate target distance based on planning data
   const getTargetDistance = useCallback(() => {
@@ -502,18 +502,9 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
     
     // Handle map click for destination selection with validation and attempt limiting
     map.current.on('click', async (e) => {
-      // Check if map is definitively blocked (after reset)
-      if (isDefinitivelyBlocked) {
+      // Check if map is locked or click limit reached
+      if (isLocked || clickCount >= 3) {
         return; // Completely ignore clicks
-      }
-      
-      // Check if we've reached the 3-attempt limit - auto-trigger reset
-      if (validClickAttempts >= 3) {
-        setShowWarningMessage("Limite de tentatives atteinte. Réinitialisation automatique...");
-        setTimeout(() => {
-          resetToDefault();
-        }, 1500);
-        return;
       }
 
       const clickedDestination = {
@@ -529,7 +520,14 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
         
         if (validatedResult) {
           // Valid click - increment counter and proceed
-          setValidClickAttempts(prev => prev + 1);
+          const newClickCount = clickCount + 1;
+          setClickCount(newClickCount);
+          
+          // Check if we've reached the limit after this click
+          if (newClickCount >= 3) {
+            setIsLocked(true);
+            setShowWarningMessage("Limite atteinte — utilisez 'Réinitialiser' pour restaurer la marche par défaut.");
+          }
           
           setDestinationLocation(validatedResult.destination);
           setRouteData(validatedResult.route);
@@ -820,9 +818,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
         setDestinationLocation(optimalResult.destination);
         setRouteData(optimalResult.route);
         
-        // Reset the click attempt counter and permanently block further clicks
-        setValidClickAttempts(0);
-        setIsDefinitivelyBlocked(true);
+        // Reset only restores default route - does NOT unlock the map
+        // Do not modify isLocked or clickCount
         
         // Show permanent block message
         setShowWarningMessage("Destination par défaut rétablie — modifications désactivées.");
@@ -894,17 +891,10 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       />
       
       {/* Overlay when map is blocked */}
-      {(validClickAttempts >= 3 || isDefinitivelyBlocked) && (
+      {isLocked && (
         <div className="absolute inset-0 bg-black/30 flex items-center justify-center rounded-2xl pointer-events-none">
-          <div className={`px-4 py-2 rounded-lg text-sm font-medium text-white ${
-            isDefinitivelyBlocked 
-              ? 'bg-gray-600/90' 
-              : 'bg-red-500/90'
-          }`}>
-            {isDefinitivelyBlocked 
-              ? '🔒 Destination par défaut rétablie — modifications désactivées'
-              : '🚫 Carte bloquée - Réinitialisation automatique...'
-            }
+          <div className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-gray-600/90">
+            🔒 Limite atteinte — utilisez 'Réinitialiser' pour restaurer la marche par défaut.
           </div>
         </div>
       )}
@@ -920,8 +910,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
           {/* Click attempts counter */}
           <div className="mb-3 text-xs">
             <span className="text-muted-foreground">Tentatives: </span>
-            <span className={`font-semibold ${validClickAttempts >= 3 ? 'text-red-500' : 'text-primary'}`}>
-              {validClickAttempts}/3
+            <span className={`font-semibold ${clickCount >= 3 ? 'text-red-500' : 'text-primary'}`}>
+              {clickCount}/3
             </span>
           </div>
           
@@ -1010,9 +1000,9 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       {/* Instructions */}
       <div className="absolute bottom-4 left-4 right-4 bg-white/95 dark:bg-black/95 rounded-lg p-3 text-center">
         <p className="text-sm text-muted-foreground">
-          {validClickAttempts >= 3 
-            ? "🚫 Limite de tentatives atteinte. Utilisez 'Réinitialiser' pour recommencer." 
-            : `📍 Tapez sur la carte pour choisir une destination (${3 - validClickAttempts} tentatives restantes)`
+          {isLocked 
+            ? "🔒 Carte verrouillée. Utilisez 'Réinitialiser' pour restaurer la marche par défaut." 
+            : `📍 Tapez sur la carte pour choisir une destination (${3 - clickCount} tentatives restantes)`
           }
         </p>
       </div>
