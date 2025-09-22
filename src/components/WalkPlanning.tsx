@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
-import { ArrowLeft, User, Ruler, Weight, Target, Timer, Zap } from 'lucide-react';
+import { ArrowLeft, User, Weight, Target, Timer, Zap } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -292,12 +292,7 @@ const WalkPlanning = ({ onComplete, onBack, onGoToDashboard }: WalkPlanningProps
           {/* Résumé de la planification */}
           <div className="bg-gradient-to-br from-primary/5 to-secondary/5 rounded-xl p-6 border">
             <h3 className="text-lg font-medium text-foreground mb-4 text-center">Aperçu de votre marche</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div className="text-center p-3 bg-card rounded-lg">
-                <Ruler className="w-5 h-5 text-primary mx-auto mb-2" />
-                <p className="text-muted-foreground mb-1">Foulée</p>
-                <p className="font-semibold text-primary">{preview.strideLength} cm</p>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
               <div className="text-center p-3 bg-card rounded-lg">
                 <Target className="w-5 h-5 text-primary mx-auto mb-2" />
                 <p className="text-muted-foreground mb-1">Distance</p>
