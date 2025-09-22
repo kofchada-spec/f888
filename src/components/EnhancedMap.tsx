@@ -49,6 +49,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [validClickAttempts, setValidClickAttempts] = useState(0);
   const [showWarningMessage, setShowWarningMessage] = useState<string | null>(null);
+  const [isDefinitivelyBlocked, setIsDefinitivelyBlocked] = useState(false);
 
   // Calculate target distance based on planning data
   const getTargetDistance = useCallback(() => {
@@ -501,11 +502,18 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
     
     // Handle map click for destination selection with validation and attempt limiting
     map.current.on('click', async (e) => {
-      // Check if we've reached the 3-attempt limit
+      // Check if map is definitively blocked (after reset)
+      if (isDefinitivelyBlocked) {
+        return; // Completely ignore clicks
+      }
+      
+      // Check if we've reached the 3-attempt limit - auto-trigger reset
       if (validClickAttempts >= 3) {
-        setShowWarningMessage("Limite atteinte : vous avez utilisé vos 3 tentatives pour cette marche.");
-        setTimeout(() => setShowWarningMessage(null), 4000);
-        return; // Block further clicks
+        setShowWarningMessage("Limite de tentatives atteinte. Réinitialisation automatique...");
+        setTimeout(() => {
+          resetToDefault();
+        }, 1500);
+        return;
       }
 
       const clickedDestination = {
@@ -812,8 +820,12 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
         setDestinationLocation(optimalResult.destination);
         setRouteData(optimalResult.route);
         
-        // Reset the click attempt counter when resetting to default
+        // Reset the click attempt counter and permanently block further clicks
         setValidClickAttempts(0);
+        setIsDefinitivelyBlocked(true);
+        
+        // Show permanent block message
+        setShowWarningMessage("Destination par défaut rétablie — modifications désactivées.");
         
         // Simplified route data to prevent DataCloneError
         const simpleRouteData = {
@@ -882,10 +894,17 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       />
       
       {/* Overlay when map is blocked */}
-      {validClickAttempts >= 3 && (
+      {(validClickAttempts >= 3 || isDefinitivelyBlocked) && (
         <div className="absolute inset-0 bg-black/30 flex items-center justify-center rounded-2xl pointer-events-none">
-          <div className="bg-red-500/90 text-white px-4 py-2 rounded-lg text-sm font-medium">
-            🚫 Carte bloquée - Utilisez "Réinitialiser"
+          <div className={`px-4 py-2 rounded-lg text-sm font-medium text-white ${
+            isDefinitivelyBlocked 
+              ? 'bg-gray-600/90' 
+              : 'bg-red-500/90'
+          }`}>
+            {isDefinitivelyBlocked 
+              ? '🔒 Destination par défaut rétablie — modifications désactivées'
+              : '🚫 Carte bloquée - Réinitialisation automatique...'
+            }
           </div>
         </div>
       )}
