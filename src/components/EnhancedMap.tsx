@@ -47,6 +47,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
   const [routeData, setRouteData] = useState<RouteData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [validClickAttempts, setValidClickAttempts] = useState(0);
+  const [showWarningMessage, setShowWarningMessage] = useState<string | null>(null);
 
   // Calculate target distance based on planning data
   const getTargetDistance = useCallback(() => {
@@ -497,19 +499,30 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
     const initialUserLocation = userLocation;
     const targetSteps = parseInt(planningData.steps);
     
-    // Handle map click for destination selection with validation
+    // Handle map click for destination selection with validation and attempt limiting
     map.current.on('click', async (e) => {
+      // Check if we've reached the 3-attempt limit
+      if (validClickAttempts >= 3) {
+        setShowWarningMessage("Limite atteinte : vous avez utilisé vos 3 tentatives pour cette marche.");
+        setTimeout(() => setShowWarningMessage(null), 4000);
+        return; // Block further clicks
+      }
+
       const clickedDestination = {
         lat: e.lngLat.lat,
         lng: e.lngLat.lng
       };
       
       setIsLoading(true);
+      setShowWarningMessage(null);
       
       try {
         const validatedResult = await validateAndAdjustRoute(initialUserLocation, clickedDestination);
         
         if (validatedResult) {
+          // Valid click - increment counter and proceed
+          setValidClickAttempts(prev => prev + 1);
+          
           setDestinationLocation(validatedResult.destination);
           setRouteData(validatedResult.route);
           
@@ -533,13 +546,16 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
             onRouteCalculated(simpleRouteData);
           }
         } else {
+          // Invalid click - do NOT increment counter, show warning
           const tolerance = Math.round(targetSteps * 0.05);
-          console.warn(`No valid route found. Target: ${targetSteps} steps (±${tolerance} tolerance)`);
-          alert(`Aucun itinéraire trouvé correspondant à votre objectif de pas.\n\nObjectif: ${targetSteps} pas (tolérance: ±${tolerance} pas)\nVeuillez ajuster votre destination ou votre objectif de pas.`);
+          setShowWarningMessage("Destination hors de votre plage d'objectif de pas.");
+          setTimeout(() => setShowWarningMessage(null), 4000);
+          console.warn(`Invalid click - out of range. Target: ${targetSteps} steps (±${tolerance} tolerance)`);
         }
       } catch (error) {
         console.error('Error calculating route:', error);
-        alert('Erreur lors du calcul de l\'itinéraire. Veuillez réessayer.');
+        setShowWarningMessage('Erreur lors du calcul de l\'itinéraire. Veuillez réessayer.');
+        setTimeout(() => setShowWarningMessage(null), 4000);
       }
       
       setIsLoading(false);
@@ -787,6 +803,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
     if (!userLocation) return;
     
     setIsLoading(true);
+    setShowWarningMessage(null);
     
     try {
       const optimalResult = await generateOptimalRoute(userLocation);
@@ -794,6 +811,9 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       if (optimalResult?.route && optimalResult?.destination) {
         setDestinationLocation(optimalResult.destination);
         setRouteData(optimalResult.route);
+        
+        // Reset the click attempt counter when resetting to default
+        setValidClickAttempts(0);
         
         // Simplified route data to prevent DataCloneError
         const simpleRouteData = {
@@ -820,7 +840,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
         console.warn(`No optimal route found. Target: ${targetSteps} steps (±${tolerance} tolerance)`);
         
         // Show user-friendly error message
-        alert(`Aucun itinéraire optimal trouvé.\n\nObjectif: ${targetSteps} pas\nVeuillez ajuster votre objectif de pas ou réessayer.`);
+        setShowWarningMessage(`Aucun itinéraire optimal trouvé. Objectif: ${targetSteps} pas. Veuillez ajuster votre objectif de pas ou réessayer.`);
+        setTimeout(() => setShowWarningMessage(null), 4000);
         
         // Set default destination position
         const defaultDest = calculateDefaultDestination(userLocation);
@@ -828,7 +849,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       }
     } catch (error) {
       console.error('Error resetting to default route:', error);
-      alert('Erreur lors de la génération de l\'itinéraire. Veuillez réessayer.');
+      setShowWarningMessage('Erreur lors de la génération de l\'itinéraire. Veuillez réessayer.');
+      setTimeout(() => setShowWarningMessage(null), 4000);
     }
     
     setIsLoading(false);
@@ -866,6 +888,14 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
             <MapPin className="w-4 h-4 mr-2 text-primary" />
             Itinéraire planifié
           </h3>
+          
+          {/* Click attempts counter */}
+          <div className="mb-3 text-xs">
+            <span className="text-muted-foreground">Tentatives: </span>
+            <span className={`font-semibold ${validClickAttempts >= 3 ? 'text-red-500' : 'text-primary'}`}>
+              {validClickAttempts}/3
+            </span>
+          </div>
           
           {/* Route type indicator for round-trip */}
           {planningData.tripType === 'round-trip' && routeData.outboundCoordinates && routeData.returnCoordinates && (
@@ -940,10 +970,22 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
         </Button>
       </div>
 
+      {/* Warning message */}
+      {showWarningMessage && (
+        <div className="absolute top-20 left-4 right-4 bg-orange-500/95 text-white rounded-lg p-3 shadow-lg">
+          <p className="text-sm font-medium text-center">
+            ⚠️ {showWarningMessage}
+          </p>
+        </div>
+      )}
+
       {/* Instructions */}
       <div className="absolute bottom-4 left-4 right-4 bg-white/95 dark:bg-black/95 rounded-lg p-3 text-center">
         <p className="text-sm text-muted-foreground">
-          📍 Tapez sur la carte pour placer votre destination
+          {validClickAttempts >= 3 
+            ? "🚫 Limite de tentatives atteinte. Utilisez 'Réinitialiser' pour recommencer." 
+            : `📍 Tapez sur la carte pour choisir une destination (${3 - validClickAttempts} tentatives restantes)`
+          }
         </p>
       </div>
     </div>
