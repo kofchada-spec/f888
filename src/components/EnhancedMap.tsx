@@ -881,6 +881,15 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
         className="absolute inset-0 w-full h-full" 
       />
       
+      {/* Overlay when map is blocked */}
+      {validClickAttempts >= 3 && (
+        <div className="absolute inset-0 bg-black/30 flex items-center justify-center rounded-2xl pointer-events-none">
+          <div className="bg-red-500/90 text-white px-4 py-2 rounded-lg text-sm font-medium">
+            🚫 Carte bloquée - Utilisez "Réinitialiser"
+          </div>
+        </div>
+      )}
+      
       {/* Route summary */}
       {routeData && (
         <div className="absolute top-4 left-4 bg-white/95 dark:bg-black/95 rounded-lg p-4 shadow-lg max-w-xs">
