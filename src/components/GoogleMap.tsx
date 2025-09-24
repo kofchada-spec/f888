@@ -304,8 +304,21 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
     <div className={`relative ${className}`}>
       <LoadScript 
         googleMapsApiKey={googleMapsApiKey}
-        loadingElement={<div>Chargement...</div>}
-        onError={(err) => console.error('Google Maps loading error:', err)}
+        libraries={['geometry', 'places']}
+        loadingElement={
+          <div className="flex items-center justify-center h-96 bg-card rounded-lg border">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Chargement de l'API Google Maps...</p>
+            </div>
+          </div>
+        }
+        onLoad={() => {
+          console.log('Google Maps API loaded successfully');
+        }}
+        onError={(err) => {
+          console.error('Google Maps loading error:', err);
+        }}
       >
         <GoogleMap
           mapContainerStyle={containerStyle}
@@ -332,7 +345,7 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
                     <circle cx="12" cy="12" r="3" fill="white"/>
                   </svg>
                 `),
-                scaledSize: new window.google.maps.Size(24, 24)
+                scaledSize: window.google?.maps ? new window.google.maps.Size(24, 24) : undefined
               }}
               title="Votre position"
             />
@@ -349,7 +362,7 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
                     <circle cx="16" cy="16" r="2" fill="#10b981"/>
                   </svg>
                 `),
-                scaledSize: new window.google.maps.Size(32, 32)
+                scaledSize: window.google?.maps ? new window.google.maps.Size(32, 32) : undefined
               }}
               title="Destination"
             />
