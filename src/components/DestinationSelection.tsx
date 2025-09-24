@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ArrowLeft, MapPin, Clock, Zap, Loader2, RefreshCw } from 'lucide-react';
-import Map, { MapRef } from './Map';
+import EnhancedMap from './EnhancedMap';
 import { useSingleDestination } from '@/hooks/useSingleDestination';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -37,7 +37,7 @@ interface Destination {
 
 const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningData }: DestinationSelectionProps) => {
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
-  const mapRef = useRef<MapRef>(null);
+  // Référence supprimée car EnhancedMap gère sa propre logique
   const { user } = useAuth();
   const { subscriptionData } = useSubscription();
   const navigate = useNavigate();
@@ -97,10 +97,8 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
   };
 
   const handleDestinationClick = () => {
-    // Center the map on the current route
-    if (mapRef.current && currentDestination && userLocation) {
-      mapRef.current.fitToRoute();
-    }
+    // EnhancedMap gère automatiquement le centrage sur l'itinéraire
+    console.log('Destination clicked - handled by EnhancedMap');
   };
 
   // Calculer l'écart avec la distance cible
@@ -248,18 +246,27 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
           </div>
         </div>
 
-        {/* Carte neutre - État initial */}
-        <div className="bg-card rounded-2xl shadow-lg overflow-hidden mb-4" style={{ height: '360px' }}>
-          <div className="h-full flex items-center justify-center bg-gradient-to-br from-muted/5 to-secondary/5 rounded-2xl">
-            <div className="text-center max-w-md p-6">
-              <div className="w-16 h-16 mx-auto mb-4 bg-muted/20 rounded-full flex items-center justify-center">
-                <MapPin className="h-8 w-8 text-muted-foreground/50" />
-              </div>
-              <p className="text-muted-foreground">
-                Votre itinéraire apparaîtra ici après la recherche
-              </p>
-            </div>
-          </div>
+        {/* Carte Mapbox avec itinéraires */}
+        <div className="bg-card rounded-2xl shadow-lg overflow-hidden mb-4" style={{ height: '400px' }}>
+          <EnhancedMap
+            planningData={planningData}
+            className="w-full h-full rounded-2xl"
+            onRouteCalculated={(routeData) => {
+              console.log('Route calculée:', routeData);
+              // Traiter l'itinéraire calculé
+              if (routeData && routeData.steps) {
+                const targetSteps = parseInt(planningData.steps);
+                const deviation = ((routeData.steps - targetSteps) / targetSteps) * 100;
+                
+                if (Math.abs(deviation) <= 5) {
+                  toast({
+                    title: "Itinéraire validé",
+                    description: `${routeData.steps} pas (écart: ${deviation.toFixed(1)}%)`,
+                  });
+                }
+              }
+            }}
+          />
         </div>
 
         {/* Instructions de navigation - Zone compacte sous la carte */}
@@ -269,28 +276,30 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
             <span className="text-xs opacity-60">Itinéraire en cours...</span>
           </div>
           
-          <div className="space-y-1">
+          <div className="space-y-2">
             <div className="flex items-start space-x-2 text-xs">
               <span className="w-4 h-4 bg-green-500/20 text-green-700 rounded-full flex items-center justify-center text-[10px] font-medium mt-0.5 flex-shrink-0">
                 ▶
               </span>
               <span className="leading-relaxed">
-                Itinéraire {planningData.tripType === 'round-trip' ? 'aller-retour' : 'aller'} 
+                <strong>Aller:</strong> Polyligne verte (4px)
               </span>
             </div>
-            <div className="ml-6 text-[11px] space-y-0.5">
-              <div>Objectif: {planningData.steps} pas</div>
-              <div>Mode: {planningData.pace}</div>
-              <div>Type: {planningData.tripType === 'round-trip' ? 'Aller-retour' : 'Aller simple'}</div>
-            </div>
             {planningData.tripType === 'round-trip' && (
-              <div className="flex items-start space-x-2 text-xs mt-2">
+              <div className="flex items-start space-x-2 text-xs">
                 <span className="w-4 h-4 bg-blue-500/20 text-blue-700 rounded-full flex items-center justify-center text-[10px] font-medium mt-0.5 flex-shrink-0">
                   ◀
                 </span>
-                <span className="leading-relaxed">Retour par chemin différent</span>
+                <span className="leading-relaxed">
+                  <strong>Retour:</strong> Polyligne bleue (4px, chemin différent)
+                </span>
               </div>
             )}
+            <div className="ml-6 text-[11px] space-y-0.5 pt-1 border-t border-muted/20">
+              <div>📍 Objectif: {planningData.steps} pas (±5% tolérance)</div>
+              <div>⚡ Mode: {planningData.pace === 'slow' ? 'Lent' : planningData.pace === 'moderate' ? 'Modéré' : 'Rapide'}</div>
+              <div>🎯 Type: {planningData.tripType === 'round-trip' ? 'Aller-retour' : 'Aller simple'}</div>
+            </div>
           </div>
         </div>
         </div>
