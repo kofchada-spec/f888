@@ -267,14 +267,23 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
 
   // Calcul de la destination par défaut
   const calculateDefaultDestination = useCallback(async () => {
-    if (!userLocation || !map) return;
+    if (!userLocation || !map || !mapboxToken) {
+      console.log('calculateDefaultDestination: conditions not met', { userLocation, map: !!map, mapboxToken: !!mapboxToken });
+      return;
+    }
 
+    console.log('Calculating default destination with target:', targetMeters, 'meters (±5%)');
+    
     const start: [number, number] = [userLocation.lng, userLocation.lat];
     const candidates = generateCandidateDestinations(start, targetMeters);
+    
+    console.log('Generated candidates:', candidates.length);
     
     let bestCandidate: [number, number] | null = null;
     let bestDistance = Infinity;
     let bestRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number } | null = null;
+    let fallbackCandidate: [number, number] | null = null;
+    let fallbackRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number } | null = null;
 
     // Tester chaque candidat
     for (const candidate of candidates) {
@@ -282,60 +291,69 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
         const route = await fetchRoute(start, candidate);
         const distanceDiff = Math.abs(route.distance - targetMeters);
         
+        console.log(`Candidate distance: ${route.distance}m (target: ${targetMeters}m, diff: ${distanceDiff}m)`);
+        
+        // Priorité 1: candidat dans la plage ±5%
         if (route.distance >= minMeters && route.distance <= maxMeters && distanceDiff < bestDistance) {
           bestDistance = distanceDiff;
           bestCandidate = candidate;
           bestRoute = route;
+          console.log('Found valid candidate in range');
+        }
+        
+        // Fallback: garder le plus proche même si hors plage
+        if (!fallbackRoute || distanceDiff < Math.abs(fallbackRoute.distance - targetMeters)) {
+          fallbackCandidate = candidate;
+          fallbackRoute = route;
         }
       } catch (error) {
-        console.warn('Route calculation failed for candidate:', candidate);
+        console.warn('Route calculation failed for candidate:', candidate, error);
       }
     }
 
-    if (bestRoute && bestCandidate) {
+    // Utiliser le meilleur candidat ou le fallback
+    const finalCandidate = bestCandidate || fallbackCandidate;
+    const finalRoute = bestRoute || fallbackRoute;
+
+    if (finalRoute && finalCandidate) {
+      console.log('Using final route with distance:', finalRoute.distance);
+      
+      // Nettoyer les routes précédentes
+      clearRoute('route-default');
+      clearRoute('route-return');
+      
       // Tracer l'itinéraire aller
-      addOrUpdateSourceLayer('route-default', bestRoute.featureCollection, '#2ECC71', 4);
+      addOrUpdateSourceLayer('route-default', finalRoute.featureCollection, '#2ECC71', 4);
+      
+      let totalDistance = finalRoute.distance;
+      let returnRouteCalculated = false;
       
       // Si aller-retour, calculer le retour
       if (planningData.tripType === 'round-trip') {
         try {
-          const returnRoute = await fetchRoute(bestCandidate, start, [bestRoute.featureCollection]);
+          const returnRoute = await fetchRoute(finalCandidate, start, [finalRoute.featureCollection]);
           addOrUpdateSourceLayer('route-return', returnRoute.featureCollection, '#3498DB', 4);
-          
-          const totalDistance = bestRoute.distance + returnRoute.distance;
-          const estimatedSteps = Math.round(totalDistance / stride);
-          const duration = Math.round((totalDistance / 1000) / speedKmh * 60);
-          
-          setRouteStats({
-            distance: totalDistance,
-            duration,
-            steps: estimatedSteps,
-            isValid: totalDistance >= minMeters && totalDistance <= maxMeters
-          });
+          totalDistance = finalRoute.distance + returnRoute.distance;
+          returnRouteCalculated = true;
+          console.log('Return route calculated:', returnRoute.distance, 'total:', totalDistance);
         } catch (error) {
-          console.warn('Return route calculation failed, using same path');
-          const totalDistance = bestRoute.distance * 2;
-          const estimatedSteps = Math.round(totalDistance / stride);
-          const duration = Math.round((totalDistance / 1000) / speedKmh * 60);
-          
-          setRouteStats({
-            distance: totalDistance,
-            duration,
-            steps: estimatedSteps,
-            isValid: totalDistance >= minMeters && totalDistance <= maxMeters
-          });
+          console.warn('Return route calculation failed, doubling distance');
+          totalDistance = finalRoute.distance * 2;
         }
-      } else {
-        const estimatedSteps = Math.round(bestRoute.distance / stride);
-        const duration = Math.round((bestRoute.distance / 1000) / speedKmh * 60);
-        
-        setRouteStats({
-          distance: bestRoute.distance,
-          duration,
-          steps: estimatedSteps,
-          isValid: bestRoute.distance >= minMeters && bestRoute.distance <= maxMeters
-        });
       }
+
+      const estimatedSteps = Math.round(totalDistance / stride);
+      const duration = Math.round((totalDistance / 1000) / speedKmh * 60);
+      const isValid = totalDistance >= minMeters && totalDistance <= maxMeters;
+      
+      console.log('Route stats:', { totalDistance, estimatedSteps, duration, isValid, stepGoal });
+      
+      setRouteStats({
+        distance: totalDistance,
+        duration,
+        steps: estimatedSteps,
+        isValid
+      });
 
       // Marqueur destination
       if (destinationMarkerRef.current) {
@@ -354,22 +372,26 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
       `;
 
       destinationMarkerRef.current = new mapboxgl.Marker(el)
-        .setLngLat(bestCandidate)
+        .setLngLat(finalCandidate)
         .addTo(map);
 
       // Mémoriser comme trajet par défaut
       defaultRouteRef.current = { 
-        geojson: bestRoute.featureCollection, 
+        geojson: finalRoute.featureCollection, 
         color: '#2ECC71' 
       };
 
       // Ajuster la vue pour inclure le trajet
       const bounds = new mapboxgl.LngLatBounds();
       bounds.extend([userLocation.lng, userLocation.lat]);
-      bounds.extend(bestCandidate);
-      map.fitBounds(bounds, { padding: 50 });
+      bounds.extend(finalCandidate);
+      map.fitBounds(bounds, { padding: 80, duration: 1000 });
+      
+      console.log('Default destination calculation completed successfully');
+    } else {
+      console.error('No route could be calculated for any candidate');
     }
-  }, [userLocation, map, targetMeters, minMeters, maxMeters, planningData.tripType, fetchRoute, addOrUpdateSourceLayer, generateCandidateDestinations, stride, speedKmh]);
+  }, [userLocation, map, mapboxToken, targetMeters, minMeters, maxMeters, planningData.tripType, fetchRoute, addOrUpdateSourceLayer, generateCandidateDestinations, stride, speedKmh, clearRoute, stepGoal]);
 
   // ========= Limiteur 3 clics =========
   const onValidClick = async (lngLat: {lng:number; lat:number}) => {
@@ -461,18 +483,16 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
 
   // Mise à jour de la carte quand userLocation change
   useEffect(() => {
-    if (!map || !userLocation) return;
+    if (!map || !userLocation || !mapboxToken) return;
     
+    console.log('User location updated:', userLocation);
     map.setCenter([userLocation.lng, userLocation.lat]);
     updateUserMarkers();
     
-    // Délai avant de calculer la destination par défaut
-    const timer = setTimeout(() => {
-      calculateDefaultDestination();
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [map, userLocation, updateUserMarkers, calculateDefaultDestination]);
+    // Calculer immédiatement la destination par défaut
+    calculateDefaultDestination();
+    
+  }, [map, userLocation, mapboxToken, updateUserMarkers, calculateDefaultDestination]);
 
   // Abonnement clic carte
   useEffect(() => {
