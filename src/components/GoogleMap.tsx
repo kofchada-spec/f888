@@ -104,12 +104,18 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
     return Math.round(weightKg * distanceKm * coefficient);
   }, [planningData.weight, planningData.pace]);
 
-  // Check tolerance (±5%)
-  const isWithinTolerance = useCallback((actualDistanceKm: number, targetDistanceKm: number) => {
+  // Check step tolerance (±5%) - STRICT validation on steps, not distance
+  const isStepsWithinTolerance = useCallback((estimatedSteps: number, targetSteps: number) => {
     const tolerance = 0.05; // 5%
-    const difference = Math.abs(actualDistanceKm - targetDistanceKm);
-    return (difference / targetDistanceKm) <= tolerance;
+    const minAllowed = targetSteps * (1 - tolerance);
+    const maxAllowed = targetSteps * (1 + tolerance);
+    return estimatedSteps >= minAllowed && estimatedSteps <= maxAllowed;
   }, []);
+
+  // Get target steps from planning data
+  const getTargetSteps = useCallback(() => {
+    return parseInt(planningData.steps);
+  }, [planningData.steps]);
 
   // Get Google Maps API key
   useEffect(() => {
@@ -161,12 +167,15 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
   const generateOptimalRoute = useCallback(async (userLoc: { lat: number; lng: number }) => {
     if (!directionsService.current) return;
 
-    const targetSteps = parseInt(planningData.steps);
+    const targetSteps = getTargetSteps();
     const targetDistanceKm = getTargetDistance();
     
     // Try different bearings to find good destinations
     const bearings = [45, 90, 135, 180, 225, 270, 315, 0];
     const radius = planningData.tripType === 'round-trip' ? targetDistanceKm / 2 : targetDistanceKm * 0.8;
+
+    let bestRoute = null;
+    let bestStepsDifference = Infinity;
 
     for (const bearing of bearings) {
       try {
@@ -188,13 +197,68 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
           lng: (destLngRad * 180) / Math.PI
         };
 
-        await calculateRoute(userLoc, testDestination);
-        break; // Use first successful route
+        // Test this destination and see if steps are within tolerance
+        const request: google.maps.DirectionsRequest = {
+          origin: userLoc,
+          destination: testDestination,
+          travelMode: google.maps.TravelMode.WALKING,
+          unitSystem: google.maps.UnitSystem.METRIC,
+          avoidHighways: true,
+          avoidTolls: true
+        };
+
+        // Use a Promise wrapper to handle async direction calculation
+        const testRoute = new Promise<{destination: any, steps: number, distance: number}>((resolve, reject) => {
+          directionsService.current!.route(request, (result, status) => {
+            if (status === 'OK' && result) {
+              const route = result.routes[0];
+              const leg = route.legs[0];
+              const distanceKm = leg.distance!.value / 1000;
+              
+              // For round-trip, double the distance
+              const totalDistanceKm = planningData.tripType === 'round-trip' ? distanceKm * 2 : distanceKm;
+              const estimatedSteps = calculateSteps(totalDistanceKm);
+              
+              resolve({
+                destination: testDestination,
+                steps: estimatedSteps,
+                distance: totalDistanceKm
+              });
+            } else {
+              reject(new Error('Route calculation failed'));
+            }
+          });
+        });
+
+        const routeResult = await testRoute;
+        
+        // Check if this route has steps within tolerance
+        if (isStepsWithinTolerance(routeResult.steps, targetSteps)) {
+          // This route is acceptable, trigger calculation by setting destination
+          setDestinationLocation(routeResult.destination);
+          // Will trigger calculateRoute via handleMapClick or similar
+          return;
+        } else {
+          // Track the best route (closest to target) as fallback
+          const stepsDifference = Math.abs(routeResult.steps - targetSteps);
+          if (stepsDifference < bestStepsDifference) {
+            bestStepsDifference = stepsDifference;
+            bestRoute = routeResult;
+          }
+        }
       } catch (error) {
         continue;
       }
     }
-  }, [planningData, getTargetDistance]);
+
+    // If no route within tolerance was found, show message and don't set any route
+    if (bestRoute) {
+      const percentageOff = Math.abs((bestRoute.steps - targetSteps) / targetSteps * 100);
+      setToleranceMessage(`Aucun itinéraire automatique dans la tolérance. Meilleur trouvé: ${bestRoute.steps.toLocaleString()} pas (écart: ${percentageOff.toFixed(1)}%). Cliquez sur la carte pour choisir manuellement.`);
+    } else {
+      setShowWarningMessage('Impossible de générer un itinéraire automatique. Cliquez sur la carte pour choisir votre destination.');
+    }
+  }, [planningData, getTargetDistance, getTargetSteps, isStepsWithinTolerance, calculateSteps]);
 
   // Calculate route using Google Directions API
   const calculateRoute = useCallback(async (start: { lat: number; lng: number }, end: { lat: number; lng: number }) => {
@@ -204,7 +268,7 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
     setToleranceMessage(null);
     
     try {
-      const targetDistanceKm = getTargetDistance();
+      const targetSteps = getTargetSteps();
       
       if (planningData.tripType === 'one-way') {
         // Mode Aller simple
@@ -225,16 +289,19 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
             const leg = route.legs[0];
             const actualDistanceKm = leg.distance!.value / 1000;
             
-            // Check tolerance for one-way
-            if (!isWithinTolerance(actualDistanceKm, targetDistanceKm)) {
-              const percentageOff = Math.abs((actualDistanceKm - targetDistanceKm) / targetDistanceKm * 100);
-              setToleranceMessage(`Distance hors tolérance (±5%). Écart: ${percentageOff.toFixed(1)}%`);
+            // Calculate estimated steps from actual route distance
+            const estimatedSteps = calculateSteps(actualDistanceKm);
+            
+            // Check STRICT tolerance on steps (±5%)
+            if (!isStepsWithinTolerance(estimatedSteps, targetSteps)) {
+              const percentageOff = Math.abs((estimatedSteps - targetSteps) / targetSteps * 100);
+              setToleranceMessage(`Itinéraire rejeté: ${estimatedSteps.toLocaleString()} pas (objectif: ${targetSteps.toLocaleString()} ±5%). Cliquez ailleurs.`);
+              return; // Do NOT accept this route
             }
             
             setDirections(result);
             setReturnDirections(null);
             
-            const steps = calculateSteps(actualDistanceKm);
             const duration = calculateTime(actualDistanceKm);
             const calories = calculateCalories(actualDistanceKm);
 
@@ -242,7 +309,7 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
               distance: actualDistanceKm,
               duration,
               calories,
-              steps,
+              steps: estimatedSteps, // Use estimated steps from actual distance
               startCoordinates: start,
               endCoordinates: end
             };
@@ -263,16 +330,16 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
         
       } else {
         // Mode Aller-retour (deux trajets distincts)
-        calculateRoundTripRoute(start, end, targetDistanceKm);
+        calculateRoundTripRoute(start, end, targetSteps);
       }
     } catch (error) {
       setIsLoading(false);
       console.error('Error calculating route:', error);
     }
-  }, [planningData.tripType, calculateSteps, calculateTime, calculateCalories, onRouteCalculated, getTargetDistance, isWithinTolerance]);
+  }, [planningData.tripType, calculateSteps, calculateTime, calculateCalories, onRouteCalculated, getTargetSteps, isStepsWithinTolerance]);
 
   // Calculate round-trip route with two distinct paths
-  const calculateRoundTripRoute = useCallback(async (start: { lat: number; lng: number }, end: { lat: number; lng: number }, targetDistanceKm: number) => {
+  const calculateRoundTripRoute = useCallback(async (start: { lat: number; lng: number }, end: { lat: number; lng: number }, targetSteps: number) => {
     if (!directionsService.current) return;
 
     try {
@@ -307,16 +374,19 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
               const returnDistance = returnResult.routes[0].legs[0].distance!.value / 1000;
               const totalDistanceKm = outboundDistance + returnDistance;
               
-              // Check tolerance for round-trip
-              if (!isWithinTolerance(totalDistanceKm, targetDistanceKm)) {
-                const percentageOff = Math.abs((totalDistanceKm - targetDistanceKm) / targetDistanceKm * 100);
-                setToleranceMessage(`Distance totale hors tolérance (±5%). Écart: ${percentageOff.toFixed(1)}%`);
+              // Calculate estimated steps from total round-trip distance
+              const estimatedSteps = calculateSteps(totalDistanceKm);
+              
+              // Check STRICT tolerance on steps (±5%)
+              if (!isStepsWithinTolerance(estimatedSteps, targetSteps)) {
+                const percentageOff = Math.abs((estimatedSteps - targetSteps) / targetSteps * 100);
+                setToleranceMessage(`Itinéraire A/R rejeté: ${estimatedSteps.toLocaleString()} pas (objectif: ${targetSteps.toLocaleString()} ±5%). Cliquez ailleurs.`);
+                return; // Do NOT accept this route
               }
               
               setDirections(outboundResult);
               setReturnDirections(returnResult);
               
-              const steps = calculateSteps(totalDistanceKm);
               const duration = calculateTime(totalDistanceKm);
               const calories = calculateCalories(totalDistanceKm);
 
@@ -324,7 +394,7 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
                 distance: totalDistanceKm,
                 duration,
                 calories,
-                steps,
+                steps: estimatedSteps, // Use estimated steps from actual distance
                 startCoordinates: start,
                 endCoordinates: end
               };
@@ -339,14 +409,23 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
               }
             } else {
               // Fallback: use same path for return but styled differently
+              const outboundDistance = outboundResult.routes[0].legs[0].distance!.value / 1000;
+              const totalDistanceKm = outboundDistance * 2;
+              
+              // Calculate estimated steps from fallback distance
+              const estimatedSteps = calculateSteps(totalDistanceKm);
+              
+              // Check STRICT tolerance on steps (±5%) even for fallback
+              if (!isStepsWithinTolerance(estimatedSteps, targetSteps)) {
+                const percentageOff = Math.abs((estimatedSteps - targetSteps) / targetSteps * 100);
+                setToleranceMessage(`Itinéraire A/R fallback rejeté: ${estimatedSteps.toLocaleString()} pas (objectif: ${targetSteps.toLocaleString()} ±5%). Cliquez ailleurs.`);
+                return; // Do NOT accept this route
+              }
+              
               setToleranceMessage('Aucune alternative de retour satisfaisante — itinéraire retour identique à l\'aller.');
               setDirections(outboundResult);
               setReturnDirections(outboundResult);
               
-              const outboundDistance = outboundResult.routes[0].legs[0].distance!.value / 1000;
-              const totalDistanceKm = outboundDistance * 2;
-              
-              const steps = calculateSteps(totalDistanceKm);
               const duration = calculateTime(totalDistanceKm);
               const calories = calculateCalories(totalDistanceKm);
 
@@ -354,7 +433,7 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
                 distance: totalDistanceKm,
                 duration,
                 calories,
-                steps,
+                steps: estimatedSteps, // Use estimated steps from actual distance
                 startCoordinates: start,
                 endCoordinates: end
               };
@@ -379,7 +458,7 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
       setIsLoading(false);
       console.error('Error calculating round-trip route:', error);
     }
-  }, [calculateSteps, calculateTime, calculateCalories, onRouteCalculated, isWithinTolerance]);
+  }, [calculateSteps, calculateTime, calculateCalories, onRouteCalculated, isStepsWithinTolerance]);
 
   // Handle map click to set destination
   const handleMapClick = useCallback((event: google.maps.MapMouseEvent) => {
@@ -435,6 +514,13 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
       generateOptimalRoute(userLocation);
     }
   }, [userLocation, generateOptimalRoute, destinationLocation]);
+
+  // Trigger route calculation when destination is set (from generateOptimalRoute or user click)
+  useEffect(() => {
+    if (userLocation && destinationLocation && directionsService.current) {
+      calculateRoute(userLocation, destinationLocation);
+    }
+  }, [userLocation, destinationLocation, calculateRoute]);
 
   if (!googleMapsApiKey) {
     return (
@@ -577,11 +663,21 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
             </div>
             <div className="flex items-center justify-between">
               <span>Pas estimés</span>
-              <span className="font-medium">{routeData.steps.toLocaleString()}</span>
+              <span className="font-medium text-green-600">{routeData.steps.toLocaleString()}</span>
             </div>
             <div className="flex items-center justify-between">
               <span>Objectif</span>
               <span className="font-medium">{parseInt(planningData.steps).toLocaleString()} pas</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span>Tolérance (±5%)</span>
+              <span className={`font-medium ${
+                isStepsWithinTolerance(routeData.steps, parseInt(planningData.steps)) 
+                  ? 'text-green-600' 
+                  : 'text-red-600'
+              }`}>
+                {isStepsWithinTolerance(routeData.steps, parseInt(planningData.steps)) ? '✓ OK' : '✗ Hors limite'}
+              </span>
             </div>
           </div>
           
