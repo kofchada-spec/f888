@@ -51,41 +51,65 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [destinationLocation, setDestinationLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
+  const [returnDirections, setReturnDirections] = useState<google.maps.DirectionsResult | null>(null);
   const [routeData, setRouteData] = useState<RouteData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [clickCount, setClickCount] = useState(0);
   const [showWarningMessage, setShowWarningMessage] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(false);
+  const [toleranceMessage, setToleranceMessage] = useState<string | null>(null);
 
   // Calculate target distance based on planning data
   const getTargetDistance = useCallback(() => {
-    const steps = parseInt(planningData.steps);
+    const stepGoal = parseInt(planningData.steps);
     const heightM = parseFloat(planningData.height);
-    const strideM = 0.415 * heightM;
-    const totalKm = (steps * strideM) / 1000;
-    return totalKm;
+    // Use default stride of 0.75m if no calibrated stride (vs. calculated 0.415 * height)
+    const strideM = heightM > 0 ? 0.415 * heightM : 0.75;
+    const targetDistanceKm = (stepGoal * strideM) / 1000;
+    return targetDistanceKm;
   }, [planningData]);
 
   // Calculate steps based on distance and user data
   const calculateSteps = useCallback((distanceKm: number) => {
     const heightM = parseFloat(planningData.height);
-    const strideM = heightM ? 0.415 * heightM : 0.72;
+    const strideM = heightM > 0 ? 0.415 * heightM : 0.75;
     const distanceM = distanceKm * 1000;
     return Math.round(distanceM / strideM);
   }, [planningData.height]);
 
-  // Calculate time based on distance
+  // Calculate time based on distance and pace
   const calculateTime = useCallback((distanceKm: number) => {
-    const walkingSpeedKmh = 5.0;
-    return Math.round((distanceKm / walkingSpeedKmh) * 60);
-  }, []);
+    const paceSpeed = {
+      slow: 4.0,    // km/h
+      moderate: 5.0, // km/h  
+      fast: 6.0     // km/h
+    };
+    const speedKmh = paceSpeed[planningData.pace];
+    const durationHours = distanceKm / speedKmh;
+    const durationMin = Math.round(durationHours * 60);
+    // Round to nearest 30s (0.5 min)
+    return Math.round(durationMin / 0.5) * 0.5;
+  }, [planningData.pace]);
 
   // Calculate calories based on distance and user data
   const calculateCalories = useCallback((distanceKm: number) => {
     const weightKg = parseFloat(planningData.weight) || 70;
-    return Math.round(weightKg * distanceKm * 0.9);
-  }, [planningData.weight]);
+    const paceCoefficients = {
+      slow: 0.35,
+      moderate: 0.50,
+      fast: 0.70
+    };
+    const coefficient = paceCoefficients[planningData.pace];
+    return Math.round(weightKg * distanceKm * coefficient);
+  }, [planningData.weight, planningData.pace]);
+
+  // Check tolerance (±5%)
+  const isWithinTolerance = useCallback((actualDistanceKm: number, targetDistanceKm: number) => {
+    const tolerance = 0.05; // 5%
+    const difference = Math.abs(actualDistanceKm - targetDistanceKm);
+    return (difference / targetDistanceKm) <= tolerance;
+  }, []);
 
   // Get Google Maps API key
   useEffect(() => {
@@ -177,9 +201,83 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
     if (!directionsService.current || !start || !end) return;
 
     setIsLoading(true);
+    setToleranceMessage(null);
     
     try {
-      const request: google.maps.DirectionsRequest = {
+      const targetDistanceKm = getTargetDistance();
+      
+      if (planningData.tripType === 'one-way') {
+        // Mode Aller simple
+        const request: google.maps.DirectionsRequest = {
+          origin: start,
+          destination: end,
+          travelMode: google.maps.TravelMode.WALKING,
+          unitSystem: google.maps.UnitSystem.METRIC,
+          avoidHighways: true,
+          avoidTolls: true
+        };
+
+        directionsService.current.route(request, (result, status) => {
+          setIsLoading(false);
+          
+          if (status === 'OK' && result) {
+            const route = result.routes[0];
+            const leg = route.legs[0];
+            const actualDistanceKm = leg.distance!.value / 1000;
+            
+            // Check tolerance for one-way
+            if (!isWithinTolerance(actualDistanceKm, targetDistanceKm)) {
+              const percentageOff = Math.abs((actualDistanceKm - targetDistanceKm) / targetDistanceKm * 100);
+              setToleranceMessage(`Distance hors tolérance (±5%). Écart: ${percentageOff.toFixed(1)}%`);
+            }
+            
+            setDirections(result);
+            setReturnDirections(null);
+            
+            const steps = calculateSteps(actualDistanceKm);
+            const duration = calculateTime(actualDistanceKm);
+            const calories = calculateCalories(actualDistanceKm);
+
+            const routeInfo: RouteData = {
+              distance: actualDistanceKm,
+              duration,
+              calories,
+              steps,
+              startCoordinates: start,
+              endCoordinates: end
+            };
+
+            setRouteData(routeInfo);
+
+            if (onRouteCalculated) {
+              onRouteCalculated({
+                ...routeInfo,
+                routeGeoJSON: result
+              });
+            }
+          } else {
+            console.error('Directions request failed due to ' + status);
+            setShowWarningMessage('Impossible de calculer l\'itinéraire. Veuillez essayer un autre point.');
+          }
+        });
+        
+      } else {
+        // Mode Aller-retour (deux trajets distincts)
+        calculateRoundTripRoute(start, end, targetDistanceKm);
+      }
+    } catch (error) {
+      setIsLoading(false);
+      console.error('Error calculating route:', error);
+    }
+  }, [planningData.tripType, calculateSteps, calculateTime, calculateCalories, onRouteCalculated, getTargetDistance, isWithinTolerance]);
+
+  // Calculate round-trip route with two distinct paths
+  const calculateRoundTripRoute = useCallback(async (start: { lat: number; lng: number }, end: { lat: number; lng: number }, targetDistanceKm: number) => {
+    if (!directionsService.current) return;
+
+    try {
+      // First, calculate the outbound route
+      const outboundRequest: google.maps.DirectionsRequest = {
         origin: start,
         destination: end,
         travelMode: google.maps.TravelMode.WALKING,
@@ -188,51 +286,100 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
         avoidTolls: true
       };
 
-      directionsService.current.route(request, (result, status) => {
-        setIsLoading(false);
-        
-        if (status === 'OK' && result) {
-          setDirections(result);
-          
-          const route = result.routes[0];
-          const leg = route.legs[0];
-          const distanceKm = leg.distance!.value / 1000;
-          
-          // For round-trip, double the distance
-          const totalDistanceKm = planningData.tripType === 'round-trip' ? distanceKm * 2 : distanceKm;
-          
-          const steps = calculateSteps(totalDistanceKm);
-          const duration = calculateTime(totalDistanceKm);
-          const calories = calculateCalories(totalDistanceKm);
-
-          const routeInfo: RouteData = {
-            distance: totalDistanceKm,
-            duration,
-            calories,
-            steps,
-            startCoordinates: start,
-            endCoordinates: end
+      directionsService.current.route(outboundRequest, (outboundResult, outboundStatus) => {
+        if (outboundStatus === 'OK' && outboundResult) {
+          // Calculate return route with waypoints to force different path
+          const returnRequest: google.maps.DirectionsRequest = {
+            origin: end,
+            destination: start,
+            travelMode: google.maps.TravelMode.WALKING,
+            unitSystem: google.maps.UnitSystem.METRIC,
+            avoidHighways: true,
+            avoidTolls: true,
+            provideRouteAlternatives: true
           };
 
-          setRouteData(routeInfo);
+          directionsService.current!.route(returnRequest, (returnResult, returnStatus) => {
+            setIsLoading(false);
+            
+            if (returnStatus === 'OK' && returnResult) {
+              const outboundDistance = outboundResult.routes[0].legs[0].distance!.value / 1000;
+              const returnDistance = returnResult.routes[0].legs[0].distance!.value / 1000;
+              const totalDistanceKm = outboundDistance + returnDistance;
+              
+              // Check tolerance for round-trip
+              if (!isWithinTolerance(totalDistanceKm, targetDistanceKm)) {
+                const percentageOff = Math.abs((totalDistanceKm - targetDistanceKm) / targetDistanceKm * 100);
+                setToleranceMessage(`Distance totale hors tolérance (±5%). Écart: ${percentageOff.toFixed(1)}%`);
+              }
+              
+              setDirections(outboundResult);
+              setReturnDirections(returnResult);
+              
+              const steps = calculateSteps(totalDistanceKm);
+              const duration = calculateTime(totalDistanceKm);
+              const calories = calculateCalories(totalDistanceKm);
 
-          // Call parent callback if provided
-          if (onRouteCalculated) {
-            onRouteCalculated({
-              ...routeInfo,
-              routeGeoJSON: result
-            });
-          }
+              const routeInfo: RouteData = {
+                distance: totalDistanceKm,
+                duration,
+                calories,
+                steps,
+                startCoordinates: start,
+                endCoordinates: end
+              };
+
+              setRouteData(routeInfo);
+
+              if (onRouteCalculated) {
+                onRouteCalculated({
+                  ...routeInfo,
+                  routeGeoJSON: { outbound: outboundResult, return: returnResult }
+                });
+              }
+            } else {
+              // Fallback: use same path for return but styled differently
+              setToleranceMessage('Aucune alternative de retour satisfaisante — itinéraire retour identique à l\'aller.');
+              setDirections(outboundResult);
+              setReturnDirections(outboundResult);
+              
+              const outboundDistance = outboundResult.routes[0].legs[0].distance!.value / 1000;
+              const totalDistanceKm = outboundDistance * 2;
+              
+              const steps = calculateSteps(totalDistanceKm);
+              const duration = calculateTime(totalDistanceKm);
+              const calories = calculateCalories(totalDistanceKm);
+
+              const routeInfo: RouteData = {
+                distance: totalDistanceKm,
+                duration,
+                calories,
+                steps,
+                startCoordinates: start,
+                endCoordinates: end
+              };
+
+              setRouteData(routeInfo);
+
+              if (onRouteCalculated) {
+                onRouteCalculated({
+                  ...routeInfo,
+                  routeGeoJSON: outboundResult
+                });
+              }
+            }
+          });
         } else {
-          console.error('Directions request failed due to ' + status);
-          setShowWarningMessage('Impossible de calculer l\'itinéraire. Veuillez essayer un autre point.');
+          setIsLoading(false);
+          console.error('Outbound directions request failed due to ' + outboundStatus);
+          setShowWarningMessage('Impossible de calculer l\'itinéraire aller. Veuillez essayer un autre point.');
         }
       });
     } catch (error) {
       setIsLoading(false);
-      console.error('Error calculating route:', error);
+      console.error('Error calculating round-trip route:', error);
     }
-  }, [planningData.tripType, calculateSteps, calculateTime, calculateCalories, onRouteCalculated]);
+  }, [calculateSteps, calculateTime, calculateCalories, onRouteCalculated, isWithinTolerance]);
 
   // Handle map click to set destination
   const handleMapClick = useCallback((event: google.maps.MapMouseEvent) => {
@@ -261,8 +408,10 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
     setClickCount(0);
     setIsLocked(false);
     setShowWarningMessage(null);
+    setToleranceMessage(null);
     setDestinationLocation(null);
     setDirections(null);
+    setReturnDirections(null);
     setRouteData(null);
     
     if (userLocation) {
@@ -368,13 +517,29 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
             />
           )}
 
+          {/* Aller route - GREEN */}
           {directions && (
             <DirectionsRenderer
               directions={directions}
               options={{
                 polylineOptions: {
-                  strokeColor: '#10b981',
-                  strokeWeight: 5,
+                  strokeColor: '#2ECC71', // Green for outbound
+                  strokeWeight: 4,
+                  strokeOpacity: 0.9
+                },
+                suppressMarkers: true
+              }}
+            />
+          )}
+          
+          {/* Return route - BLUE (only for round-trip) */}
+          {returnDirections && planningData.tripType === 'round-trip' && (
+            <DirectionsRenderer
+              directions={returnDirections}
+              options={{
+                polylineOptions: {
+                  strokeColor: '#3498DB', // Blue for return
+                  strokeWeight: 4,
                   strokeOpacity: 0.9
                 },
                 suppressMarkers: true
@@ -414,11 +579,20 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
               <span>Pas estimés</span>
               <span className="font-medium">{routeData.steps.toLocaleString()}</span>
             </div>
+            <div className="flex items-center justify-between">
+              <span>Objectif</span>
+              <span className="font-medium">{parseInt(planningData.steps).toLocaleString()} pas</span>
+            </div>
           </div>
           
           {planningData.tripType === 'round-trip' && (
             <div className="mt-3 pt-3 border-t text-xs text-muted-foreground">
-              🔄 Trajet aller-retour
+              🟢 Aller • 🔵 Retour
+            </div>
+          )}
+          {planningData.tripType === 'one-way' && (
+            <div className="mt-3 pt-3 border-t text-xs text-muted-foreground">
+              🟢 Aller simple
             </div>
           )}
         </div>
@@ -434,9 +608,16 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
         </div>
       )}
 
+      {/* Tolerance Message */}
+      {toleranceMessage && (
+        <div className="absolute bottom-20 left-4 right-4 bg-yellow-100 border border-yellow-300 text-yellow-700 px-4 py-3 rounded">
+          ⚠️ {toleranceMessage}
+        </div>
+      )}
+
       {/* Warning Message */}
       {showWarningMessage && (
-        <div className="absolute bottom-4 left-4 right-4 bg-orange-100 border border-orange-300 text-orange-700 px-4 py-3 rounded">
+        <div className="absolute bottom-20 left-4 right-4 bg-orange-100 border border-orange-300 text-orange-700 px-4 py-3 rounded">
           {showWarningMessage}
         </div>
       )}
@@ -457,7 +638,10 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
       {/* Instructions */}
       {!isLocked && (
         <div className="absolute bottom-4 left-4 bg-blue-50 border border-blue-200 text-blue-700 px-3 py-2 rounded text-sm max-w-xs">
-          Cliquez sur la carte pour choisir votre destination ({3 - clickCount} clics restants)
+          <div className="font-medium mb-1">Instructions:</div>
+          <div>• Cliquez sur la carte pour choisir votre destination</div>
+          <div>• {planningData.tripType === 'round-trip' ? 'Trajet A/R avec chemins distincts' : 'Trajet aller simple'}</div>
+          <div>• {3 - clickCount} clics restants</div>
         </div>
       )}
     </div>
