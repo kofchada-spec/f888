@@ -40,7 +40,6 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
   const map = useRef<mapboxgl.Map | null>(null);
   const userMarker = useRef<mapboxgl.Marker | null>(null);
   const destinationMarker = useRef<mapboxgl.Marker | null>(null);
-  const defaultDestinationMarkers = useRef<mapboxgl.Marker[]>([]);
   
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -51,8 +50,6 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
   const [clickCount, setClickCount] = useState(0);
   const [showWarningMessage, setShowWarningMessage] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(false);
-  const [defaultDestinations, setDefaultDestinations] = useState<Array<{ destination: { lat: number; lng: number }; route: RouteData; label: string }>>([]);
-  const [selectedDestinationIndex, setSelectedDestinationIndex] = useState<number | null>(null);
 
   // Calculate target distance based on planning data
   const getTargetDistance = useCallback(() => {
@@ -337,35 +334,31 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
     return overlapCount / sampleSize;
   }, []);
 
-  // Generate multiple default destinations that match step target
-  const generateDefaultDestinations = useCallback(async (userLoc: { lat: number; lng: number }): Promise<Array<{ destination: { lat: number; lng: number }; route: RouteData; label: string }>> => {
-    if (!mapboxToken) return [];
+  // Smart route generation that targets specific step count
+  const generateOptimalRoute = useCallback(async (userLoc: { lat: number; lng: number }): Promise<{ route: RouteData; destination: { lat: number; lng: number } } | null> => {
+    if (!mapboxToken) return null;
 
     const targetSteps = parseInt(planningData.steps);
     const heightM = parseFloat(planningData.height);
     const strideM = heightM ? 0.415 * heightM : 0.72;
     const targetDistanceKm = (targetSteps * strideM) / 1000;
 
-    // Try different directions to create variety
-    const directions = [
-      { bearing: 45, label: "Nord-Est" },
-      { bearing: 135, label: "Sud-Est" }, 
-      { bearing: 225, label: "Sud-Ouest" },
-      { bearing: 315, label: "Nord-Ouest" },
-      { bearing: 90, label: "Est" }
-    ];
+    // Try different bearings and distances to find the best match
+    const bearings = [45, 90, 135, 180, 225, 270, 315, 0];
+    const distanceMultipliers = [0.8, 0.9, 1.0, 1.1, 1.2, 0.7, 1.3, 0.6, 1.4];
 
-    const validDestinations: Array<{ destination: { lat: number; lng: number }; route: RouteData; label: string }> = [];
-    const distanceMultipliers = [0.85, 1.0, 1.15];
+    let bestRoute = null;
+    let bestScore = Infinity;
+    let bestDestination = null;
 
-    for (const direction of directions) {
+    for (const bearing of bearings) {
       for (const multiplier of distanceMultipliers) {
         try {
           const testRadius = planningData.tripType === 'round-trip' ? 
             (targetDistanceKm / 2.5) * multiplier :
             targetDistanceKm * multiplier * 0.8;
 
-          const bearingRad = (direction.bearing * Math.PI) / 180;
+          const bearingRad = (bearing * Math.PI) / 180;
           const earthRadiusKm = 6371;
           const userLatRad = (userLoc.lat * Math.PI) / 180;
           const userLngRad = (userLoc.lng * Math.PI) / 180;
@@ -388,40 +381,28 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
           const testRoute = await computeRoute(userLoc, testDestination);
           
           if (testRoute && validateRouteSteps(testRoute, targetSteps)) {
-            validDestinations.push({
-              destination: testDestination,
-              route: testRoute,
-              label: direction.label
-            });
+            const stepDeviation = Math.abs(testRoute.steps - targetSteps) / targetSteps;
             
-            // Stop after finding one valid destination per direction
-            break;
+            if (stepDeviation < bestScore) {
+              bestScore = stepDeviation;
+              bestRoute = testRoute;
+              bestDestination = testDestination;
+            }
           }
         } catch (error) {
           continue;
         }
       }
-      
-      // Limit to 3-4 destinations max
-      if (validDestinations.length >= 4) break;
     }
 
-    console.log(`Generated ${validDestinations.length} valid destinations for ${targetSteps} steps`);
-    return validDestinations;
-  }, [mapboxToken, planningData, computeRoute, validateRouteSteps]);
-
-  // Smart route generation that targets specific step count (keep for compatibility)
-  const generateOptimalRoute = useCallback(async (userLoc: { lat: number; lng: number }): Promise<{ route: RouteData; destination: { lat: number; lng: number } } | null> => {
-    // Use the first valid destination from the multi-destination generator
-    const destinations = await generateDefaultDestinations(userLoc);
-    if (destinations.length > 0) {
-      return {
-        route: destinations[0].route,
-        destination: destinations[0].destination
-      };
+    if (bestRoute && bestDestination) {
+      console.log(`Found valid route: ${bestRoute.steps} steps (target: ${targetSteps}, deviation: ${(bestScore * 100).toFixed(1)}%)`);
+      return { route: bestRoute, destination: bestDestination };
     }
+
+    console.warn(`No valid route found within ±5% tolerance. Target: ${targetSteps} steps`);
     return null;
-  }, [generateDefaultDestinations]);
+  }, [mapboxToken, planningData, computeRoute, validateRouteSteps]);
 
   // Validate and adjust clicked route to meet step requirements
   const validateAndAdjustRoute = useCallback(async (start: { lat: number; lng: number }, end: { lat: number; lng: number }): Promise<{ route: RouteData; destination: { lat: number; lng: number } } | null> => {
@@ -586,35 +567,30 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       setIsLoading(false);
     });
 
-    // Generate multiple default destinations on map load
+    // Generate optimal route on map load (only once)
     map.current.on('load', async () => {
       setIsLoading(true);
       
       try {
-        const destinations = await generateDefaultDestinations(initialUserLocation);
+        const optimalResult = await generateOptimalRoute(initialUserLocation);
         
-        if (destinations.length > 0) {
-          setDefaultDestinations(destinations);
-          
-          // Select the first destination by default
-          const firstDestination = destinations[0];
-          setDestinationLocation(firstDestination.destination);
-          setRouteData(firstDestination.route);
-          setSelectedDestinationIndex(0);
+        if (optimalResult?.route && optimalResult?.destination) {
+          setDestinationLocation(optimalResult.destination);
+          setRouteData(optimalResult.route);
           
           // Simplified route data to prevent DataCloneError
           const simpleRouteData = {
-            distance: firstDestination.route.distance,
-            duration: firstDestination.route.duration,
-            calories: firstDestination.route.calories,
-            steps: firstDestination.route.steps,
+            distance: optimalResult.route.distance,
+            duration: optimalResult.route.duration,
+            calories: optimalResult.route.calories,
+            steps: optimalResult.route.steps,
             startCoordinates: { lat: initialUserLocation.lat, lng: initialUserLocation.lng },
-            endCoordinates: { lat: firstDestination.destination.lat, lng: firstDestination.destination.lng },
+            endCoordinates: { lat: optimalResult.destination.lat, lng: optimalResult.destination.lng },
             routeGeoJSON: {
               type: 'LineString',
-              coordinates: firstDestination.route.coordinates.slice(),
-              outboundCoordinates: firstDestination.route.outboundCoordinates ? firstDestination.route.outboundCoordinates.slice() : undefined,
-              returnCoordinates: firstDestination.route.returnCoordinates ? firstDestination.route.returnCoordinates.slice() : undefined
+              coordinates: optimalResult.route.coordinates.slice(), // Clone coordinates array
+              outboundCoordinates: optimalResult.route.outboundCoordinates ? optimalResult.route.outboundCoordinates.slice() : undefined,
+              returnCoordinates: optimalResult.route.returnCoordinates ? optimalResult.route.returnCoordinates.slice() : undefined
             }
           };
           
@@ -622,13 +598,13 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
             onRouteCalculated(simpleRouteData);
           }
         } else {
-          console.warn(`No destinations found matching step goal. Target: ${targetSteps} steps`);
+          console.warn(`No route found matching step goal. Target: ${targetSteps} steps`);
           // Set default destination without route
           const defaultDest = calculateDefaultDestination(initialUserLocation);
           setDestinationLocation(defaultDest);
         }
       } catch (error) {
-        console.error('Error generating default destinations:', error);
+        console.error('Error generating optimal route:', error);
         // Set default destination on error
         const defaultDest = calculateDefaultDestination(initialUserLocation);
         setDestinationLocation(defaultDest);
@@ -827,69 +803,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
           .addTo(map.current);
       }
     }
-
-    // Update default destination markers
-    if (defaultDestinations.length > 0) {
-      // Remove existing default markers
-      defaultDestinationMarkers.current.forEach(marker => marker.remove());
-      defaultDestinationMarkers.current = [];
-
-      // Create new markers for each default destination
-      defaultDestinations.forEach((dest, index) => {
-        const isSelected = index === selectedDestinationIndex;
-        const markerEl = document.createElement('div');
-        markerEl.innerHTML = `
-          <div style="
-            width: 24px;
-            height: 24px;
-            background: ${isSelected ? '#10b981' : '#6b7280'};
-            border: 2px solid white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            color: white;
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            font-size: 12px;
-            transition: all 0.2s ease;
-          " onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">${index + 1}</div>
-        `;
-
-        const marker = new mapboxgl.Marker(markerEl)
-          .setLngLat([dest.destination.lng, dest.destination.lat])
-          .addTo(map.current);
-
-        // Add click handler to select this destination
-        markerEl.addEventListener('click', () => {
-          setSelectedDestinationIndex(index);
-          setDestinationLocation(dest.destination);
-          setRouteData(dest.route);
-          
-          if (onRouteCalculated) {
-            const simpleRouteData = {
-              distance: dest.route.distance,
-              duration: dest.route.duration,
-              calories: dest.route.calories,
-              steps: dest.route.steps,
-              startCoordinates: { lat: userLocation.lat, lng: userLocation.lng },
-              endCoordinates: dest.destination,
-              routeGeoJSON: {
-                type: 'LineString',
-                coordinates: dest.route.coordinates.slice(),
-                outboundCoordinates: dest.route.outboundCoordinates ? dest.route.outboundCoordinates.slice() : undefined,
-                returnCoordinates: dest.route.returnCoordinates ? dest.route.returnCoordinates.slice() : undefined
-              }
-            };
-            onRouteCalculated(simpleRouteData);
-          }
-        });
-
-        defaultDestinationMarkers.current.push(marker);
-      });
-    }
-  }, [userLocation, destinationLocation, defaultDestinations, selectedDestinationIndex, onRouteCalculated]); // Update markers when locations change
+  }, [userLocation, destinationLocation]); // Update markers when locations change
 
   const resetToDefault = async () => {
     if (!userLocation) return;
@@ -898,36 +812,31 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
     setShowWarningMessage(null);
     
     try {
-      const destinations = await generateDefaultDestinations(userLocation);
+      const optimalResult = await generateOptimalRoute(userLocation);
       
-      if (destinations.length > 0) {
-        setDefaultDestinations(destinations);
-        
-        // Select the first destination by default
-        const firstDestination = destinations[0];
-        setDestinationLocation(firstDestination.destination);
-        setRouteData(firstDestination.route);
-        setSelectedDestinationIndex(0);
+      if (optimalResult?.route && optimalResult?.destination) {
+        setDestinationLocation(optimalResult.destination);
+        setRouteData(optimalResult.route);
         
         // Reset only restores default route - does NOT unlock the map
         // Do not modify isLocked or clickCount
         
         // Show permanent block message
-        setShowWarningMessage("Destinations par défaut rétablies — modifications désactivées.");
+        setShowWarningMessage("Destination par défaut rétablie — modifications désactivées.");
         
         // Simplified route data to prevent DataCloneError
         const simpleRouteData = {
-          distance: firstDestination.route.distance,
-          duration: firstDestination.route.duration,
-          calories: firstDestination.route.calories,
-          steps: firstDestination.route.steps,
+          distance: optimalResult.route.distance,
+          duration: optimalResult.route.duration,
+          calories: optimalResult.route.calories,
+          steps: optimalResult.route.steps,
           startCoordinates: { lat: userLocation.lat, lng: userLocation.lng },
-          endCoordinates: { lat: firstDestination.destination.lat, lng: firstDestination.destination.lng },
+          endCoordinates: { lat: optimalResult.destination.lat, lng: optimalResult.destination.lng },
           routeGeoJSON: {
             type: 'LineString',
-            coordinates: firstDestination.route.coordinates.slice(),
-            outboundCoordinates: firstDestination.route.outboundCoordinates ? firstDestination.route.outboundCoordinates.slice() : undefined,
-            returnCoordinates: firstDestination.route.returnCoordinates ? firstDestination.route.returnCoordinates.slice() : undefined
+            coordinates: optimalResult.route.coordinates.slice(),
+            outboundCoordinates: optimalResult.route.outboundCoordinates ? optimalResult.route.outboundCoordinates.slice() : undefined,
+            returnCoordinates: optimalResult.route.returnCoordinates ? optimalResult.route.returnCoordinates.slice() : undefined
           }
         };
         
@@ -937,7 +846,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       } else {
         const targetSteps = parseInt(planningData.steps);
         const tolerance = Math.round(targetSteps * 0.05);
-        console.warn(`No optimal destinations found. Target: ${targetSteps} steps (±${tolerance} tolerance)`);
+        console.warn(`No optimal route found. Target: ${targetSteps} steps (±${tolerance} tolerance)`);
         
         // Show user-friendly error message
         setShowWarningMessage(`Aucun itinéraire optimal trouvé. Objectif: ${targetSteps} pas. Veuillez ajuster votre objectif de pas ou réessayer.`);
@@ -948,8 +857,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
         setDestinationLocation(defaultDest);
       }
     } catch (error) {
-      console.error('Error resetting to default destinations:', error);
-      setShowWarningMessage('Erreur lors de la génération des itinéraires. Veuillez réessayer.');
+      console.error('Error resetting to default route:', error);
+      setShowWarningMessage('Erreur lors de la génération de l\'itinéraire. Veuillez réessayer.');
       setTimeout(() => setShowWarningMessage(null), 4000);
     }
     

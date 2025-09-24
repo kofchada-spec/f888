@@ -63,7 +63,8 @@ export const useSingleDestination = () => {
     try {
       const scenarioKey = generateScenarioKey(userLocation, planningData);
       
-      console.log('Recherche de nouvelles destinations...');
+      // Force un nouveau fetch en ignorant le cache temporairement pour tester les nouvelles routes
+      console.log('Forçage du nouveau fetch pour tester les routes réelles');
       
       // Générer 3 nouvelles destinations
       const { data, error } = await supabase.functions.invoke('mapbox-destinations', {
@@ -86,9 +87,9 @@ export const useSingleDestination = () => {
         setCurrentIndex(0);
         setRefreshRemaining(2);
         
-        // Sauvegarder en cache
-        localStorage.setItem(`destinations_${scenarioKey}`, JSON.stringify({ list }));
-        console.log('Nouvelles destinations générées:', list[0]);
+        // Sauvegarder en cache (commenté temporairement pour forcer le refresh)
+        // localStorage.setItem(`destinations_${scenarioKey}`, JSON.stringify({ list }));
+        console.log('Nouvelles destinations générées avec routes:', list[0]);
       } else {
         throw new Error('Aucune destination trouvée');
       }
