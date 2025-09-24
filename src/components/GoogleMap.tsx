@@ -94,11 +94,14 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
         const { supabase } = await import('@/integrations/supabase/client');
         const { data, error } = await supabase.functions.invoke('google-maps-key');
         
-        if (error) throw error;
+        if (error) {
+          console.error('Error from google-maps-key function:', error);
+          return;
+        }
         if (data?.apiKey && typeof data.apiKey === 'string') {
           setGoogleMapsApiKey(data.apiKey);
         } else {
-          throw new Error('Invalid API key received');
+          console.error('Invalid API key received:', data);
         }
       } catch (error) {
         console.error('Error fetching Google Maps API key:', error);
@@ -286,7 +289,7 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
 
   if (!googleMapsApiKey) {
     return (
-      <div className="flex items-center justify-center h-96 bg-gray-100 rounded-lg">
+      <div className="flex items-center justify-center h-96 bg-card rounded-lg border">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Chargement de la carte...</p>
@@ -299,7 +302,11 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
 
   return (
     <div className={`relative ${className}`}>
-      <LoadScript googleMapsApiKey={googleMapsApiKey}>
+      <LoadScript 
+        googleMapsApiKey={googleMapsApiKey}
+        loadingElement={<div>Chargement...</div>}
+        onError={(err) => console.error('Google Maps loading error:', err)}
+      >
         <GoogleMap
           mapContainerStyle={containerStyle}
           center={defaultCenter}
