@@ -493,27 +493,30 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
     setReturnDirections(null);
     setRouteData(null);
     
-    if (userLocation) {
-      generateOptimalRoute(userLocation);
-    }
+    // DÉSACTIVÉ: Pas de génération automatique d'itinéraire en état neutre
+    // if (userLocation) {
+    //   generateOptimalRoute(userLocation);
+    // }
   }, [userLocation, generateOptimalRoute]);
 
-  // Initialize map and generate initial route
+  // Initialize map only - no automatic route generation 
   const onMapLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
     directionsService.current = new google.maps.DirectionsService();
 
-    if (userLocation) {
-      generateOptimalRoute(userLocation);
-    }
-  }, [userLocation, generateOptimalRoute]);
+    // DÉSACTIVÉ: Pas de génération automatique d'itinéraire en état neutre
+    // if (userLocation) {
+    //   generateOptimalRoute(userLocation);
+    // }
+  }, []);  // Removed dependencies to prevent automatic calls
 
-  // Generate initial route when user location is available
-  useEffect(() => {
-    if (userLocation && directionsService.current && !destinationLocation) {
-      generateOptimalRoute(userLocation);
-    }
-  }, [userLocation, generateOptimalRoute, destinationLocation]);
+  // DÉSACTIVÉ: Pas de génération automatique d'itinéraire en état neutre
+  // L'utilisateur doit déclencher manuellement la recherche d'itinéraire
+  const disabledInitialRouteEffect = () => {
+    // if (userLocation && directionsService.current && !destinationLocation) {
+    //   generateOptimalRoute(userLocation);
+    // }
+  };
 
   // Trigger route calculation when destination is set (from generateOptimalRoute or user click)
   useEffect(() => {

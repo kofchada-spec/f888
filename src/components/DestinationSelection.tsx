@@ -80,15 +80,8 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
     }
   }, []);
 
-  // Charger les destinations quand localisation et données sont prêtes
-  useEffect(() => {
-    if (userLocation && planningData && !currentDestination && !loading) {
-      fetchDestinations(userLocation, planningData, {
-        heightM: parseFloat(planningData.height),
-        weightKg: parseFloat(planningData.weight)
-      });
-    }
-  }, [userLocation, planningData, currentDestination, loading, fetchDestinations]);
+  // DÉSACTIVÉ: Pas d'appel API automatique au chargement
+  // Pour un état neutre, l'utilisateur devra déclencher manuellement la recherche
 
   const handleRefresh = () => {
     if (canRefresh) {
@@ -229,70 +222,35 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
             )}
           </div>
 
-          {/* Carte interactive avec destination unique */}
+          {/* Carte neutre - État initial */}
           <div className="bg-card rounded-2xl shadow-lg overflow-hidden mb-4" style={{ height: '360px' }}>
-            {loading ? (
-              <div className="h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl">
-                <div className="text-center">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-                  <p className="text-sm text-muted-foreground">Recherche de destination...</p>
-                  <p className="text-xs text-muted-foreground mt-1">Calcul de l'itinéraire optimal</p>
-                </div>
+            <div className="h-full flex items-center justify-center bg-gradient-to-br from-muted/10 to-secondary/10 rounded-2xl">
+              <div className="text-center max-w-md p-6">
+                <MapPin className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+                <p className="text-lg font-medium text-foreground mb-2">Sélectionnez un objectif de pas pour commencer</p>
+                <p className="text-sm text-muted-foreground">La carte affichera votre itinéraire une fois que vous aurez lancé la recherche</p>
+                <Button 
+                  onClick={() => userLocation && fetchDestinations(userLocation, planningData, { heightM: parseFloat(planningData.height), weightKg: parseFloat(planningData.weight) })}
+                  disabled={loading || !userLocation}
+                  className="mt-4"
+                  size="sm"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Recherche...
+                    </>
+                  ) : (
+                    'Rechercher une destination'
+                  )}
+                </Button>
               </div>
-            ) : error ? (
-              <div className="h-full flex items-center justify-center bg-gradient-to-br from-destructive/10 to-muted/10 rounded-2xl">
-                <div className="text-center max-w-md p-6">
-                  <p className="text-sm text-destructive mb-2">Erreur lors du chargement</p>
-                  <p className="text-xs text-muted-foreground mb-4">{error}</p>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => userLocation && fetchDestinations(userLocation, planningData, { heightM: parseFloat(planningData.height), weightKg: parseFloat(planningData.weight) })}
-                  >
-                    Réessayer
-                  </Button>
-                </div>
-              </div>
-            ) : currentDestination ? (
-              <>
-                {console.log('Destination à afficher:', {
-                  id: currentDestination.id,
-                  name: currentDestination.name,
-                  coordinates: currentDestination.coordinates,
-                  routeGeoJSON: currentDestination.routeGeoJSON,
-                  distanceKm: currentDestination.distanceKm
-                })}
-                <Map 
-                  ref={mapRef}
-                  userLocation={userLocation}
-                  destinations={[{
-                    id: currentDestination.id,
-                    name: currentDestination.name,
-                    distance: `${currentDestination.distanceKm.toFixed(1)} km`,
-                    duration: `${currentDestination.durationMin} min`,
-                    calories: currentDestination.calories,
-                    description: `Destination à ${currentDestination.distanceKm.toFixed(1)} km`,
-                    coordinates: currentDestination.coordinates || {
-                      lat: userLocation?.lat ? userLocation.lat + 0.01 : 48.8566,
-                      lng: userLocation?.lng ? userLocation.lng + 0.01 : 2.3522
-                    },
-                    route: currentDestination.routeGeoJSON
-                  }]}
-                  selectedDestination={currentDestination.id}
-                  onDestinationSelect={() => {}} // Pas de sélection nécessaire avec une seule destination
-                  planningData={planningData}
-                />
-              </>
-            ) : (
-              <div className="h-full flex items-center justify-center bg-gradient-to-br from-muted/10 to-secondary/10 rounded-2xl">
-                <p className="text-muted-foreground">Aucune destination trouvée</p>
-              </div>
-            )}
+            </div>
           </div>
         </div>
 
-        {/* Carte-info de destination (clickable) */}
-        {currentDestination && (
+        {/* Carte-info de destination (clickable) - Masquée en état neutre */}
+        {false && currentDestination && (
           <Card 
             className="p-6 mb-8 shadow-lg cursor-pointer hover:shadow-xl transition-shadow duration-200 border-2 hover:border-primary/20"
             onClick={handleDestinationClick}
@@ -343,17 +301,19 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
           </Card>
         )}
 
-        {/* Bouton CTA */}
-        <div className="text-center">
-          <Button
-            onClick={handleStartWalk}
-            disabled={!currentDestination}
-            size="lg"
-            className="w-full max-w-md h-14 text-lg font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:transform-none"
-          >
-            Lancer cette marche
-          </Button>
-        </div>
+        {/* Bouton CTA - Masqué en état neutre */}
+        {currentDestination && (
+          <div className="text-center">
+            <Button
+              onClick={handleStartWalk}
+              disabled={!currentDestination}
+              size="lg"
+              className="w-full max-w-md h-14 text-lg font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:transform-none"
+            >
+              Lancer cette marche
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
