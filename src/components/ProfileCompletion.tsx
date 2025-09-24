@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -46,10 +46,10 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedGender, setSelectedGender] = useState('');
-  const [selectedHeight, setSelectedHeight] = useState<number | null>(null);
-  const [selectedWeight, setSelectedWeight] = useState<number | null>(null);
-  const [selectedBirthDate, setSelectedBirthDate] = useState<Date | null>(null);
+  const [selectedGender, setSelectedGender] = useState('Homme');
+  const [selectedHeight, setSelectedHeight] = useState<number | null>(170);
+  const [selectedWeight, setSelectedWeight] = useState<number | null>(70);
+  const [selectedBirthDate, setSelectedBirthDate] = useState<Date | null>(new Date(1998, 0, 1));
   const [modalType, setModalType] = useState<'height' | 'weight' | 'birthDate' | null>(null);
 
   const { 
@@ -64,6 +64,15 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
   });
 
   const formData = watch();
+
+  // Initialize form with default values
+  useEffect(() => {
+    setValue('gender', 'Homme');
+    setValue('height', 1.70); // 170cm in meters
+    setValue('weight', 70);
+    setValue('birthDate', '01/01/1998');
+    trigger(); // Validate all fields
+  }, [setValue, trigger]);
 
   const handlePickerConfirm = async (type: 'height' | 'weight' | 'birthDate', value: any) => {
     if (type === 'height') {
