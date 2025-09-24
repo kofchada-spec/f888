@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
-import EnhancedMap from './EnhancedMap';
+import GoogleMapComponent from './GoogleMap';
 
 interface MapScreenProps {
   onComplete: (destination: any) => void;
@@ -128,9 +128,9 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
           </div>
         </div>
 
-        {/* Enhanced Map */}
+        {/* Google Map */}
         <div className="mb-6">
-          <EnhancedMap 
+          <GoogleMapComponent 
             planningData={planningData}
             className="w-full"
             onRouteCalculated={handleRouteCalculated}
