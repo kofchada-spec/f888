@@ -235,41 +235,60 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
     markers.current.forEach(marker => marker.remove());
     markers.current = [];
 
-    // Add user location marker (custom "Départ" marker)
+    // Add user location marker with geolocation indicator
     const userLocationEl = document.createElement('div');
     userLocationEl.className = 'user-location-marker';
     userLocationEl.innerHTML = `
       <div style="
-        width: 24px;
-        height: 24px;
-        background: #ef4444;
-        border: 3px solid white;
+        width: 32px;
+        height: 32px;
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        border: 4px solid white;
         border-radius: 50%;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
         position: relative;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 12px;
-      ">
-        📍
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      " onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+        🧭
         <div style="
           position: absolute;
-          top: -35px;
+          top: -40px;
           left: 50%;
           transform: translateX(-50%);
-          background: #ef4444;
+          background: linear-gradient(135deg, #3b82f6, #1d4ed8);
           color: white;
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 12px;
+          padding: 6px 10px;
+          border-radius: 6px;
+          font-size: 11px;
           font-weight: 600;
           white-space: nowrap;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+          box-shadow: 0 3px 12px rgba(59, 130, 246, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.2);
         ">
-          Départ
+          📍 Ma position
         </div>
+        <div style="
+          position: absolute;
+          width: 60px;
+          height: 60px;
+          border: 2px solid #3b82f6;
+          border-radius: 50%;
+          opacity: 0.3;
+          animation: pulse-ring 2s infinite;
+        "></div>
       </div>
+      <style>
+        @keyframes pulse-ring {
+          0% { transform: scale(0.8); opacity: 0.3; }
+          50% { transform: scale(1.2); opacity: 0.1; }
+          100% { transform: scale(1.5); opacity: 0; }
+        }
+      </style>
     `;
 
     const userMarker = new mapboxgl.Marker(userLocationEl)
