@@ -65,6 +65,12 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
   const maxMeters = targetMeters * 1.05;
   const speedKmh = planningData.pace === 'slow' ? 4 : planningData.pace === 'moderate' ? 5 : 6;
 
+  // Plages pour validation (totale vs one-way selon le mode)
+  const totalRange = { min: minMeters, max: maxMeters };
+  const oneWayRange = planningData.tripType === 'round-trip' 
+    ? { min: minMeters / 2, max: maxMeters / 2 }
+    : { min: minMeters, max: maxMeters };
+
   // Fetch Mapbox token from Supabase
   useEffect(() => {
     const fetchMapboxToken = async () => {
@@ -265,6 +271,11 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     return candidates;
   }, []);
 
+  // Validation d'un tronçon aller
+  const isValidOneWay = useCallback((distance: number) => {
+    return distance >= oneWayRange.min && distance <= oneWayRange.max;
+  }, [oneWayRange]);
+
   // Calcul de la destination par défaut
   const calculateDefaultDestination = useCallback(async () => {
     if (!userLocation || !map || !mapboxToken) {
@@ -272,10 +283,11 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
       return;
     }
 
-    console.log('Calculating default destination with target:', targetMeters, 'meters (±5%)');
+    const oneWayTargetMeters = planningData.tripType === 'round-trip' ? targetMeters / 2 : targetMeters;
+    console.log('Calculating default destination with one-way target:', oneWayTargetMeters, 'meters (total target:', targetMeters, ')');
     
     const start: [number, number] = [userLocation.lng, userLocation.lat];
-    const candidates = generateCandidateDestinations(start, targetMeters);
+    const candidates = generateCandidateDestinations(start, oneWayTargetMeters);
     
     console.log('Generated candidates:', candidates.length);
     
@@ -289,20 +301,20 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     for (const candidate of candidates) {
       try {
         const route = await fetchRoute(start, candidate);
-        const distanceDiff = Math.abs(route.distance - targetMeters);
+        const distanceDiff = Math.abs(route.distance - oneWayTargetMeters);
         
-        console.log(`Candidate distance: ${route.distance}m (target: ${targetMeters}m, diff: ${distanceDiff}m)`);
+        console.log(`Candidate distance: ${route.distance}m (one-way target: ${oneWayTargetMeters}m, diff: ${distanceDiff}m)`);
         
-        // Priorité 1: candidat dans la plage ±5%
-        if (route.distance >= minMeters && route.distance <= maxMeters && distanceDiff < bestDistance) {
+        // Priorité 1: candidat dans la plage one-way ±5%
+        if (isValidOneWay(route.distance) && distanceDiff < bestDistance) {
           bestDistance = distanceDiff;
           bestCandidate = candidate;
           bestRoute = route;
-          console.log('Found valid candidate in range');
+          console.log('Found valid candidate in one-way range');
         }
         
         // Fallback: garder le plus proche même si hors plage
-        if (!fallbackRoute || distanceDiff < Math.abs(fallbackRoute.distance - targetMeters)) {
+        if (!fallbackRoute || distanceDiff < Math.abs(fallbackRoute.distance - oneWayTargetMeters)) {
           fallbackCandidate = candidate;
           fallbackRoute = route;
         }
@@ -344,7 +356,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
 
       const estimatedSteps = Math.round(totalDistance / stride);
       const duration = Math.round((totalDistance / 1000) / speedKmh * 60);
-      const isValid = totalDistance >= minMeters && totalDistance <= maxMeters;
+      const isValid = totalDistance >= totalRange.min && totalDistance <= totalRange.max;
       
       console.log('Route stats:', { totalDistance, estimatedSteps, duration, isValid, stepGoal });
       
@@ -402,6 +414,14 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
 
     try {
       const { featureCollection, distance } = await fetchRoute(start, end);
+      
+      // Vérifier si l'aller est valide selon les plages one-way
+      if (!isValidOneWay(distance)) {
+        console.log(`One-way distance ${distance}m is outside valid range [${oneWayRange.min}, ${oneWayRange.max}]`);
+        // Ne pas tracer si hors plage - l'utilisateur peut essayer un autre point
+        return;
+      }
+      
       addOrUpdateSourceLayer('route-click', featureCollection, '#2ECC71', 4);
 
       let totalDistance = distance;
@@ -422,7 +442,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
       }
 
       const estimatedSteps = Math.round(totalDistance / stride);
-      const isValid = totalDistance >= minMeters && totalDistance <= maxMeters;
+      const isValid = totalDistance >= totalRange.min && totalDistance <= totalRange.max;
 
       setRouteStats({
         distance: totalDistance,
