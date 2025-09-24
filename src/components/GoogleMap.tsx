@@ -734,6 +734,19 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
         </Button>
       </div>
 
+      {/* Status Messages */}
+      {toleranceMessage && (
+        <div className="absolute top-4 left-4 bg-background/95 border border-orange-200 rounded-lg px-3 py-2 text-sm text-orange-700 shadow-sm max-w-sm">
+          {toleranceMessage}
+        </div>
+      )}
+      
+      {showWarningMessage && (
+        <div className="absolute top-4 left-4 bg-background/95 border border-blue-200 rounded-lg px-3 py-2 text-sm text-blue-700 shadow-sm max-w-sm">
+          {showWarningMessage}
+        </div>
+      )}
+
       {/* Instructions removed - now displayed below the map */}
     </div>
   );

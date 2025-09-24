@@ -263,13 +263,34 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
         </div>
 
         {/* Instructions de navigation - Zone compacte sous la carte */}
-        <div className="bg-muted/5 rounded-lg p-3 text-xs text-muted-foreground border">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-muted-foreground/30 rounded-full"></div>
-              <span>Instructions à venir après sélection de destination</span>
+        <div className="bg-muted/5 rounded-lg p-3 text-xs text-muted-foreground border max-h-32 overflow-y-auto">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="font-medium text-sm">Instructions de navigation</h4>
+            <span className="text-xs opacity-60">Itinéraire en cours...</span>
+          </div>
+          
+          <div className="space-y-1">
+            <div className="flex items-start space-x-2 text-xs">
+              <span className="w-4 h-4 bg-green-500/20 text-green-700 rounded-full flex items-center justify-center text-[10px] font-medium mt-0.5 flex-shrink-0">
+                ▶
+              </span>
+              <span className="leading-relaxed">
+                Itinéraire {planningData.tripType === 'round-trip' ? 'aller-retour' : 'aller'} 
+              </span>
             </div>
-            <span className="text-xs opacity-60">En attente...</span>
+            <div className="ml-6 text-[11px] space-y-0.5">
+              <div>Objectif: {planningData.steps} pas</div>
+              <div>Mode: {planningData.pace}</div>
+              <div>Type: {planningData.tripType === 'round-trip' ? 'Aller-retour' : 'Aller simple'}</div>
+            </div>
+            {planningData.tripType === 'round-trip' && (
+              <div className="flex items-start space-x-2 text-xs mt-2">
+                <span className="w-4 h-4 bg-blue-500/20 text-blue-700 rounded-full flex items-center justify-center text-[10px] font-medium mt-0.5 flex-shrink-0">
+                  ◀
+                </span>
+                <span className="leading-relaxed">Retour par chemin différent</span>
+              </div>
+            )}
           </div>
         </div>
         </div>
