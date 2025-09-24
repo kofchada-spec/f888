@@ -261,6 +261,17 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
             </div>
           </div>
         </div>
+
+        {/* Instructions de navigation - Zone compacte sous la carte */}
+        <div className="bg-muted/5 rounded-lg p-3 text-xs text-muted-foreground border">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-muted-foreground/30 rounded-full"></div>
+              <span>Instructions à venir après sélection de destination</span>
+            </div>
+            <span className="text-xs opacity-60">En attente...</span>
+          </div>
+        </div>
         </div>
 
         {/* Carte-info de destination (clickable) - Masquée en état neutre */}

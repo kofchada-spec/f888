@@ -734,15 +734,7 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
         </Button>
       </div>
 
-      {/* Instructions */}
-      {!isLocked && (
-        <div className="absolute bottom-4 left-4 bg-blue-50 border border-blue-200 text-blue-700 px-3 py-2 rounded text-sm max-w-xs">
-          <div className="font-medium mb-1">Instructions:</div>
-          <div>• Cliquez sur la carte pour choisir votre destination</div>
-          <div>• {planningData.tripType === 'round-trip' ? 'Trajet A/R avec chemins distincts' : 'Trajet aller simple'}</div>
-          <div>• {3 - clickCount} clics restants</div>
-        </div>
-      )}
+      {/* Instructions removed - now displayed below the map */}
     </div>
   );
 };
