@@ -222,31 +222,45 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
             )}
           </div>
 
-          {/* Carte neutre - État initial */}
-          <div className="bg-card rounded-2xl shadow-lg overflow-hidden mb-4" style={{ height: '360px' }}>
-            <div className="h-full flex items-center justify-center bg-gradient-to-br from-muted/10 to-secondary/10 rounded-2xl">
-              <div className="text-center max-w-md p-6">
-                <MapPin className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-                <p className="text-lg font-medium text-foreground mb-2">Sélectionnez un objectif de pas pour commencer</p>
-                <p className="text-sm text-muted-foreground">La carte affichera votre itinéraire une fois que vous aurez lancé la recherche</p>
-                <Button 
-                  onClick={() => userLocation && fetchDestinations(userLocation, planningData, { heightM: parseFloat(planningData.height), weightKg: parseFloat(planningData.weight) })}
-                  disabled={loading || !userLocation}
-                  className="mt-4"
-                  size="sm"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Recherche...
-                    </>
-                  ) : (
-                    'Rechercher une destination'
-                  )}
-                </Button>
+        {/* Instructions pour l'utilisateur */}
+        <div className="bg-card rounded-xl p-6 mb-6 shadow-sm border">
+          <div className="text-center">
+            <MapPin className="h-8 w-8 mx-auto mb-3 text-primary" />
+            <h3 className="text-lg font-medium text-foreground mb-2">Prêt à planifier votre marche ?</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Cliquez sur le bouton ci-dessous pour rechercher une destination adaptée à votre objectif de {planningData.steps} pas.
+            </p>
+            <Button 
+              onClick={() => userLocation && fetchDestinations(userLocation, planningData, { heightM: parseFloat(planningData.height), weightKg: parseFloat(planningData.weight) })}
+              disabled={loading || !userLocation}
+              className="bg-primary hover:bg-primary/90"
+              size="default"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Recherche en cours...
+                </>
+              ) : (
+                'Rechercher ma destination'
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* Carte neutre - État initial */}
+        <div className="bg-card rounded-2xl shadow-lg overflow-hidden mb-4" style={{ height: '360px' }}>
+          <div className="h-full flex items-center justify-center bg-gradient-to-br from-muted/5 to-secondary/5 rounded-2xl">
+            <div className="text-center max-w-md p-6">
+              <div className="w-16 h-16 mx-auto mb-4 bg-muted/20 rounded-full flex items-center justify-center">
+                <MapPin className="h-8 w-8 text-muted-foreground/50" />
               </div>
+              <p className="text-muted-foreground">
+                Votre itinéraire apparaîtra ici après la recherche
+              </p>
             </div>
           </div>
+        </div>
         </div>
 
         {/* Carte-info de destination (clickable) - Masquée en état neutre */}
