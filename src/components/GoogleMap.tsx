@@ -322,7 +322,7 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
                 url: 'data:image/svg+xml;base64,' + btoa(`
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <circle cx="12" cy="12" r="8" fill="#ef4444" stroke="white" stroke-width="3"/>
-                    <text x="12" y="16" text-anchor="middle" fill="white" font-size="12">📍</text>
+                    <circle cx="12" cy="12" r="3" fill="white"/>
                   </svg>
                 `),
                 scaledSize: new window.google.maps.Size(24, 24)
@@ -338,7 +338,8 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
                 url: 'data:image/svg+xml;base64,' + btoa(`
                   <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <circle cx="16" cy="16" r="12" fill="#10b981" stroke="white" stroke-width="3"/>
-                    <text x="16" y="20" text-anchor="middle" fill="white" font-size="16">🎯</text>
+                    <circle cx="16" cy="16" r="4" fill="white"/>
+                    <circle cx="16" cy="16" r="2" fill="#10b981"/>
                   </svg>
                 `),
                 scaledSize: new window.google.maps.Size(32, 32)
