@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import * as turf from '@turf/turf';
 import { useMapClickLimiter } from '@/hooks/useMapClickLimiter';
 import { supabase } from '@/integrations/supabase/client';
 import { ArrowLeft } from 'lucide-react';
@@ -19,15 +20,50 @@ interface MapScreenProps {
   };
 }
 
+interface UserLocation {
+  lat: number;
+  lng: number;
+  accuracy: number;
+}
+
+interface RouteCache {
+  [key: string]: {
+    featureCollection: GeoJSON.FeatureCollection;
+    distance: number;
+  };
+}
+
 const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScreenProps) => {
   const containerRef = useRef<HTMLDivElement|null>(null);
   const [map, setMap] = useState<mapboxgl.Map|null>(null);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [routeStats, setRouteStats] = useState<{
+    distance: number;
+    duration: number;
+    steps: number;
+    isValid: boolean;
+  } | null>(null);
 
-  // Trajet par défaut mémorisé pour le "Réinitialiser"
   const defaultRouteRef = useRef<{ geojson: GeoJSON.FeatureCollection; color: string } | null>(null);
+  const userMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const accuracyCircleRef = useRef<string | null>(null);
+  const destinationMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const watchIdRef = useRef<number | null>(null);
+  const routeCacheRef = useRef<RouteCache>({});
+  const debounceRef = useRef<number | null>(null);
 
   const maxClicks = planningData?.mapConfig?.maxValidClicks ?? 3;
+
+  // Calculs basés sur les paramètres utilisateur
+  const stepGoal = parseInt(planningData.steps);
+  const heightM = parseFloat(planningData.height);
+  const stride = heightM ? 0.415 * heightM : 0.75; // longueur de foulée en mètres
+  const targetMeters = stepGoal * stride;
+  const minMeters = targetMeters * 0.95;
+  const maxMeters = targetMeters * 1.05;
+  const speedKmh = planningData.pace === 'slow' ? 4 : planningData.pace === 'moderate' ? 5 : 6;
 
   // Fetch Mapbox token from Supabase
   useEffect(() => {
@@ -47,12 +83,70 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     fetchMapboxToken();
   }, []);
 
+  // Géolocalisation
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setLocationError("Géolocalisation non supportée par ce navigateur");
+      return;
+    }
+
+    const options = {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    };
+
+    const onSuccess = (position: GeolocationPosition) => {
+      const location = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+        accuracy: position.coords.accuracy
+      };
+      setUserLocation(location);
+      setLocationError(null);
+    };
+
+    const onError = (error: GeolocationPositionError) => {
+      console.error('Geolocation error:', error);
+      setLocationError("Impossible d'obtenir votre position. Autorisez la localisation dans les réglages.");
+      // Fallback sur Paris
+      setUserLocation({ lat: 48.8566, lng: 2.3522, accuracy: 1000 });
+    };
+
+    // Première position
+    navigator.geolocation.getCurrentPosition(onSuccess, onError, options);
+
+    // Watch position si disponible
+    if (navigator.geolocation.watchPosition) {
+      watchIdRef.current = navigator.geolocation.watchPosition(onSuccess, onError, options);
+    }
+
+    return () => {
+      if (watchIdRef.current) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+    };
+  }, []);
+
   // ========= Helpers routing (Mapbox Directions API) =========
-  async function fetchRoute(start: [number,number], end: [number,number]) {
-    const url = `https://api.mapbox.com/directions/v5/mapbox/walking/${start[0]},${start[1]};${end[0]},${end[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
+  const fetchRoute = useCallback(async (start: [number,number], end: [number,number], excludeRoutes: GeoJSON.FeatureCollection[] = []) => {
+    const cacheKey = `${start[0]},${start[1]}-${end[0]},${end[1]}`;
+    
+    if (routeCacheRef.current[cacheKey]) {
+      return routeCacheRef.current[cacheKey];
+    }
+
+    let url = `https://api.mapbox.com/directions/v5/mapbox/walking/${start[0]},${start[1]};${end[0]},${end[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
+    
+    // Tentative d'éviter les routes existantes (approximation)
+    if (excludeRoutes.length > 0) {
+      url += '&exclude=ferry';
+    }
+
     const res = await fetch(url);
     const data = await res.json();
     if (!data?.routes?.[0]) throw new Error('No route');
+    
     const route = data.routes[0].geometry;
     const fc: GeoJSON.FeatureCollection = {
       type: 'FeatureCollection',
@@ -62,10 +156,17 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
         properties: {}
       }]
     };
-    return { featureCollection: fc, distanceMeters: data.routes[0].distance };
-  }
 
-  function addOrUpdateSourceLayer(id: string, fc: GeoJSON.FeatureCollection, color: string, width = 4) {
+    const result = { 
+      featureCollection: fc, 
+      distance: data.routes[0].distance 
+    };
+    
+    routeCacheRef.current[cacheKey] = result;
+    return result;
+  }, []);
+
+  const addOrUpdateSourceLayer = useCallback((id: string, fc: GeoJSON.FeatureCollection, color: string, width = 4) => {
     if (!map) return;
     if (map.getSource(id)) {
       (map.getSource(id) as mapboxgl.GeoJSONSource).setData(fc);
@@ -75,51 +176,261 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
         id,
         type: 'line',
         source: id,
-        paint: { 'line-color': color, 'line-width': width }
+        paint: { 'line-color': color, 'line-width': width },
+        layout: { 'line-cap': 'round', 'line-join': 'round' }
       });
     }
-  }
+  }, [map]);
 
-  function clearRoute(id: string) {
+  const clearRoute = useCallback((id: string) => {
     if (!map) return;
     if (map.getLayer(id)) map.removeLayer(id);
     if (map.getSource(id)) map.removeSource(id);
-  }
+  }, [map]);
 
-  function drawDefaultRoute(fc: GeoJSON.FeatureCollection, color = '#2ECC71') {
-    addOrUpdateSourceLayer('route-default', fc, color, 4);
-  }
+  // Mise à jour des marqueurs utilisateur
+  const updateUserMarkers = useCallback(() => {
+    if (!map || !userLocation) return;
+
+    // Marqueur utilisateur
+    if (userMarkerRef.current) {
+      userMarkerRef.current.setLngLat([userLocation.lng, userLocation.lat]);
+    } else {
+      const el = document.createElement('div');
+      el.className = 'user-marker';
+      el.style.cssText = `
+        width: 16px;
+        height: 16px;
+        background-color: #3B82F6;
+        border: 3px solid white;
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      `;
+      
+      userMarkerRef.current = new mapboxgl.Marker(el)
+        .setLngLat([userLocation.lng, userLocation.lat])
+        .addTo(map);
+    }
+
+    // Cercle de précision
+    if (accuracyCircleRef.current) {
+      clearRoute(accuracyCircleRef.current);
+    }
+
+    const circle = turf.circle([userLocation.lng, userLocation.lat], userLocation.accuracy / 1000, {
+      steps: 64,
+      units: 'kilometers'
+    });
+    
+    accuracyCircleRef.current = 'accuracy-circle';
+    map.addSource('accuracy-circle', { type: 'geojson', data: circle });
+    map.addLayer({
+      id: 'accuracy-circle',
+      type: 'fill',
+      source: 'accuracy-circle',
+      paint: {
+        'fill-color': '#3B82F6',
+        'fill-opacity': 0.1
+      }
+    });
+    map.addLayer({
+      id: 'accuracy-circle-border',
+      type: 'line',
+      source: 'accuracy-circle',
+      paint: {
+        'line-color': '#3B82F6',
+        'line-width': 1,
+        'line-opacity': 0.3
+      }
+    });
+  }, [map, userLocation, clearRoute]);
+
+  // Génération des candidats pour destination par défaut
+  const generateCandidateDestinations = useCallback((center: [number, number], targetDistance: number) => {
+    const candidates: Array<[number, number]> = [];
+    const angles = [0, 45, 90, 135, 180, 225, 270, 315]; // 8 directions
+    
+    // Approximation: 1 degré ≈ 111km à l'équateur
+    const degreeToMeters = 111000;
+    const deltaLat = targetDistance / degreeToMeters;
+    const deltaLng = targetDistance / (degreeToMeters * Math.cos(center[1] * Math.PI / 180));
+    
+    angles.forEach(angle => {
+      const rad = (angle * Math.PI) / 180;
+      const lat = center[1] + deltaLat * Math.sin(rad);
+      const lng = center[0] + deltaLng * Math.cos(rad);
+      candidates.push([lng, lat]);
+    });
+    
+    return candidates;
+  }, []);
+
+  // Calcul de la destination par défaut
+  const calculateDefaultDestination = useCallback(async () => {
+    if (!userLocation || !map) return;
+
+    const start: [number, number] = [userLocation.lng, userLocation.lat];
+    const candidates = generateCandidateDestinations(start, targetMeters);
+    
+    let bestCandidate: [number, number] | null = null;
+    let bestDistance = Infinity;
+    let bestRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number } | null = null;
+
+    // Tester chaque candidat
+    for (const candidate of candidates) {
+      try {
+        const route = await fetchRoute(start, candidate);
+        const distanceDiff = Math.abs(route.distance - targetMeters);
+        
+        if (route.distance >= minMeters && route.distance <= maxMeters && distanceDiff < bestDistance) {
+          bestDistance = distanceDiff;
+          bestCandidate = candidate;
+          bestRoute = route;
+        }
+      } catch (error) {
+        console.warn('Route calculation failed for candidate:', candidate);
+      }
+    }
+
+    if (bestRoute && bestCandidate) {
+      // Tracer l'itinéraire aller
+      addOrUpdateSourceLayer('route-default', bestRoute.featureCollection, '#2ECC71', 4);
+      
+      // Si aller-retour, calculer le retour
+      if (planningData.tripType === 'round-trip') {
+        try {
+          const returnRoute = await fetchRoute(bestCandidate, start, [bestRoute.featureCollection]);
+          addOrUpdateSourceLayer('route-return', returnRoute.featureCollection, '#3498DB', 4);
+          
+          const totalDistance = bestRoute.distance + returnRoute.distance;
+          const estimatedSteps = Math.round(totalDistance / stride);
+          const duration = Math.round((totalDistance / 1000) / speedKmh * 60);
+          
+          setRouteStats({
+            distance: totalDistance,
+            duration,
+            steps: estimatedSteps,
+            isValid: totalDistance >= minMeters && totalDistance <= maxMeters
+          });
+        } catch (error) {
+          console.warn('Return route calculation failed, using same path');
+          const totalDistance = bestRoute.distance * 2;
+          const estimatedSteps = Math.round(totalDistance / stride);
+          const duration = Math.round((totalDistance / 1000) / speedKmh * 60);
+          
+          setRouteStats({
+            distance: totalDistance,
+            duration,
+            steps: estimatedSteps,
+            isValid: totalDistance >= minMeters && totalDistance <= maxMeters
+          });
+        }
+      } else {
+        const estimatedSteps = Math.round(bestRoute.distance / stride);
+        const duration = Math.round((bestRoute.distance / 1000) / speedKmh * 60);
+        
+        setRouteStats({
+          distance: bestRoute.distance,
+          duration,
+          steps: estimatedSteps,
+          isValid: bestRoute.distance >= minMeters && bestRoute.distance <= maxMeters
+        });
+      }
+
+      // Marqueur destination
+      if (destinationMarkerRef.current) {
+        destinationMarkerRef.current.remove();
+      }
+
+      const el = document.createElement('div');
+      el.className = 'destination-marker';
+      el.style.cssText = `
+        width: 20px;
+        height: 20px;
+        background-color: #2ECC71;
+        border: 3px solid white;
+        border-radius: 50%;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      `;
+
+      destinationMarkerRef.current = new mapboxgl.Marker(el)
+        .setLngLat(bestCandidate)
+        .addTo(map);
+
+      // Mémoriser comme trajet par défaut
+      defaultRouteRef.current = { 
+        geojson: bestRoute.featureCollection, 
+        color: '#2ECC71' 
+      };
+
+      // Ajuster la vue pour inclure le trajet
+      const bounds = new mapboxgl.LngLatBounds();
+      bounds.extend([userLocation.lng, userLocation.lat]);
+      bounds.extend(bestCandidate);
+      map.fitBounds(bounds, { padding: 50 });
+    }
+  }, [userLocation, map, targetMeters, minMeters, maxMeters, planningData.tripType, fetchRoute, addOrUpdateSourceLayer, generateCandidateDestinations, stride, speedKmh]);
 
   // ========= Limiteur 3 clics =========
   const onValidClick = async (lngLat: {lng:number; lat:number}) => {
-    if (!map) return;
+    if (!map || !userLocation) return;
 
-    // Exemple simple : on trace un itinéraire depuis le centre actuel vers le point cliqué
-    const center = map.getCenter();
-    const start: [number,number] = [center.lng, center.lat];
+    const start: [number,number] = [userLocation.lng, userLocation.lat];
     const end: [number,number] = [lngLat.lng, lngLat.lat];
 
-    const { featureCollection } = await fetchRoute(start, end);
-    addOrUpdateSourceLayer('route-click', featureCollection, '#2ECC71', 4); // vert pour l'aller
+    try {
+      const { featureCollection, distance } = await fetchRoute(start, end);
+      addOrUpdateSourceLayer('route-click', featureCollection, '#2ECC71', 4);
 
-    // (Optionnel) Si tripType === 'round-trip', tu peux calculer un retour différent ici
-    // et le dessiner en bleu :
-    // const { featureCollection: back } = await fetchRoute(end, start);
-    // addOrUpdateSourceLayer('route-back', back, '#3498DB', 4);
+      let totalDistance = distance;
+      let duration = Math.round((distance / 1000) / speedKmh * 60);
+
+      // Si aller-retour, calculer le retour
+      if (planningData.tripType === 'round-trip') {
+        try {
+          const returnRoute = await fetchRoute(end, start, [featureCollection]);
+          addOrUpdateSourceLayer('route-return-click', returnRoute.featureCollection, '#3498DB', 4);
+          totalDistance += returnRoute.distance;
+          duration = Math.round((totalDistance / 1000) / speedKmh * 60);
+        } catch (error) {
+          console.warn('Return route failed, doubling outbound distance');
+          totalDistance = distance * 2;
+          duration = Math.round((totalDistance / 1000) / speedKmh * 60);
+        }
+      }
+
+      const estimatedSteps = Math.round(totalDistance / stride);
+      const isValid = totalDistance >= minMeters && totalDistance <= maxMeters;
+
+      setRouteStats({
+        distance: totalDistance,
+        duration,
+        steps: estimatedSteps,
+        isValid
+      });
+
+      // Mettre à jour le marqueur destination
+      if (destinationMarkerRef.current) {
+        destinationMarkerRef.current.setLngLat([lngLat.lng, lngLat.lat]);
+      }
+
+    } catch (error) {
+      console.error('Route calculation failed:', error);
+    }
   };
 
   const onLock = () => {
-    // Ici tu peux afficher un toast si tu veux
-    // console.log('Limite de clics atteinte');
+    console.log('Limite de clics atteinte');
   };
 
   const onResetStartDefault = () => {
-    if (defaultRouteRef.current) {
-      // Réaffiche le trajet par défaut (pas de déverrouillage)
-      drawDefaultRoute(defaultRouteRef.current.geojson, defaultRouteRef.current.color);
-      // Nettoie les routes testées
+    if (defaultRouteRef.current && map) {
+      addOrUpdateSourceLayer('route-default', defaultRouteRef.current.geojson, defaultRouteRef.current.color);
       clearRoute('route-click');
-      clearRoute('route-back');
+      clearRoute('route-return-click');
+      
+      // Recalculer les stats du trajet par défaut
+      calculateDefaultDestination();
     }
   };
 
@@ -131,7 +442,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     onResetStartDefault
   });
 
-  // ========= Init map + trajet par défaut =========
+  // ========= Init map =========
   useEffect(() => {
     if (!containerRef.current || !mapboxToken) return;
 
@@ -139,34 +450,44 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
       container: containerRef.current,
       style: 'mapbox://styles/mapbox/streets-v12',
       center: [2.3522, 48.8566], // Paris par défaut
-      zoom: 13
+      zoom: 15
     });
     setMap(m);
 
-    m.on('load', async () => {
-      // Calcule un "trajet par défaut" simple : centre → centre déplacé de 500m à l'est (exemple)
-      const c = m.getCenter();
-      const start: [number,number] = [c.lng, c.lat];
-      const end: [number,number] = [c.lng + 0.0065, c.lat]; // ≈ 500–600 m à l'est selon latitude
-
-      try {
-        const { featureCollection } = await fetchRoute(start, end);
-        drawDefaultRoute(featureCollection, '#2ECC71');
-        defaultRouteRef.current = { geojson: featureCollection, color: '#2ECC71' };
-      } catch (e) {
-        console.error('Default route error', e);
-      }
-    });
+    m.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
     return () => m.remove();
   }, [mapboxToken]);
 
+  // Mise à jour de la carte quand userLocation change
+  useEffect(() => {
+    if (!map || !userLocation) return;
+    
+    map.setCenter([userLocation.lng, userLocation.lat]);
+    updateUserMarkers();
+    
+    // Délai avant de calculer la destination par défaut
+    const timer = setTimeout(() => {
+      calculateDefaultDestination();
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [map, userLocation, updateUserMarkers, calculateDefaultDestination]);
+
   // Abonnement clic carte
   useEffect(() => {
     if (!map) return;
+    
     const onClick = (e: mapboxgl.MapMouseEvent) => {
+      // Debounce
+      if (debounceRef.current) return;
+      debounceRef.current = window.setTimeout(() => {
+        debounceRef.current = null;
+      }, 600);
+
       handleMapClick({ lng: e.lngLat.lng, lat: e.lngLat.lat });
     };
+    
     map.on('click', onClick);
     return () => { map.off('click', onClick); };
   }, [map, handleMapClick]);
@@ -217,9 +538,36 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
             Planifiez votre marche
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Tapez sur la carte pour placer votre destination. Un itinéraire sera calculé automatiquement.
+            {userLocation ? 
+              "Votre position est détectée. Tapez sur la carte pour personnaliser votre itinéraire." :
+              "Localisation en cours..."
+            }
           </p>
+          {locationError && (
+            <p className="text-destructive text-sm mt-2">{locationError}</p>
+          )}
         </div>
+
+        {/* Route Stats */}
+        {routeStats && (
+          <div className={`bg-card rounded-xl p-4 mb-6 shadow-sm border-l-4 ${
+            routeStats.isValid ? 'border-l-green-500' : 'border-l-orange-500'
+          }`}>
+            <div className="flex items-center justify-between flex-wrap gap-4 text-sm">
+              <div className="flex items-center gap-6">
+                <span>≈ {(routeStats.distance / 1000).toFixed(1)} km</span>
+                <span>≈ {routeStats.duration} min</span>
+                <span>{routeStats.steps} pas</span>
+                <span className="text-muted-foreground">(objectif {stepGoal})</span>
+              </div>
+              {!routeStats.isValid && (
+                <span className="text-orange-600 font-medium">
+                  Ajusté au plus proche de votre objectif
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Planning Summary */}
         <div className="bg-card rounded-xl p-4 mb-6 shadow-sm">
@@ -284,12 +632,13 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
             onClick={() => onComplete({ 
               id: 'map-selected', 
               name: 'Destination sélectionnée',
-              coordinates: { lat: 48.8566, lng: 2.3522 },
-              distanceKm: 1.2,
-              durationMin: 15,
-              calories: 50
+              coordinates: userLocation ? { lat: userLocation.lat, lng: userLocation.lng } : { lat: 48.8566, lng: 2.3522 },
+              distanceKm: routeStats ? routeStats.distance / 1000 : 1.2,
+              durationMin: routeStats ? routeStats.duration : 15,
+              calories: routeStats ? Math.round(routeStats.distance / 20) : 50
             })}
-            className="w-full max-w-md h-14 text-lg font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] border-0"
+            disabled={!routeStats}
+            className="w-full max-w-md h-14 text-lg font-semibold bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground text-primary-foreground rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] border-0"
           >
             Commencer la marche
           </button>
