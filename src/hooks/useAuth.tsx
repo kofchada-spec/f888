@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (event === 'SIGNED_IN') {
           toast({
             title: "Connexion réussie",
-            description: "Bienvenue dans FitPaS !",
+            description: "Bienvenue dans Fitpas !",
           });
         }
         

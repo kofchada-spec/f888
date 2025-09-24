@@ -62,7 +62,7 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
           <div className="mb-8">
             <img 
               src={fitpasLogo} 
-              alt="FitPaS Logo" 
+              alt="Fitpas Logo" 
               className="w-24 h-24 mx-auto"
             />
           </div>
@@ -124,7 +124,7 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
           </h1>
 
           <p className="text-base text-gray-600 max-w-xs leading-relaxed text-center">
-            Définis ton objectif et laisse FitPaS t'accompagner.
+            Définis ton objectif et laisse Fitpas t'accompagner.
           </p>
         </div>
 
@@ -174,11 +174,11 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
           </div>
 
           <h1 className="text-2xl font-bold text-gray-800 mb-6 max-w-xs leading-tight text-center">
-            FitPaS te propose des destinations selon tes objectifs à atteindre.
+            Fitpas te propose des destinations selon tes objectifs à atteindre.
           </h1>
 
           <p className="text-base text-gray-600 max-w-xs leading-relaxed text-center">
-            FitPaS estime l'heure et la distance à parcourir en fonction de ton allure et du nombre de pas.
+            Fitpas estime l'heure et la distance à parcourir en fonction de ton allure et du nombre de pas.
           </p>
         </div>
 

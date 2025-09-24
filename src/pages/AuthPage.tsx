@@ -78,7 +78,7 @@ const AuthPage = () => {
           <div className="flex items-center space-x-3">
             <img 
               src="/lovable-uploads/5216fdd6-d0d7-446b-9260-86d15d06f4ba.png" 
-              alt="FitPaS" 
+              alt="Fitpas" 
               className="h-8 w-auto"
               style={{ 
                 filter: 'invert(0) sepia(1) saturate(5) hue-rotate(120deg) brightness(0.8)',
@@ -98,8 +98,8 @@ const AuthPage = () => {
             </CardTitle>
             <CardDescription>
               {isSignUp 
-                ? 'Créez votre compte FitPaS pour commencer' 
-                : 'Connectez-vous à votre compte FitPaS'
+                ? 'Créez votre compte Fitpas pour commencer' 
+                : 'Connectez-vous à votre compte Fitpas'
               }
             </CardDescription>
           </CardHeader>

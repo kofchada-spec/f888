@@ -22,7 +22,7 @@ const SubscriptionSuccess = () => {
           </div>
           <CardTitle className="text-2xl">Abonnement activé !</CardTitle>
           <CardDescription>
-            Merci pour votre confiance. Votre abonnement FitPaS est maintenant actif.
+            Merci pour votre confiance. Votre abonnement Fitpas est maintenant actif.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">

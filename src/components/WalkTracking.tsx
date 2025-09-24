@@ -271,7 +271,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
           <div className="flex items-center space-x-3 cursor-pointer" onClick={onGoToDashboard}>
             <img 
               src="/lovable-uploads/5216fdd6-d0d7-446b-9260-86d15d06f4ba.png" 
-              alt="FitPaS" 
+              alt="Fitpas" 
               className="h-8 w-auto hover:scale-105 transition-transform"
               style={{ 
                 filter: 'invert(0) sepia(1) saturate(5) hue-rotate(120deg) brightness(0.8)',

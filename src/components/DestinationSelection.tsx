@@ -153,7 +153,7 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
           <div className="flex items-center space-x-3 cursor-pointer" onClick={onGoToDashboard}>
             <img 
               src="/lovable-uploads/5216fdd6-d0d7-446b-9260-86d15d06f4ba.png" 
-              alt="FitPaS" 
+              alt="Fitpas" 
               className="h-8 w-auto hover:scale-105 transition-transform"
               style={{ 
                 filter: 'invert(0) sepia(1) saturate(5) hue-rotate(120deg) brightness(0.8)',
@@ -172,7 +172,7 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
             Choisis ta destination
           </h1>
           <div className="space-y-2 text-muted-foreground max-w-2xl mx-auto">
-            <p>FitPaS calcule la distance en fonction de ton allure et du nombre de pas.</p>
+            <p>Fitpas calcule la distance en fonction de ton allure et du nombre de pas.</p>
             <p>Voici une destination proposée pour atteindre ton objectif.</p>
           </div>
         </div>

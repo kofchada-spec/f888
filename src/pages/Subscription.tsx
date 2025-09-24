@@ -138,7 +138,7 @@ const Subscription = () => {
           <div className="text-center mb-12">
             <h1 className="text-4xl font-bold mb-4">Choisissez votre abonnement</h1>
             <p className="text-xl text-muted-foreground">
-              Accédez à tous les itinéraires et fonctionnalités premium de FitPaS
+              Accédez à tous les itinéraires et fonctionnalités premium de Fitpas
             </p>
           </div>
 
@@ -178,7 +178,7 @@ const Subscription = () => {
                       <div className="space-y-2">
                         <Badge variant="outline">Période d'essai expirée</Badge>
                         <p className="text-sm text-muted-foreground">
-                          Abonnez-vous pour continuer à utiliser FitPaS
+                          Abonnez-vous pour continuer à utiliser Fitpas
                         </p>
                       </div>
                     )}
