@@ -364,7 +364,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
 
   // Update route display on map
   const updateRouteDisplay = useCallback((route: RouteData, destination: { lat: number; lng: number }) => {
-    if (!map.current || !userLocation) return;
+    if (!map.current || !userLocation || !mapInitialized) return;
 
     // Remove existing markers
     if (userMarker.current) {
