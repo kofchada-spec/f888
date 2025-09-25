@@ -169,17 +169,21 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     return result;
   }, []);
 
-  const addOrUpdateSourceLayer = useCallback((id: string, fc: GeoJSON.FeatureCollection, color: string, width = 4) => {
+  const addOrUpdateSourceLayer = useCallback((id: string, fc: GeoJSON.FeatureCollection, color: string, width = 4, dashed = false) => {
     if (!map) return;
     if (map.getSource(id)) {
       (map.getSource(id) as mapboxgl.GeoJSONSource).setData(fc);
     } else {
       map.addSource(id, { type: 'geojson', data: fc });
+      const paintProps: any = { 'line-color': color, 'line-width': width };
+      if (dashed) {
+        paintProps['line-dasharray'] = [2, 2]; // Ligne pointillée
+      }
       map.addLayer({
         id,
         type: 'line',
         source: id,
-        paint: { 'line-color': color, 'line-width': width },
+        paint: paintProps,
         layout: { 'line-cap': 'round', 'line-join': 'round' }
       });
     }
@@ -373,7 +377,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
       if (planningData.tripType === 'round-trip') {
         try {
           const returnRoute = await fetchRoute(finalCandidate, start, [finalRoute.featureCollection]);
-          addOrUpdateSourceLayer('route-return', returnRoute.featureCollection, '#3498DB', 4);
+          addOrUpdateSourceLayer('route-return', returnRoute.featureCollection, '#3498DB', 4, true);
           totalDistance = finalRoute.distance + returnRoute.distance;
           returnRouteCalculated = true;
           console.log('Return route calculated:', returnRoute.distance, 'total:', totalDistance);
@@ -472,8 +476,8 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
       if (planningData.tripType === 'round-trip' && retourDistance > 0) {
         try {
           const returnRoute = await fetchRoute(end, start, [featureCollection]);
-          // Route de retour en bleu pointillé (approximation avec couleur différente)
-          addOrUpdateSourceLayer('route-return-click', returnRoute.featureCollection, '#3498DB', 4);
+          // Route de retour en bleu pointillé
+          addOrUpdateSourceLayer('route-return-click', returnRoute.featureCollection, '#3498DB', 4, true);
         } catch (error) {
           console.warn('Failed to display return route visualization');
         }
