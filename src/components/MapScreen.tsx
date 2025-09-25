@@ -215,9 +215,15 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
         .addTo(map);
     }
 
-    // Cercle de précision
-    if (accuracyCircleRef.current) {
-      clearRoute(accuracyCircleRef.current);
+    // Cercle de précision - nettoyer d'abord si existe
+    if (map.getLayer('accuracy-circle')) {
+      map.removeLayer('accuracy-circle');
+    }
+    if (map.getLayer('accuracy-circle-border')) {
+      map.removeLayer('accuracy-circle-border');
+    }
+    if (map.getSource('accuracy-circle')) {
+      map.removeSource('accuracy-circle');
     }
 
     const circle = turf.circle([userLocation.lng, userLocation.lat], userLocation.accuracy / 1000, {
