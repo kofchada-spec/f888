@@ -55,6 +55,11 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
   const watchIdRef = useRef<number | null>(null);
   const routeCacheRef = useRef<RouteCache>({});
   const debounceRef = useRef<number | null>(null);
+  
+  // Refs pour éviter les recalculs automatiques
+  const isDefaultRouteCalculated = useRef(false);
+  const sourcesInitialized = useRef(false);
+  const locationUpdateTimeoutRef = useRef<number | null>(null);
 
   const maxClicks = planningData?.mapConfig?.maxValidClicks ?? 3;
 
@@ -94,7 +99,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     fetchMapboxToken();
   }, []);
 
-  // Géolocalisation
+  // Géolocalisation avec throttling pour éviter les recalculs
   useEffect(() => {
     if (!navigator.geolocation) {
       setLocationError("Géolocalisation non supportée par ce navigateur");
@@ -113,8 +118,17 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
         lng: position.coords.longitude,
         accuracy: position.coords.accuracy
       };
-      setUserLocation(location);
-      setLocationError(null);
+      
+      // Throttle les mises à jour de position (500ms)
+      if (locationUpdateTimeoutRef.current) {
+        clearTimeout(locationUpdateTimeoutRef.current);
+      }
+      
+      locationUpdateTimeoutRef.current = window.setTimeout(() => {
+        setUserLocation(location);
+        setLocationError(null);
+        console.log('User location updated:', location);
+      }, 500);
     };
 
     const onError = (error: GeolocationPositionError) => {
@@ -124,17 +138,36 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
       setUserLocation({ lat: 48.8566, lng: 2.3522, accuracy: 1000 });
     };
 
-    // Première position
-    navigator.geolocation.getCurrentPosition(onSuccess, onError, options);
+    // Première position (pas de throttling pour la première)
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const location = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          accuracy: position.coords.accuracy
+        };
+        setUserLocation(location);
+        setLocationError(null);
+        console.log('Initial user location set:', location);
+      }, 
+      onError, 
+      options
+    );
 
-    // Watch position si disponible
+    // Watch position si disponible (avec throttling)
     if (navigator.geolocation.watchPosition) {
-      watchIdRef.current = navigator.geolocation.watchPosition(onSuccess, onError, options);
+      watchIdRef.current = navigator.geolocation.watchPosition(onSuccess, onError, {
+        ...options,
+        maximumAge: 5000 // Accepter positions pas plus vieilles que 5s
+      });
     }
 
     return () => {
       if (watchIdRef.current) {
         navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+      if (locationUpdateTimeoutRef.current) {
+        clearTimeout(locationUpdateTimeoutRef.current);
       }
     };
   }, []);
@@ -179,13 +212,20 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
 
   const addOrUpdateSourceLayer = useCallback((id: string, fc: GeoJSON.FeatureCollection, color: string, width = 4, dashed = false) => {
     if (!map) return;
+    
+    // Utiliser setData si la source existe déjà pour éviter le flicker
     if (map.getSource(id)) {
       (map.getSource(id) as mapboxgl.GeoJSONSource).setData(fc);
     } else {
+      // N'ajouter source et layer qu'une seule fois
       map.addSource(id, { type: 'geojson', data: fc });
-      const paintProps: any = { 'line-color': color, 'line-width': width };
+      const paintProps: any = { 
+        'line-color': color, 
+        'line-width': width,
+        'line-opacity': 1 // Pas d'animation d'opacité
+      };
       if (dashed) {
-        paintProps['line-dasharray'] = [2, 2]; // Ligne pointillée
+        paintProps['line-dasharray'] = [2, 2];
       }
       map.addLayer({
         id,
@@ -203,11 +243,11 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     if (map.getSource(id)) map.removeSource(id);
   }, [map]);
 
-  // Mise à jour des marqueurs utilisateur
+  // Mise à jour des marqueurs utilisateur (optimisé pour éviter le flicker)
   const updateUserMarkers = useCallback(() => {
     if (!map || !userLocation) return;
 
-    // Marqueur utilisateur
+    // Marqueur utilisateur - mise à jour position uniquement
     if (userMarkerRef.current) {
       userMarkerRef.current.setLngLat([userLocation.lng, userLocation.lat]);
     } else {
@@ -227,44 +267,40 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
         .addTo(map);
     }
 
-    // Cercle de précision - nettoyer d'abord si existe
-    if (map.getLayer('accuracy-circle')) {
-      map.removeLayer('accuracy-circle');
-    }
-    if (map.getLayer('accuracy-circle-border')) {
-      map.removeLayer('accuracy-circle-border');
-    }
-    if (map.getSource('accuracy-circle')) {
-      map.removeSource('accuracy-circle');
-    }
-
+    // Cercle de précision - utiliser setData au lieu de recréer
     const circle = turf.circle([userLocation.lng, userLocation.lat], userLocation.accuracy / 1000, {
       steps: 64,
       units: 'kilometers'
     });
     
-    accuracyCircleRef.current = 'accuracy-circle';
-    map.addSource('accuracy-circle', { type: 'geojson', data: circle });
-    map.addLayer({
-      id: 'accuracy-circle',
-      type: 'fill',
-      source: 'accuracy-circle',
-      paint: {
-        'fill-color': '#3B82F6',
-        'fill-opacity': 0.1
-      }
-    });
-    map.addLayer({
-      id: 'accuracy-circle-border',
-      type: 'line',
-      source: 'accuracy-circle',
-      paint: {
-        'line-color': '#3B82F6',
-        'line-width': 1,
-        'line-opacity': 0.3
-      }
-    });
-  }, [map, userLocation, clearRoute]);
+    if (map.getSource('accuracy-circle')) {
+      // Mettre à jour les données existantes
+      (map.getSource('accuracy-circle') as mapboxgl.GeoJSONSource).setData(circle);
+    } else {
+      // Créer une seule fois
+      accuracyCircleRef.current = 'accuracy-circle';
+      map.addSource('accuracy-circle', { type: 'geojson', data: circle });
+      map.addLayer({
+        id: 'accuracy-circle',
+        type: 'fill',
+        source: 'accuracy-circle',
+        paint: {
+          'fill-color': '#3B82F6',
+          'fill-opacity': 0.1
+        }
+      });
+      map.addLayer({
+        id: 'accuracy-circle-border',
+        type: 'line',
+        source: 'accuracy-circle',
+        paint: {
+          'line-color': '#3B82F6',
+          'line-width': 1,
+          'line-opacity': 0.3
+        }
+      });
+    }
+  }, [map, userLocation]);
 
   // Génération complète des candidats avec recherche exhaustive
   const generateRingCandidates = useCallback((center: [number, number], radius: number, bearingCount: number = 20) => {
@@ -1109,12 +1145,16 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
 
   const onResetStartDefault = () => {
     if (defaultRouteRef.current && map) {
+      console.log('Resetting to default route (no recalculation)');
       addOrUpdateSourceLayer('route-default', defaultRouteRef.current.geojson, defaultRouteRef.current.color);
       clearRoute('route-click');
       clearRoute('route-return-click');
       
-      // Recalculer les stats du trajet par défaut
-      calculateDefaultDestination();
+      // Restaurer les stats du trajet par défaut SANS recalculer
+      if (routeStats) {
+        setRouteError(null);
+        // Garder les stats existantes du trajet par défaut
+      }
     }
   };
 
@@ -1143,16 +1183,20 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     return () => m.remove();
   }, [mapboxToken]);
 
-  // Mise à jour de la carte quand userLocation change
+  // Initialisation de la carte et calcul du trajet par défaut (UNE SEULE FOIS)
   useEffect(() => {
     if (!map || !userLocation || !mapboxToken) return;
     
-    console.log('User location updated:', userLocation);
+    // Centrer la carte et mettre à jour les marqueurs (sans recalculer la route)
     map.setCenter([userLocation.lng, userLocation.lat]);
     updateUserMarkers();
     
-    // Calculer immédiatement la destination par défaut
-    calculateDefaultDestination();
+    // Calculer la destination par défaut UNIQUEMENT la première fois
+    if (!isDefaultRouteCalculated.current) {
+      console.log('Calculating default route for the first time');
+      isDefaultRouteCalculated.current = true;
+      calculateDefaultDestination();
+    }
     
   }, [map, userLocation, mapboxToken, updateUserMarkers, calculateDefaultDestination]);
 
