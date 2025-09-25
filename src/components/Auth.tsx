@@ -5,6 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { signInSchema, signUpSchema, passwordResetSchema } from '@/lib/validations/auth';
+import type { SignInData, SignUpData, PasswordResetData } from '@/lib/validations/auth';
 
 interface AuthProps {
   onComplete: () => void;
@@ -20,8 +23,10 @@ const Auth = ({ onComplete, onSkipAuth }: AuthProps) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   
   const { signIn, signUp, resetPassword, user } = useAuth();
+  const { toast } = useToast();
 
   // Redirect authenticated users
   useEffect(() => {
@@ -33,26 +38,100 @@ const Auth = ({ onComplete, onSkipAuth }: AuthProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setValidationErrors({});
 
     try {
       if (isResetMode) {
-        await resetPassword(email);
-        setIsResetMode(false);
-        setIsLogin(true);
+        // Validate password reset data
+        const resetData: PasswordResetData = { email };
+        const resetValidation = passwordResetSchema.safeParse(resetData);
+        
+        if (!resetValidation.success) {
+          const errors: Record<string, string> = {};
+          resetValidation.error.errors.forEach((error) => {
+            if (error.path[0]) {
+              errors[error.path[0] as string] = error.message;
+            }
+          });
+          setValidationErrors(errors);
+          return;
+        }
+
+        const { error } = await resetPassword(email);
+        if (error) {
+          toast({
+            variant: 'destructive',
+            title: 'Erreur',
+            description: error.message || 'Erreur lors de la réinitialisation du mot de passe',
+          });
+        } else {
+          toast({
+            title: 'Email envoyé',
+            description: 'Vérifiez votre boîte email pour réinitialiser votre mot de passe',
+          });
+          setIsResetMode(false);
+          setIsLogin(true);
+        }
       } else if (!isLogin) {
-        if (password !== confirmPassword) {
-          return; // Error handling is done in the hook
+        // Validate sign up data
+        const signUpData: SignUpData = {
+          firstName,
+          lastName,
+          email,
+          password,
+          confirmPassword
+        };
+        const signUpValidation = signUpSchema.safeParse(signUpData);
+        
+        if (!signUpValidation.success) {
+          const errors: Record<string, string> = {};
+          signUpValidation.error.errors.forEach((error) => {
+            if (error.path[0]) {
+              errors[error.path[0] as string] = error.message;
+            }
+          });
+          setValidationErrors(errors);
+          return;
         }
         
         const { error } = await signUp(email, password, firstName, lastName);
-        if (!error) {
-          // Success handling is done in the hook
+        if (error) {
+          toast({
+            variant: 'destructive',
+            title: 'Erreur',
+            description: error.message || 'Erreur lors de la création du compte',
+          });
+        } else {
+          toast({
+            title: 'Compte créé',
+            description: 'Votre compte a été créé avec succès',
+          });
         }
       } else {
-        const { error } = await signIn(email, password);
-        if (!error) {
-          // User will be redirected automatically via useEffect
+        // Validate sign in data
+        const signInData: SignInData = { email, password };
+        const signInValidation = signInSchema.safeParse(signInData);
+        
+        if (!signInValidation.success) {
+          const errors: Record<string, string> = {};
+          signInValidation.error.errors.forEach((error) => {
+            if (error.path[0]) {
+              errors[error.path[0] as string] = error.message;
+            }
+          });
+          setValidationErrors(errors);
+          return;
         }
+
+        const { error } = await signIn(email, password);
+        if (error) {
+          toast({
+            variant: 'destructive',
+            title: 'Erreur',
+            description: error.message || 'Erreur lors de la connexion',
+          });
+        }
+        // User will be redirected automatically via useEffect if successful
       }
     } finally {
       setIsSubmitting(false);
@@ -120,20 +199,38 @@ const Auth = ({ onComplete, onSkipAuth }: AuthProps) => {
                   <Input
                     id="firstName"
                     value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
+                    onChange={(e) => {
+                      setFirstName(e.target.value);
+                      if (validationErrors.firstName) {
+                        setValidationErrors(prev => ({ ...prev, firstName: '' }));
+                      }
+                    }}
                     placeholder="Jean"
                     required={!isLogin}
+                    className={validationErrors.firstName ? 'border-destructive' : ''}
                   />
+                  {validationErrors.firstName && (
+                    <p className="text-sm text-destructive mt-1">{validationErrors.firstName}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="lastName">Nom</Label>
                   <Input
                     id="lastName"
                     value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
+                    onChange={(e) => {
+                      setLastName(e.target.value);
+                      if (validationErrors.lastName) {
+                        setValidationErrors(prev => ({ ...prev, lastName: '' }));
+                      }
+                    }}
                     placeholder="Dupont"
                     required={!isLogin}
+                    className={validationErrors.lastName ? 'border-destructive' : ''}
                   />
+                  {validationErrors.lastName && (
+                    <p className="text-sm text-destructive mt-1">{validationErrors.lastName}</p>
+                  )}
                 </div>
               </div>
             )}
@@ -144,10 +241,19 @@ const Auth = ({ onComplete, onSkipAuth }: AuthProps) => {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (validationErrors.email) {
+                    setValidationErrors(prev => ({ ...prev, email: '' }));
+                  }
+                }}
                 placeholder="votre@email.com"
                 required
+                className={validationErrors.email ? 'border-destructive' : ''}
               />
+              {validationErrors.email && (
+                <p className="text-sm text-destructive mt-1">{validationErrors.email}</p>
+              )}
             </div>
             
             {!isResetMode && (
@@ -157,11 +263,19 @@ const Auth = ({ onComplete, onSkipAuth }: AuthProps) => {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (validationErrors.password) {
+                    setValidationErrors(prev => ({ ...prev, password: '' }));
+                  }
+                }}
                 placeholder="••••••••"
                 required
-                minLength={6}
+                className={validationErrors.password ? 'border-destructive' : ''}
               />
+              {validationErrors.password && (
+                <p className="text-sm text-destructive mt-1">{validationErrors.password}</p>
+              )}
             </div>
             )}
 
@@ -172,10 +286,19 @@ const Auth = ({ onComplete, onSkipAuth }: AuthProps) => {
                   id="confirmPassword"
                   type="password"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    if (validationErrors.confirmPassword) {
+                      setValidationErrors(prev => ({ ...prev, confirmPassword: '' }));
+                    }
+                  }}
                   placeholder="••••••••"
                   required
+                  className={validationErrors.confirmPassword ? 'border-destructive' : ''}
                 />
+                {validationErrors.confirmPassword && (
+                  <p className="text-sm text-destructive mt-1">{validationErrors.confirmPassword}</p>
+                )}
               </div>
             )}
 

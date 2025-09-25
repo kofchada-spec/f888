@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { signInSchema, signUpSchema } from '@/lib/validations/auth';
+import type { SignInData, SignUpData } from '@/lib/validations/auth';
 
 const AuthPage = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -15,6 +17,7 @@ const AuthPage = () => {
   const [lastName, setLastName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   
   const { signUp, signIn, signOut, user } = useAuth();
   const { toast } = useToast();
@@ -29,27 +32,77 @@ const AuthPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setValidationErrors({});
 
     try {
-      let result;
       if (isSignUp) {
-        result = await signUp(email, password, firstName, lastName);
-      } else {
-        result = await signIn(email, password);
-      }
+        // Validate sign up data
+        const signUpData: SignUpData = {
+          firstName,
+          lastName,
+          email,
+          password,
+          confirmPassword: password // Using password as confirmPassword for this component
+        };
+        const signUpValidation = signUpSchema.safeParse(signUpData);
+        
+        if (!signUpValidation.success) {
+          const errors: Record<string, string> = {};
+          signUpValidation.error.errors.forEach((error) => {
+            if (error.path[0]) {
+              errors[error.path[0] as string] = error.message;
+            }
+          });
+          setValidationErrors(errors);
+          setLoading(false);
+          return;
+        }
 
-      if (result.error) {
-        toast({
-          variant: 'destructive',
-          title: 'Erreur',
-          description: result.error.message || 'Une erreur est survenue',
-        });
+        const result = await signUp(email, password, firstName, lastName);
+        if (result.error) {
+          toast({
+            variant: 'destructive',
+            title: 'Erreur',
+            description: result.error.message || 'Une erreur est survenue lors de la création du compte',
+          });
+        } else {
+          toast({
+            title: 'Succès',
+            description: 'Compte créé avec succès',
+          });
+          navigate('/');
+        }
       } else {
-        toast({
-          title: 'Succès',
-          description: isSignUp ? 'Compte créé avec succès' : 'Connexion réussie',
-        });
-        navigate('/');
+        // Validate sign in data
+        const signInData: SignInData = { email, password };
+        const signInValidation = signInSchema.safeParse(signInData);
+        
+        if (!signInValidation.success) {
+          const errors: Record<string, string> = {};
+          signInValidation.error.errors.forEach((error) => {
+            if (error.path[0]) {
+              errors[error.path[0] as string] = error.message;
+            }
+          });
+          setValidationErrors(errors);
+          setLoading(false);
+          return;
+        }
+
+        const result = await signIn(email, password);
+        if (result.error) {
+          toast({
+            variant: 'destructive',
+            title: 'Erreur',
+            description: result.error.message || 'Une erreur est survenue lors de la connexion',
+          });
+        } else {
+          toast({
+            title: 'Succès',
+            description: 'Connexion réussie',
+          });
+          navigate('/');
+        }
       }
     } catch (error) {
       toast({
@@ -112,18 +165,36 @@ const AuthPage = () => {
                       type="text"
                       placeholder="Prénom"
                       value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
+                      onChange={(e) => {
+                        setFirstName(e.target.value);
+                        if (validationErrors.firstName) {
+                          setValidationErrors(prev => ({ ...prev, firstName: '' }));
+                        }
+                      }}
                       required
+                      className={validationErrors.firstName ? 'border-destructive' : ''}
                     />
+                    {validationErrors.firstName && (
+                      <p className="text-sm text-destructive mt-1">{validationErrors.firstName}</p>
+                    )}
                   </div>
                   <div>
                     <Input
                       type="text"
                       placeholder="Nom"
                       value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
+                      onChange={(e) => {
+                        setLastName(e.target.value);
+                        if (validationErrors.lastName) {
+                          setValidationErrors(prev => ({ ...prev, lastName: '' }));
+                        }
+                      }}
                       required
+                      className={validationErrors.lastName ? 'border-destructive' : ''}
                     />
+                    {validationErrors.lastName && (
+                      <p className="text-sm text-destructive mt-1">{validationErrors.lastName}</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -133,9 +204,18 @@ const AuthPage = () => {
                   type="email"
                   placeholder="Email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (validationErrors.email) {
+                      setValidationErrors(prev => ({ ...prev, email: '' }));
+                    }
+                  }}
                   required
+                  className={validationErrors.email ? 'border-destructive' : ''}
                 />
+                {validationErrors.email && (
+                  <p className="text-sm text-destructive mt-1">{validationErrors.email}</p>
+                )}
               </div>
               
               <div className="relative">
@@ -143,9 +223,18 @@ const AuthPage = () => {
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Mot de passe"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (validationErrors.password) {
+                      setValidationErrors(prev => ({ ...prev, password: '' }));
+                    }
+                  }}
                   required
+                  className={validationErrors.password ? 'border-destructive' : ''}
                 />
+                {validationErrors.password && (
+                  <p className="text-sm text-destructive mt-1">{validationErrors.password}</p>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
