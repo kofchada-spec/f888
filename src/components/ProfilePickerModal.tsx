@@ -172,7 +172,7 @@ export const ProfilePickerModal = ({
           <h2 className="font-inter text-xl font-bold text-foreground">{getTitle()}</h2>
           <button
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-full hover:bg-muted/50"
+            className="text-foreground/70 hover:text-foreground hover:bg-muted/80 transition-all duration-200 p-2 rounded-full border border-border/30 hover:border-border/60 shadow-sm hover:shadow-md"
           >
             <X className="w-5 h-5" />
           </button>
