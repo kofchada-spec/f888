@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, RotateCcw } from 'lucide-react';
-import EnhancedMap from './EnhancedMap';
+import SimpleMap from '@/components/SimpleMap';
 import { useMapClickLimiter } from '@/hooks/useMapClickLimiter';
 
 interface MapScreenProps {
@@ -133,7 +133,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
 
         {/* Enhanced Map */}
         <div className="mb-6 relative">
-          <EnhancedMap 
+          <SimpleMap 
             planningData={planningData}
             className="w-full"
             onRouteCalculated={handleRouteCalculated}
