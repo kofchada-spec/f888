@@ -6,8 +6,6 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { signInSchema, signUpSchema, passwordResetSchema } from '@/lib/validations/auth';
-import type { SignInData, SignUpData, PasswordResetData } from '@/lib/validations/auth';
 
 interface AuthProps {
   onComplete: () => void;
@@ -23,7 +21,6 @@ const Auth = ({ onComplete, onSkipAuth }: AuthProps) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   
   const { signIn, signUp, resetPassword, user } = useAuth();
   const { toast } = useToast();
@@ -38,25 +35,9 @@ const Auth = ({ onComplete, onSkipAuth }: AuthProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setValidationErrors({});
 
     try {
       if (isResetMode) {
-        // Validate password reset data
-        const resetData: PasswordResetData = { email };
-        const resetValidation = passwordResetSchema.safeParse(resetData);
-        
-        if (!resetValidation.success) {
-          const errors: Record<string, string> = {};
-          resetValidation.error.errors.forEach((error) => {
-            if (error.path[0]) {
-              errors[error.path[0] as string] = error.message;
-            }
-          });
-          setValidationErrors(errors);
-          return;
-        }
-
         const { error } = await resetPassword(email);
         if (error) {
           toast({
@@ -73,24 +54,12 @@ const Auth = ({ onComplete, onSkipAuth }: AuthProps) => {
           setIsLogin(true);
         }
       } else if (!isLogin) {
-        // Validate sign up data
-        const signUpData: SignUpData = {
-          firstName,
-          lastName,
-          email,
-          password,
-          confirmPassword
-        };
-        const signUpValidation = signUpSchema.safeParse(signUpData);
-        
-        if (!signUpValidation.success) {
-          const errors: Record<string, string> = {};
-          signUpValidation.error.errors.forEach((error) => {
-            if (error.path[0]) {
-              errors[error.path[0] as string] = error.message;
-            }
+        if (password !== confirmPassword) {
+          toast({
+            variant: 'destructive',
+            title: 'Erreur',
+            description: 'Les mots de passe ne correspondent pas',
           });
-          setValidationErrors(errors);
           return;
         }
         
@@ -108,21 +77,6 @@ const Auth = ({ onComplete, onSkipAuth }: AuthProps) => {
           });
         }
       } else {
-        // Validate sign in data
-        const signInData: SignInData = { email, password };
-        const signInValidation = signInSchema.safeParse(signInData);
-        
-        if (!signInValidation.success) {
-          const errors: Record<string, string> = {};
-          signInValidation.error.errors.forEach((error) => {
-            if (error.path[0]) {
-              errors[error.path[0] as string] = error.message;
-            }
-          });
-          setValidationErrors(errors);
-          return;
-        }
-
         const { error } = await signIn(email, password);
         if (error) {
           toast({
@@ -199,38 +153,20 @@ const Auth = ({ onComplete, onSkipAuth }: AuthProps) => {
                   <Input
                     id="firstName"
                     value={firstName}
-                    onChange={(e) => {
-                      setFirstName(e.target.value);
-                      if (validationErrors.firstName) {
-                        setValidationErrors(prev => ({ ...prev, firstName: '' }));
-                      }
-                    }}
+                    onChange={(e) => setFirstName(e.target.value)}
                     placeholder="Jean"
                     required={!isLogin}
-                    className={validationErrors.firstName ? 'border-destructive' : ''}
                   />
-                  {validationErrors.firstName && (
-                    <p className="text-sm text-destructive mt-1">{validationErrors.firstName}</p>
-                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="lastName">Nom</Label>
                   <Input
                     id="lastName"
                     value={lastName}
-                    onChange={(e) => {
-                      setLastName(e.target.value);
-                      if (validationErrors.lastName) {
-                        setValidationErrors(prev => ({ ...prev, lastName: '' }));
-                      }
-                    }}
+                    onChange={(e) => setLastName(e.target.value)}
                     placeholder="Dupont"
                     required={!isLogin}
-                    className={validationErrors.lastName ? 'border-destructive' : ''}
                   />
-                  {validationErrors.lastName && (
-                    <p className="text-sm text-destructive mt-1">{validationErrors.lastName}</p>
-                  )}
                 </div>
               </div>
             )}
@@ -241,19 +177,10 @@ const Auth = ({ onComplete, onSkipAuth }: AuthProps) => {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  if (validationErrors.email) {
-                    setValidationErrors(prev => ({ ...prev, email: '' }));
-                  }
-                }}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="votre@email.com"
                 required
-                className={validationErrors.email ? 'border-destructive' : ''}
               />
-              {validationErrors.email && (
-                <p className="text-sm text-destructive mt-1">{validationErrors.email}</p>
-              )}
             </div>
             
             {!isResetMode && (
@@ -263,19 +190,11 @@ const Auth = ({ onComplete, onSkipAuth }: AuthProps) => {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  if (validationErrors.password) {
-                    setValidationErrors(prev => ({ ...prev, password: '' }));
-                  }
-                }}
+                onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                className={validationErrors.password ? 'border-destructive' : ''}
+                minLength={6}
               />
-              {validationErrors.password && (
-                <p className="text-sm text-destructive mt-1">{validationErrors.password}</p>
-              )}
             </div>
             )}
 
@@ -286,19 +205,10 @@ const Auth = ({ onComplete, onSkipAuth }: AuthProps) => {
                   id="confirmPassword"
                   type="password"
                   value={confirmPassword}
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                    if (validationErrors.confirmPassword) {
-                      setValidationErrors(prev => ({ ...prev, confirmPassword: '' }));
-                    }
-                  }}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className={validationErrors.confirmPassword ? 'border-destructive' : ''}
                 />
-                {validationErrors.confirmPassword && (
-                  <p className="text-sm text-destructive mt-1">{validationErrors.confirmPassword}</p>
-                )}
               </div>
             )}
 
