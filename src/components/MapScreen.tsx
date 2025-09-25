@@ -43,6 +43,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     distance: number;
     duration: number;
     steps: number;
+    calories: number;
     isValid: boolean;
   } | null>(null);
 
@@ -56,14 +57,20 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
 
   const maxClicks = planningData?.mapConfig?.maxValidClicks ?? 3;
 
-  // Calculs basés sur les paramètres utilisateur
+  // Calculs basés sur les paramètres utilisateur (formules exactes des spécifications)
   const stepGoal = parseInt(planningData.steps);
   const heightM = parseFloat(planningData.height);
-  const stride = heightM ? 0.415 * heightM : 0.75; // longueur de foulée en mètres
-  const targetMeters = stepGoal * stride;
-  const minMeters = targetMeters * 0.95;
-  const maxMeters = targetMeters * 1.05;
+  const weightKg = parseFloat(planningData.weight);
+  const stride = heightM ? 0.415 * heightM : 0.72; // longueur de foulée = 0.415 × taille (m)
+  const targetMeters = stepGoal * stride; // distance cible en mètres
+  const minMeters = targetMeters * 0.95; // -5% tolérance
+  const maxMeters = targetMeters * 1.05; // +5% tolérance
+  
+  // Vitesses selon l'allure (km/h)
   const speedKmh = planningData.pace === 'slow' ? 4 : planningData.pace === 'moderate' ? 5 : 6;
+  
+  // Coefficients pour calories
+  const calorieCoefficient = planningData.pace === 'slow' ? 0.35 : planningData.pace === 'moderate' ? 0.5 : 0.7;
 
   // Plage de validation pour l'objectif total
   const totalRange = { min: minMeters, max: maxMeters };
@@ -387,16 +394,20 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
         }
       }
 
+      // Calculs selon les spécifications exactes
       const estimatedSteps = Math.round(totalDistance / stride);
-      const duration = Math.round((totalDistance / 1000) / speedKmh * 60);
+      const distanceKm = totalDistance / 1000;
+      const duration = Math.round(distanceKm / speedKmh * 60); // durée (minutes) = distance ÷ vitesse
+      const calories = Math.round(distanceKm * weightKg * calorieCoefficient); // calories = distance × poids × coefficient
       const isValid = totalDistance >= totalRange.min && totalDistance <= totalRange.max;
       
-      console.log('Route stats:', { totalDistance, estimatedSteps, duration, isValid, stepGoal });
+      console.log('Route stats:', { totalDistance, estimatedSteps, duration, calories, isValid, stepGoal });
       
       setRouteStats({
         distance: totalDistance,
         duration,
         steps: estimatedSteps,
+        calories,
         isValid
       });
 
@@ -483,8 +494,10 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
         }
       }
 
-      const duration = Math.round((totalDistance / 1000) / speedKmh * 60);
-
+      // Calculs selon les spécifications exactes pour le clic utilisateur
+      const distanceKm = totalDistance / 1000;
+      const duration = Math.round(distanceKm / speedKmh * 60); // durée (minutes) = distance ÷ vitesse
+      const calories = Math.round(distanceKm * weightKg * calorieCoefficient); // calories = distance × poids × coefficient
       const estimatedSteps = Math.round(totalDistance / stride);
       const isValid = totalDistance >= totalRange.min && totalDistance <= totalRange.max;
 
@@ -492,6 +505,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
         distance: totalDistance,
         duration,
         steps: estimatedSteps,
+        calories,
         isValid
       });
 
@@ -642,6 +656,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
                 <span>≈ {(routeStats.distance / 1000).toFixed(1)} km</span>
                 <span>≈ {routeStats.duration} min</span>
                 <span>{routeStats.steps} pas</span>
+                <span>≈ {routeStats.calories} kcal</span>
                 <span className="text-muted-foreground">(objectif {stepGoal})</span>
               </div>
               {!routeStats.isValid && (
@@ -719,7 +734,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
               coordinates: userLocation ? { lat: userLocation.lat, lng: userLocation.lng } : { lat: 48.8566, lng: 2.3522 },
               distanceKm: routeStats ? routeStats.distance / 1000 : 1.2,
               durationMin: routeStats ? routeStats.duration : 15,
-              calories: routeStats ? Math.round(routeStats.distance / 20) : 50
+              calories: routeStats ? routeStats.calories : 50
             })}
             disabled={!routeStats}
             className="w-full max-w-md h-14 text-lg font-semibold bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground text-primary-foreground rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] border-0"
