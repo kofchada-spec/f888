@@ -59,18 +59,18 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
         )}
 
         <div className="flex-1 flex flex-col items-center justify-center">
-          <div className="mb-12 transform animate-pulse">
+          <div className="mb-8 transform animate-pulse">
             <img 
               src={fitpasLogo} 
               alt="Fitpas Logo" 
-              className="w-28 h-28 mx-auto drop-shadow-lg"
+              className="w-24 h-24 mx-auto drop-shadow-lg"
             />
           </div>
-          <div className="space-y-6 text-center">
-            <h1 className="text-4xl font-black text-white mb-2 tracking-tight">
+          <div className="space-y-4 text-center">
+            <h1 className="text-3xl font-extrabold text-white mb-2 tracking-tight">
               Bienvenue
             </h1>
-            <p className="text-white/95 text-xl font-semibold leading-relaxed px-4">
+            <p className="text-white/95 text-lg font-semibold leading-relaxed px-4">
               Ta marche, ton rythme, ton objectif.
             </p>
           </div>
@@ -113,22 +113,22 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
 
         <div className="flex-1 flex flex-col items-center justify-center">
           {/* Walking person illustration */}
-          <div className="mb-10 transform hover:scale-105 transition-transform duration-300">
+          <div className="mb-8 transform hover:scale-105 transition-transform duration-300">
             <img 
               src="/lovable-uploads/18d7c199-1173-482f-9050-fbbb00132134.png"
               alt="Personne qui marche"
-              className="w-36 h-36 mx-auto drop-shadow-xl"
+              className="w-32 h-32 mx-auto drop-shadow-lg"
             />
           </div>
 
-          <div className="space-y-8 text-center px-2">
-            <h1 className="text-3xl font-black text-gray-900 leading-tight max-w-sm tracking-tight">
+          <div className="space-y-6 text-center px-2">
+            <h1 className="text-2xl font-bold text-gray-900 leading-tight max-w-sm">
               Planifie ta marche en fonction de ton objectif de pas à atteindre.
             </h1>
 
-            <div className="h-px w-16 bg-gradient-to-r from-primary to-secondary mx-auto"></div>
+            <div className="h-px w-12 bg-gradient-to-r from-primary to-secondary mx-auto"></div>
 
-            <p className="text-lg text-gray-700 max-w-sm leading-relaxed font-medium">
+            <p className="text-base text-gray-700 max-w-sm leading-relaxed">
               Définis ton objectif et laisse Fitpas t'accompagner.
             </p>
           </div>
@@ -171,22 +171,22 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
 
         <div className="flex-1 flex flex-col items-center justify-center px-4">
           {/* Map/destination illustration */}
-          <div className="mb-10 transform hover:scale-105 transition-transform duration-300">
+          <div className="mb-8 transform hover:scale-105 transition-transform duration-300">
             <img 
               src={mapDestination}
               alt="Carte avec destinations"
-              className="w-36 h-36 mx-auto drop-shadow-xl"
+              className="w-32 h-32 mx-auto drop-shadow-lg"
             />
           </div>
 
-          <div className="space-y-8 text-center">
-            <h1 className="text-3xl font-black text-gray-900 max-w-sm leading-tight tracking-tight">
+          <div className="space-y-6 text-center">
+            <h1 className="text-2xl font-bold text-gray-900 max-w-sm leading-tight">
               Fitpas te propose des destinations selon tes objectifs à atteindre.
             </h1>
 
-            <div className="h-px w-20 bg-gradient-to-r from-primary to-secondary mx-auto"></div>
+            <div className="h-px w-12 bg-gradient-to-r from-primary to-secondary mx-auto"></div>
 
-            <p className="text-lg text-gray-700 max-w-sm leading-relaxed font-medium">
+            <p className="text-base text-gray-700 max-w-sm leading-relaxed">
               Fitpas estime l'heure et la distance à parcourir en fonction de ton allure et du nombre de pas.
             </p>
           </div>
