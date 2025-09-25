@@ -133,7 +133,10 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
 
         {/* Enhanced Map */}
         <div className="mb-6 relative">
-          <EnhancedMap />
+          <EnhancedMap 
+            planningData={planningData}
+            onRouteCalculated={handleRouteCalculated}
+          />
           
           {/* Click Counter & Reset */}
           <div className="absolute top-4 right-4 bg-card/90 backdrop-blur-sm rounded-lg p-3 shadow-lg">

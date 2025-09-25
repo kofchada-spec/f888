@@ -2,18 +2,167 @@ import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
-interface EnhancedMapProps {
-  className?: string;
+interface PlanningData {
+  steps: string;
+  pace: 'slow' | 'moderate' | 'fast';
+  tripType: 'one-way' | 'round-trip';
+  height: string;
+  weight: string;
 }
 
-const EnhancedMap: React.FC<EnhancedMapProps> = ({ className = '' }) => {
+interface EnhancedMapProps {
+  className?: string;
+  planningData?: PlanningData;
+  onRouteCalculated?: (data: {
+    distance: number;
+    duration: number;
+    calories: number;
+    steps: number;
+    startCoordinates: { lat: number; lng: number };
+    endCoordinates: { lat: number; lng: number };
+    routeGeoJSON?: any;
+  }) => void;
+}
+
+const EnhancedMap: React.FC<EnhancedMapProps> = ({ 
+  className = '', 
+  planningData, 
+  onRouteCalculated 
+}) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const userMarker = useRef<mapboxgl.Marker | null>(null);
+  const destinationMarker = useRef<mapboxgl.Marker | null>(null);
   
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [routeError, setRouteError] = useState<string | null>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
+
+  // Calculate target distance from steps and height
+  const calculateTargetDistance = (steps: string, height: string) => {
+    const stepCount = parseInt(steps);
+    const heightInMeters = parseFloat(height);
+    const strideLength = 0.415 * heightInMeters;
+    return (stepCount * strideLength) / 1000; // km
+  };
+
+  // Calculate calories based on distance, weight, and pace
+  const calculateCalories = (distanceKm: number, weight: string, pace: string) => {
+    const weightKg = parseFloat(weight);
+    const met = pace === 'slow' ? 3.0 : pace === 'moderate' ? 4.0 : 5.0;
+    const timeHours = distanceKm / (pace === 'slow' ? 4 : pace === 'moderate' ? 5 : 6);
+    return Math.round(met * weightKg * timeHours);
+  };
+
+  // Get route from Mapbox Directions API
+  const getRoute = async (start: [number, number], end: [number, number]) => {
+    if (!mapboxToken) return null;
+    
+    try {
+      const response = await fetch(
+        `https://api.mapbox.com/directions/v5/mapbox/walking/${start[0]},${start[1]};${end[0]},${end[1]}?geometries=geojson&access_token=${mapboxToken}`
+      );
+      
+      if (!response.ok) throw new Error('Failed to fetch route');
+      
+      const data = await response.json();
+      return data.routes[0];
+    } catch (error) {
+      console.error('Route fetch error:', error);
+      return null;
+    }
+  };
+
+  // Handle map click for destination selection
+  const handleMapClick = async (e: mapboxgl.MapMouseEvent) => {
+    if (!planningData || !userLocation || isCalculating) return;
+
+    const targetDistance = calculateTargetDistance(planningData.steps, planningData.height);
+    const tolerance = 0.05; // 5%
+    const minDistance = targetDistance * (1 - tolerance);
+    const maxDistance = targetDistance * (1 + tolerance);
+
+    setIsCalculating(true);
+    setRouteError(null);
+
+    const destinationCoords: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+    const startCoords: [number, number] = [userLocation.lng, userLocation.lat];
+
+    const route = await getRoute(startCoords, destinationCoords);
+    
+    if (!route) {
+      setRouteError("Impossible de calculer l'itinéraire.");
+      setIsCalculating(false);
+      return;
+    }
+
+    const routeDistanceKm = route.distance / 1000;
+    
+    if (routeDistanceKm < minDistance || routeDistanceKm > maxDistance) {
+      setRouteError(`Itinéraire hors de portée (${routeDistanceKm.toFixed(2)}km). Distance cible: ${targetDistance.toFixed(2)}km (±5%).`);
+      setIsCalculating(false);
+      return;
+    }
+
+    // Remove existing destination marker
+    if (destinationMarker.current) {
+      destinationMarker.current.remove();
+    }
+
+    // Add destination marker (red)
+    destinationMarker.current = new mapboxgl.Marker({ color: '#ef4444' })
+      .setLngLat(destinationCoords)
+      .addTo(map.current!);
+
+    // Add route to map
+    if (map.current?.getSource('route')) {
+      map.current.removeLayer('route');
+      map.current.removeSource('route');
+    }
+
+    map.current?.addSource('route', {
+      type: 'geojson',
+      data: {
+        type: 'Feature',
+        properties: {},
+        geometry: route.geometry
+      }
+    });
+
+    map.current?.addLayer({
+      id: 'route',
+      type: 'line',
+      source: 'route',
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round'
+      },
+      paint: {
+        'line-color': '#3b82f6',
+        'line-width': 4
+      }
+    });
+
+    // Calculate route data
+    const calories = calculateCalories(routeDistanceKm, planningData.weight, planningData.pace);
+    const durationMin = Math.round(route.duration / 60);
+    const steps = parseInt(planningData.steps);
+
+    const routeData = {
+      distance: routeDistanceKm,
+      duration: durationMin,
+      calories,
+      steps,
+      startCoordinates: { lat: userLocation.lat, lng: userLocation.lng },
+      endCoordinates: { lat: e.lngLat.lat, lng: e.lngLat.lng },
+      routeGeoJSON: route.geometry
+    };
+
+    onRouteCalculated?.(routeData);
+    setIsCalculating(false);
+  };
 
   // Get Mapbox token
   useEffect(() => {
@@ -76,10 +225,15 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ className = '' }) => {
         .addTo(map.current);
     }
 
+    // Add click handler for one-way routes
+    if (planningData && planningData.tripType === 'one-way') {
+      map.current.on('click', handleMapClick);
+    }
+
     return () => {
       map.current?.remove();
     };
-  }, [mapboxToken, userLocation, permissionDenied]);
+  }, [mapboxToken, userLocation, permissionDenied, planningData]);
 
   if (!mapboxToken) {
     return (
@@ -93,8 +247,34 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ className = '' }) => {
   }
 
   return (
-    <div className={`w-full h-[500px] rounded-2xl shadow-lg ${className}`}>
+    <div className={`w-full h-[500px] rounded-2xl shadow-lg relative ${className}`}>
       <div ref={mapContainer} className="w-full h-full rounded-2xl" />
+      
+      {/* Route Error Display */}
+      {routeError && (
+        <div className="absolute top-4 left-4 right-4 bg-destructive/90 backdrop-blur-sm text-destructive-foreground p-3 rounded-lg shadow-lg">
+          <p className="text-sm font-medium">{routeError}</p>
+        </div>
+      )}
+      
+      {/* Calculating Indicator */}
+      {isCalculating && (
+        <div className="absolute inset-0 bg-background/50 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+          <div className="bg-card p-4 rounded-lg shadow-lg flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+            <p className="text-sm font-medium">Calcul de l'itinéraire...</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Instructions */}
+      {planningData && planningData.tripType === 'one-way' && !routeError && !isCalculating && (
+        <div className="absolute bottom-4 left-4 right-4 bg-card/90 backdrop-blur-sm p-3 rounded-lg shadow-lg">
+          <p className="text-sm text-center text-muted-foreground">
+            Cliquez sur la carte pour sélectionner votre destination
+          </p>
+        </div>
+      )}
     </div>
   );
 };
