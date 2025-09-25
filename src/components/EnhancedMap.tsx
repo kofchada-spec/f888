@@ -14,6 +14,8 @@ interface EnhancedMapProps {
   };
   onBack?: () => void;
   className?: string;
+  canClick?: boolean;
+  onUserClick?: () => void;
   onRouteCalculated?: (routeData: {
     distance: number;
     duration: number;
@@ -35,7 +37,13 @@ interface RouteData {
   returnCoordinates?: number[][]; // For round-trip: return path
 }
 
-const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, className = '', onRouteCalculated }) => {
+const EnhancedMap: React.FC<EnhancedMapProps> = ({ 
+  planningData, 
+  className = '', 
+  canClick = true, 
+  onUserClick, 
+  onRouteCalculated 
+}) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const userMarker = useRef<mapboxgl.Marker | null>(null);
@@ -45,20 +53,11 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [destinationLocation, setDestinationLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [routeData, setRouteData] = useState<RouteData | null>(null);
+  const [defaultRouteData, setDefaultRouteData] = useState<{ route: RouteData; destination: { lat: number; lng: number } } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
-  const [clickCount, setClickCount] = useState(0);
   const [showWarningMessage, setShowWarningMessage] = useState<string | null>(null);
-  const [isLocked, setIsLocked] = useState(false);
-
-  // Calculate target distance based on planning data
-  const getTargetDistance = useCallback(() => {
-    const steps = parseInt(planningData.steps);
-    const heightM = parseFloat(planningData.height);
-    const strideM = 0.415 * heightM;
-    const totalKm = (steps * strideM) / 1000;
-    return totalKm;
-  }, [planningData]);
+  const [mapInitialized, setMapInitialized] = useState(false);
 
   // Calculate steps based on distance and user data
   const calculateSteps = useCallback((distanceKm: number) => {
@@ -68,17 +67,27 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
     return Math.round(distanceM / strideM);
   }, [planningData.height]);
 
-  // Calculate time based on distance
+  // Calculate time based on distance and pace
   const calculateTime = useCallback((distanceKm: number) => {
-    const walkingSpeedKmh = 5.0;
-    return Math.round((distanceKm / walkingSpeedKmh) * 60);
-  }, []);
+    const speedKmh = {
+      slow: 4,
+      moderate: 5,
+      fast: 6
+    }[planningData.pace];
+    return Math.round((distanceKm / speedKmh) * 60);
+  }, [planningData.pace]);
 
   // Calculate calories based on distance and user data
   const calculateCalories = useCallback((distanceKm: number) => {
     const weightKg = parseFloat(planningData.weight) || 70;
-    return Math.round(weightKg * distanceKm * 0.9);
-  }, [planningData.weight]);
+    const calorieCoefficients = {
+      slow: 0.35,
+      moderate: 0.50,
+      fast: 0.70
+    };
+    const coefficient = calorieCoefficients[planningData.pace];
+    return Math.round(distanceKm * weightKg * coefficient);
+  }, [planningData.weight, planningData.pace]);
 
   // Validate route against step target with ±5% tolerance
   const validateRouteSteps = useCallback((route: RouteData, targetSteps: number) => {
@@ -132,7 +141,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
     getUserLocation();
   }, []);
 
-  // Compute route using Mapbox Directions API with step validation
+  // Compute route using Mapbox Directions API
   const computeRoute = useCallback(async (start: { lat: number; lng: number }, end: { lat: number; lng: number }): Promise<RouteData | null> => {
     if (!mapboxToken) return null;
 
@@ -140,7 +149,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       const profile = 'walking';
       
       if (planningData.tripType === 'round-trip') {
-        // For round-trip, create non-retracing outbound and return routes
+        // For round-trip, calculate outbound route then return route
         const outboundCoords = `${start.lng},${start.lat};${end.lng},${end.lat}`;
         const outboundUrl = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${outboundCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
         const outboundResponse = await fetch(outboundUrl);
@@ -149,10 +158,14 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
         if (outboundData.routes && outboundData.routes.length > 0) {
           const outboundRoute = outboundData.routes[0];
           
-          // Create non-retracing return route using strategic waypoints
-          const returnRoute = await computeNonRetracingReturn(start, end, outboundRoute.geometry.coordinates);
+          // Calculate return route (can be same path for simplicity)
+          const returnCoords = `${end.lng},${end.lat};${start.lng},${start.lat}`;
+          const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${returnCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
+          const returnResponse = await fetch(returnUrl);
+          const returnData = await returnResponse.json();
           
-          if (returnRoute) {
+          if (returnData.routes && returnData.routes.length > 0) {
+            const returnRoute = returnData.routes[0];
             const totalDistanceKm = (outboundRoute.distance + returnRoute.distance) / 1000;
             const steps = calculateSteps(totalDistanceKm);
             const durationMin = calculateTime(totalDistanceKm);
@@ -199,142 +212,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
     return null;
   }, [mapboxToken, planningData.tripType, calculateSteps, calculateTime, calculateCalories]);
 
-  // Compute non-retracing return route using strategic waypoints
-  const computeNonRetracingReturn = useCallback(async (start: { lat: number; lng: number }, end: { lat: number; lng: number }, outboundCoords: number[][]): Promise<any> => {
-    if (!mapboxToken || outboundCoords.length < 2) return null;
-
-    try {
-      // Calculate strategic waypoints to avoid outbound path
-      const waypoints = calculateAvoidanceWaypoints(start, end, outboundCoords);
-      
-      // Try different waypoint combinations to find the best non-retracing route
-      const waypointAttempts = [
-        waypoints, // All waypoints
-        [waypoints[0], waypoints[waypoints.length - 1]], // Just first and last
-        waypoints.filter((_, i) => i % 2 === 0) // Every other waypoint
-      ];
-
-      for (const currentWaypoints of waypointAttempts) {
-        try {
-          // Build coordinates string with waypoints: end -> waypoint1 -> waypoint2 -> start
-          const waypointCoords = currentWaypoints.map(wp => `${wp.lng},${wp.lat}`).join(';');
-          const returnCoords = `${end.lng},${end.lat};${waypointCoords};${start.lng},${start.lat}`;
-          
-          const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${returnCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
-          const returnResponse = await fetch(returnUrl);
-          const returnData = await returnResponse.json();
-          
-          if (returnData.routes && returnData.routes.length > 0) {
-            const returnRoute = returnData.routes[0];
-            
-            // Check if return route sufficiently avoids outbound path
-            const overlapPercentage = calculatePathOverlap(outboundCoords, returnRoute.geometry.coordinates);
-            
-            if (overlapPercentage < 0.3) { // Less than 30% overlap is acceptable
-              return returnRoute;
-            }
-          }
-        } catch (error) {
-          continue; // Try next waypoint combination
-        }
-      }
-
-      // Fallback: Use simple alternative route if waypoint approach fails
-      const returnCoords = `${end.lng},${end.lat};${start.lng},${start.lat}`;
-      const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${returnCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full&alternatives=true`;
-      const returnResponse = await fetch(returnUrl);
-      const returnData = await returnResponse.json();
-      
-      if (returnData.routes && returnData.routes.length > 1) {
-        // Try alternative routes and pick the one with least overlap
-        let bestRoute = null;
-        let minOverlap = 1.0;
-        
-        for (const route of returnData.routes) {
-          const overlap = calculatePathOverlap(outboundCoords, route.geometry.coordinates);
-          if (overlap < minOverlap) {
-            minOverlap = overlap;
-            bestRoute = route;
-          }
-        }
-        
-        return bestRoute || returnData.routes[1]; // Return best or alternative
-      }
-
-      return returnData.routes?.[0] || null; // Fallback to primary route
-    } catch (error) {
-      console.error('Error computing non-retracing return:', error);
-      return null;
-    }
-  }, [mapboxToken]);
-
-  // Calculate waypoints that force route to avoid outbound path
-  const calculateAvoidanceWaypoints = useCallback((start: { lat: number; lng: number }, end: { lat: number; lng: number }, outboundCoords: number[][]) => {
-    const waypoints = [];
-    const numWaypoints = Math.min(3, Math.max(1, Math.floor(outboundCoords.length / 20))); // 1-3 waypoints based on route length
-    
-    // Calculate perpendicular offsets from key points on outbound path
-    for (let i = 1; i <= numWaypoints; i++) {
-      const segmentIndex = Math.floor((outboundCoords.length * i) / (numWaypoints + 1));
-      const point = outboundCoords[segmentIndex];
-      
-      if (point && segmentIndex > 0 && segmentIndex < outboundCoords.length - 1) {
-        // Calculate bearing of the outbound path at this point
-        const prevPoint = outboundCoords[segmentIndex - 1];
-        const nextPoint = outboundCoords[segmentIndex + 1];
-        
-        const bearing = Math.atan2(
-          nextPoint[0] - prevPoint[0],
-          nextPoint[1] - prevPoint[1]
-        );
-        
-        // Create waypoint perpendicular to outbound path (offset by ~50-100m)
-        const offsetDistance = 0.0008; // ~50-100m in degrees
-        const perpendicularBearing = bearing + Math.PI / 2; // 90 degrees offset
-        
-        const waypoint = {
-          lat: point[1] + Math.cos(perpendicularBearing) * offsetDistance,
-          lng: point[0] + Math.sin(perpendicularBearing) * offsetDistance
-        };
-        
-        waypoints.push(waypoint);
-      }
-    }
-    
-    return waypoints;
-  }, []);
-
-  // Calculate overlap percentage between two paths
-  const calculatePathOverlap = useCallback((path1: number[][], path2: number[][]) => {
-    if (!path1.length || !path2.length) return 0;
-    
-    const bufferRadius = 0.0001; // ~10m buffer in degrees
-    let overlapCount = 0;
-    
-    // Sample points from path2 and check how many are close to path1
-    const sampleSize = Math.min(50, path2.length); // Sample max 50 points
-    const sampleStep = Math.floor(path2.length / sampleSize);
-    
-    for (let i = 0; i < path2.length; i += sampleStep) {
-      const point2 = path2[i];
-      
-      for (const point1 of path1) {
-        const distance = Math.sqrt(
-          Math.pow(point2[0] - point1[0], 2) + 
-          Math.pow(point2[1] - point1[1], 2)
-        );
-        
-        if (distance < bufferRadius) {
-          overlapCount++;
-          break; // Found overlap for this point, move to next
-        }
-      }
-    }
-    
-    return overlapCount / sampleSize;
-  }, []);
-
-  // Smart route generation that targets specific step count
+  // Generate optimal route that meets step target within ±5%
   const generateOptimalRoute = useCallback(async (userLoc: { lat: number; lng: number }): Promise<{ route: RouteData; destination: { lat: number; lng: number } } | null> => {
     if (!mapboxToken) return null;
 
@@ -343,9 +221,9 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
     const strideM = heightM ? 0.415 * heightM : 0.72;
     const targetDistanceKm = (targetSteps * strideM) / 1000;
 
-    // Try different bearings and distances to find the best match
+    // Try different directions to find optimal route
     const bearings = [45, 90, 135, 180, 225, 270, 315, 0];
-    const distanceMultipliers = [0.8, 0.9, 1.0, 1.1, 1.2, 0.7, 1.3, 0.6, 1.4];
+    const distanceMultipliers = [0.9, 1.0, 1.1, 0.8, 1.2, 0.7, 1.3];
 
     let bestRoute = null;
     let bestScore = Infinity;
@@ -355,8 +233,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       for (const multiplier of distanceMultipliers) {
         try {
           const testRadius = planningData.tripType === 'round-trip' ? 
-            (targetDistanceKm / 2.5) * multiplier :
-            targetDistanceKm * multiplier * 0.8;
+            (targetDistanceKm / 2.2) * multiplier :
+            targetDistanceKm * multiplier * 0.9;
 
           const bearingRad = (bearing * Math.PI) / 180;
           const earthRadiusKm = 6371;
@@ -387,35 +265,39 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
               bestScore = stepDeviation;
               bestRoute = testRoute;
               bestDestination = testDestination;
+              
+              // If we found a very good match, stop searching
+              if (stepDeviation < 0.01) break;
             }
           }
         } catch (error) {
           continue;
         }
       }
+      if (bestScore < 0.01) break; // Good enough, stop searching
     }
 
     if (bestRoute && bestDestination) {
-      console.log(`Found valid route: ${bestRoute.steps} steps (target: ${targetSteps}, deviation: ${(bestScore * 100).toFixed(1)}%)`);
+      console.log(`Generated default route: ${bestRoute.steps} steps (target: ${targetSteps}, deviation: ${(bestScore * 100).toFixed(1)}%)`);
       return { route: bestRoute, destination: bestDestination };
     }
 
-    console.warn(`No valid route found within ±5% tolerance. Target: ${targetSteps} steps`);
+    console.warn(`No valid default route found within ±5% tolerance. Target: ${targetSteps} steps`);
     return null;
   }, [mapboxToken, planningData, computeRoute, validateRouteSteps]);
 
-  // Validate and adjust clicked route to meet step requirements
-  const validateAndAdjustRoute = useCallback(async (start: { lat: number; lng: number }, end: { lat: number; lng: number }): Promise<{ route: RouteData; destination: { lat: number; lng: number } } | null> => {
+  // Adjust clicked route to meet step requirements
+  const adjustRouteForSteps = useCallback(async (start: { lat: number; lng: number }, clickedEnd: { lat: number; lng: number }): Promise<{ route: RouteData; destination: { lat: number; lng: number } } | null> => {
     const targetSteps = parseInt(planningData.steps);
     
-    // First try the exact route
-    const initialRoute = await computeRoute(start, end);
+    // First try the exact clicked route
+    const initialRoute = await computeRoute(start, clickedEnd);
     if (initialRoute && validateRouteSteps(initialRoute, targetSteps)) {
-      return { route: initialRoute, destination: end };
+      return { route: initialRoute, destination: clickedEnd };
     }
     
-    // If route doesn't match, try to adjust by finding nearby destinations
-    const adjustmentDistances = [0.1, 0.2, 0.3, 0.5];
+    // If not valid, try adjusting the destination slightly
+    const adjustmentDistances = [0.1, 0.2, 0.3]; // km adjustments
     const bearings = [0, 45, 90, 135, 180, 225, 270, 315];
     
     for (const distance of adjustmentDistances) {
@@ -425,13 +307,13 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
           const earthRadiusKm = 6371;
           
           const adjustedLatRad = Math.asin(
-            Math.sin((end.lat * Math.PI) / 180) * Math.cos(distance / earthRadiusKm) +
-            Math.cos((end.lat * Math.PI) / 180) * Math.sin(distance / earthRadiusKm) * Math.cos(bearingRad)
+            Math.sin((clickedEnd.lat * Math.PI) / 180) * Math.cos(distance / earthRadiusKm) +
+            Math.cos((clickedEnd.lat * Math.PI) / 180) * Math.sin(distance / earthRadiusKm) * Math.cos(bearingRad)
           );
           
-          const adjustedLngRad = (end.lng * Math.PI) / 180 + Math.atan2(
-            Math.sin(bearingRad) * Math.sin(distance / earthRadiusKm) * Math.cos((end.lat * Math.PI) / 180),
-            Math.cos(distance / earthRadiusKm) - Math.sin((end.lat * Math.PI) / 180) * Math.sin(adjustedLatRad)
+          const adjustedLngRad = (clickedEnd.lng * Math.PI) / 180 + Math.atan2(
+            Math.sin(bearingRad) * Math.sin(distance / earthRadiusKm) * Math.cos((clickedEnd.lat * Math.PI) / 180),
+            Math.cos(distance / earthRadiusKm) - Math.sin((clickedEnd.lat * Math.PI) / 180) * Math.sin(adjustedLatRad)
           );
           
           const adjustedDestination = {
@@ -440,8 +322,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
           };
           
           const adjustedRoute = await computeRoute(start, adjustedDestination);
+          
           if (adjustedRoute && validateRouteSteps(adjustedRoute, targetSteps)) {
-            console.log(`Adjusted route found: ${adjustedRoute.steps} steps (target: ${targetSteps})`);
             return { route: adjustedRoute, destination: adjustedDestination };
           }
         } catch (error) {
@@ -453,36 +335,139 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
     return null;
   }, [computeRoute, validateRouteSteps, planningData.steps]);
 
-  // Calculate default destination position
-  const calculateDefaultDestination = useCallback((userLoc: { lat: number; lng: number }) => {
-    const targetDistance = getTargetDistance();
-    const radius = planningData.tripType === 'round-trip' ? targetDistance / 2.5 : targetDistance * 0.8;
-    const bearing = 45;
-    const bearingRad = (bearing * Math.PI) / 180;
-    const earthRadiusKm = 6371;
+  // Reset to default route
+  const resetToDefault = useCallback(() => {
+    if (defaultRouteData) {
+      setDestinationLocation(defaultRouteData.destination);
+      setRouteData(defaultRouteData.route);
+      setShowWarningMessage(null);
+      
+      if (onRouteCalculated) {
+        const simpleRouteData = {
+          distance: defaultRouteData.route.distance,
+          duration: defaultRouteData.route.duration,
+          calories: defaultRouteData.route.calories,
+          steps: defaultRouteData.route.steps,
+          startCoordinates: userLocation!,
+          endCoordinates: defaultRouteData.destination,
+          routeGeoJSON: {
+            type: 'LineString',
+            coordinates: defaultRouteData.route.coordinates,
+            outboundCoordinates: defaultRouteData.route.outboundCoordinates,
+            returnCoordinates: defaultRouteData.route.returnCoordinates
+          }
+        };
+        onRouteCalculated(simpleRouteData);
+      }
+    }
+  }, [defaultRouteData, userLocation, onRouteCalculated]);
 
-    const userLatRad = (userLoc.lat * Math.PI) / 180;
-    const userLngRad = (userLoc.lng * Math.PI) / 180;
+  // Update route display on map
+  const updateRouteDisplay = useCallback((route: RouteData, destination: { lat: number; lng: number }) => {
+    if (!map.current || !userLocation) return;
 
-    const destLatRad = Math.asin(
-      Math.sin(userLatRad) * Math.cos(radius / earthRadiusKm) +
-      Math.cos(userLatRad) * Math.sin(radius / earthRadiusKm) * Math.cos(bearingRad)
-    );
+    // Remove existing markers
+    if (userMarker.current) {
+      userMarker.current.remove();
+    }
+    if (destinationMarker.current) {
+      destinationMarker.current.remove();
+    }
 
-    const destLngRad = userLngRad + Math.atan2(
-      Math.sin(bearingRad) * Math.sin(radius / earthRadiusKm) * Math.cos(userLatRad),
-      Math.cos(radius / earthRadiusKm) - Math.sin(userLatRad) * Math.sin(destLatRad)
-    );
+    // Add user marker
+    userMarker.current = new mapboxgl.Marker({ color: '#10b981' })
+      .setLngLat([userLocation.lng, userLocation.lat])
+      .addTo(map.current);
 
-    return {
-      lat: (destLatRad * 180) / Math.PI,
-      lng: (destLngRad * 180) / Math.PI
+    // Add destination marker
+    destinationMarker.current = new mapboxgl.Marker({ color: '#ef4444' })
+      .setLngLat([destination.lng, destination.lat])
+      .addTo(map.current);
+
+    // Add route to map
+    const routeGeojson = {
+      type: 'Feature' as const,
+      properties: {},
+      geometry: {
+        type: 'LineString' as const,
+        coordinates: route.coordinates
+      }
     };
-  }, [getTargetDistance, planningData.tripType]);
 
-  // Initialize map only once (prevent re-initialization)
+    // Remove existing route source and layer
+    if (map.current.getSource('route')) {
+      map.current.removeLayer('route');
+      map.current.removeSource('route');
+    }
+
+    // Add new route
+    map.current.addSource('route', {
+      type: 'geojson',
+      data: routeGeojson
+    });
+
+    map.current.addLayer({
+      id: 'route',
+      type: 'line',
+      source: 'route',
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round'
+      },
+      paint: {
+        'line-color': planningData.tripType === 'round-trip' ? '#10b981' : '#3b82f6',
+        'line-width': 4,
+        'line-opacity': 0.8
+      }
+    });
+
+    // For round-trip, add return route
+    if (planningData.tripType === 'round-trip' && route.returnCoordinates) {
+      const returnGeojson = {
+        type: 'Feature' as const,
+        properties: {},
+        geometry: {
+          type: 'LineString' as const,
+          coordinates: route.returnCoordinates
+        }
+      };
+
+      if (map.current.getSource('return-route')) {
+        map.current.removeLayer('return-route');
+        map.current.removeSource('return-route');
+      }
+
+      map.current.addSource('return-route', {
+        type: 'geojson',
+        data: returnGeojson
+      });
+
+      map.current.addLayer({
+        id: 'return-route',
+        type: 'line',
+        source: 'return-route',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': '#3b82f6',
+          'line-width': 3,
+          'line-opacity': 0.6,
+          'line-dasharray': [2, 2]
+        }
+      });
+    }
+
+    // Fit map to route bounds
+    const bounds = new mapboxgl.LngLatBounds();
+    route.coordinates.forEach((coord: number[]) => bounds.extend(coord as [number, number]));
+    map.current.fitBounds(bounds, { padding: 50, maxZoom: 15 });
+  }, [userLocation, planningData.tripType]);
+
+  // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || !mapboxToken || !userLocation || map.current) return;
+    if (!mapContainer.current || !mapboxToken || !userLocation || mapInitialized) return;
 
     mapboxgl.accessToken = mapboxToken;
     
@@ -490,22 +475,48 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/streets-v12',
       center: [userLocation.lng, userLocation.lat],
-      zoom: 14
+      zoom: 13
     });
 
-    // Add navigation controls
-    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
-
-    // Store initial values to avoid dependency changes
-    const initialUserLocation = userLocation;
-    const targetSteps = parseInt(planningData.steps);
-    
-    // Handle map click for destination selection with validation and attempt limiting
-    map.current.on('click', async (e) => {
-      // Check if map is locked or click limit reached
-      if (isLocked || clickCount >= 3) {
-        return; // Completely ignore clicks
+    map.current.on('load', async () => {
+      setMapInitialized(true);
+      
+      // Generate default route
+      setIsLoading(true);
+      try {
+        const defaultResult = await generateOptimalRoute(userLocation);
+        if (defaultResult) {
+          setDefaultRouteData(defaultResult);
+          setDestinationLocation(defaultResult.destination);
+          setRouteData(defaultResult.route);
+          
+          if (onRouteCalculated) {
+            const simpleRouteData = {
+              distance: defaultResult.route.distance,
+              duration: defaultResult.route.duration,
+              calories: defaultResult.route.calories,
+              steps: defaultResult.route.steps,
+              startCoordinates: userLocation,
+              endCoordinates: defaultResult.destination,
+              routeGeoJSON: {
+                type: 'LineString',
+                coordinates: defaultResult.route.coordinates,
+                outboundCoordinates: defaultResult.route.outboundCoordinates,
+                returnCoordinates: defaultResult.route.returnCoordinates
+              }
+            };
+            onRouteCalculated(simpleRouteData);
+          }
+        }
+      } catch (error) {
+        console.error('Error generating default route:', error);
       }
+      setIsLoading(false);
+    });
+
+    // Handle map clicks for destination selection
+    map.current.on('click', async (e) => {
+      if (!canClick || isLoading) return;
 
       const clickedDestination = {
         lat: e.lngLat.lat,
@@ -516,47 +527,38 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       setShowWarningMessage(null);
       
       try {
-        const validatedResult = await validateAndAdjustRoute(initialUserLocation, clickedDestination);
+        const adjustedResult = await adjustRouteForSteps(userLocation, clickedDestination);
         
-        if (validatedResult) {
-          // Valid click - increment counter and proceed
-          const newClickCount = clickCount + 1;
-          setClickCount(newClickCount);
-          
-          // Check if we've reached the limit after this click
-          if (newClickCount >= 3) {
-            setIsLocked(true);
-            setShowWarningMessage("Limite atteinte — utilisez 'Réinitialiser' pour restaurer la marche par défaut.");
+        if (adjustedResult) {
+          // Valid route found - trigger user click callback
+          if (onUserClick) {
+            onUserClick();
           }
           
-          setDestinationLocation(validatedResult.destination);
-          setRouteData(validatedResult.route);
-          
-          // Simplified route data to prevent DataCloneError
-          const simpleRouteData = {
-            distance: validatedResult.route.distance,
-            duration: validatedResult.route.duration,
-            calories: validatedResult.route.calories,
-            steps: validatedResult.route.steps,
-            startCoordinates: { lat: initialUserLocation.lat, lng: initialUserLocation.lng },
-            endCoordinates: validatedResult.destination,
-            routeGeoJSON: {
-              type: 'LineString',
-              coordinates: validatedResult.route.coordinates.slice(), // Clone coordinates array
-              outboundCoordinates: validatedResult.route.outboundCoordinates ? validatedResult.route.outboundCoordinates.slice() : undefined,
-              returnCoordinates: validatedResult.route.returnCoordinates ? validatedResult.route.returnCoordinates.slice() : undefined
-            }
-          };
+          setDestinationLocation(adjustedResult.destination);
+          setRouteData(adjustedResult.route);
           
           if (onRouteCalculated) {
+            const simpleRouteData = {
+              distance: adjustedResult.route.distance,
+              duration: adjustedResult.route.duration,
+              calories: adjustedResult.route.calories,
+              steps: adjustedResult.route.steps,
+              startCoordinates: userLocation,
+              endCoordinates: adjustedResult.destination,
+              routeGeoJSON: {
+                type: 'LineString',
+                coordinates: adjustedResult.route.coordinates,
+                outboundCoordinates: adjustedResult.route.outboundCoordinates,
+                returnCoordinates: adjustedResult.route.returnCoordinates
+              }
+            };
             onRouteCalculated(simpleRouteData);
           }
         } else {
-          // Invalid click - do NOT increment counter, show warning
-          const tolerance = Math.round(targetSteps * 0.05);
-          setShowWarningMessage("Destination hors de votre plage d'objectif de pas.");
+          // No valid route found
+          setShowWarningMessage("Aucun itinéraire trouvé dans votre plage de pas (±5%). Essayez un autre endroit.");
           setTimeout(() => setShowWarningMessage(null), 4000);
-          console.warn(`Invalid click - out of range. Target: ${targetSteps} steps (±${tolerance} tolerance)`);
         }
       } catch (error) {
         console.error('Error calculating route:', error);
@@ -567,369 +569,58 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       setIsLoading(false);
     });
 
-    // Generate optimal route on map load (only once)
-    map.current.on('load', async () => {
-      setIsLoading(true);
-      
-      try {
-        const optimalResult = await generateOptimalRoute(initialUserLocation);
-        
-        if (optimalResult?.route && optimalResult?.destination) {
-          setDestinationLocation(optimalResult.destination);
-          setRouteData(optimalResult.route);
-          
-          // Simplified route data to prevent DataCloneError
-          const simpleRouteData = {
-            distance: optimalResult.route.distance,
-            duration: optimalResult.route.duration,
-            calories: optimalResult.route.calories,
-            steps: optimalResult.route.steps,
-            startCoordinates: { lat: initialUserLocation.lat, lng: initialUserLocation.lng },
-            endCoordinates: { lat: optimalResult.destination.lat, lng: optimalResult.destination.lng },
-            routeGeoJSON: {
-              type: 'LineString',
-              coordinates: optimalResult.route.coordinates.slice(), // Clone coordinates array
-              outboundCoordinates: optimalResult.route.outboundCoordinates ? optimalResult.route.outboundCoordinates.slice() : undefined,
-              returnCoordinates: optimalResult.route.returnCoordinates ? optimalResult.route.returnCoordinates.slice() : undefined
-            }
-          };
-          
-          if (onRouteCalculated) {
-            onRouteCalculated(simpleRouteData);
-          }
-        } else {
-          console.warn(`No route found matching step goal. Target: ${targetSteps} steps`);
-          // Set default destination without route
-          const defaultDest = calculateDefaultDestination(initialUserLocation);
-          setDestinationLocation(defaultDest);
-        }
-      } catch (error) {
-        console.error('Error generating optimal route:', error);
-        // Set default destination on error
-        const defaultDest = calculateDefaultDestination(initialUserLocation);
-        setDestinationLocation(defaultDest);
-      }
-      
-      setIsLoading(false);
-    });
-
     return () => {
       if (map.current) {
         map.current.remove();
-        map.current = null;
       }
     };
-  }, [mapboxToken, userLocation]); // Only essential dependencies
+  }, [mapboxToken, userLocation, mapInitialized]);
 
-  // Static route display - only update when route data changes, not on user location updates  
+  // Update route display when data changes
   useEffect(() => {
-    if (!map.current || !routeData || !destinationLocation || !userLocation) return;
-
-    // Wait for map to be loaded before drawing
-    const addRouteToMap = () => {
-      if (!map.current?.isStyleLoaded()) {
-        map.current?.on('styledata', addRouteToMap);
-        return;
-      }
-
-      // Remove existing routes (clean slate)
-      ['walking-route', 'outbound-route', 'return-route'].forEach(routeId => {
-        if (map.current?.getLayer(routeId)) {
-          map.current.removeLayer(routeId);
-        }
-        if (map.current?.getSource(routeId)) {
-          map.current.removeSource(routeId);
-        }
-      });
-
-      try {
-        if (routeData.outboundCoordinates && routeData.returnCoordinates) {
-          // Round-trip: Show distinct outbound and return paths
-          
-          // Outbound route (green solid) - STATIC
-          map.current.addSource('outbound-route', {
-            type: 'geojson',
-            data: {
-              type: 'Feature',
-              properties: {},
-              geometry: {
-                type: 'LineString',
-                coordinates: routeData.outboundCoordinates
-              }
-            }
-          });
-
-          map.current.addLayer({
-            id: 'outbound-route',
-            type: 'line',
-            source: 'outbound-route',
-            layout: {
-              'line-join': 'round',
-              'line-cap': 'round'
-            },
-            paint: {
-              'line-color': '#10b981', // STATIC green - NO ANIMATION
-              'line-width': 5,
-              'line-opacity': 0.9
-            }
-          });
-
-          // Return route (blue dashed) - STATIC
-          map.current.addSource('return-route', {
-            type: 'geojson',
-            data: {
-              type: 'Feature',
-              properties: {},
-              geometry: {
-                type: 'LineString',
-                coordinates: routeData.returnCoordinates
-              }
-            }
-          });
-
-          map.current.addLayer({
-            id: 'return-route',
-            type: 'line',
-            source: 'return-route',
-            layout: {
-              'line-join': 'round',
-              'line-cap': 'round'
-            },
-            paint: {
-              'line-color': '#3b82f6', // STATIC blue - NO ANIMATION
-              'line-width': 4,
-              'line-opacity': 0.8,
-              'line-dasharray': [2, 3] // Static dashed line
-            }
-          });
-        } else {
-          // One-way: Show single route - STATIC
-          map.current.addSource('walking-route', {
-            type: 'geojson',
-            data: {
-              type: 'Feature',
-              properties: {},
-              geometry: {
-                type: 'LineString',
-                coordinates: routeData.coordinates
-              }
-            }
-          });
-
-          map.current.addLayer({
-            id: 'walking-route',
-            type: 'line',
-            source: 'walking-route',
-            layout: {
-              'line-join': 'round',
-              'line-cap': 'round'
-            },
-            paint: {
-              'line-color': '#10b981', // STATIC green - NO ANIMATION
-              'line-width': 4,
-              'line-opacity': 0.8
-            }
-          });
-        }
-
-        // Fit map to show entire route ONCE
-        const bounds = new mapboxgl.LngLatBounds();
-        routeData.coordinates.forEach((coord: number[]) => bounds.extend([coord[0], coord[1]]));
-        map.current.fitBounds(bounds, { padding: 50 });
-        
-        console.log('Route displayed successfully - STATIC, no more updates');
-      } catch (error) {
-        console.error('Error displaying route:', error);
-      }
-    };
-
-    addRouteToMap();
-  }, [routeData]); // Only depend on routeData, not user location
-
-  // Separate effect for markers only - prevent route redraw
-  useEffect(() => {
-    if (!map.current || !userLocation) return;
-
-    // Update/create user marker
-    if (userMarker.current) {
-      // Just update position, don't recreate
-      userMarker.current.setLngLat([userLocation.lng, userLocation.lat]);
-    } else {
-      const userEl = document.createElement('div');
-      userEl.className = 'user-marker';
-      userEl.innerHTML = `
-        <div style="
-          width: 20px;
-          height: 20px;
-          background: #ef4444;
-          border: 3px solid white;
-          border-radius: 50%;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-        "></div>
-      `;
-
-      userMarker.current = new mapboxgl.Marker(userEl)
-        .setLngLat([userLocation.lng, userLocation.lat])
-        .addTo(map.current);
+    if (routeData && destinationLocation && map.current && mapInitialized) {
+      updateRouteDisplay(routeData, destinationLocation);
     }
+  }, [routeData, destinationLocation, updateRouteDisplay, mapInitialized]);
 
-    // Update/create destination marker
-    if (destinationLocation) {
-      if (destinationMarker.current) {
-        // Just update position, don't recreate
-        destinationMarker.current.setLngLat([destinationLocation.lng, destinationLocation.lat]);
-      } else {
-        const destEl = document.createElement('div');
-        destEl.innerHTML = `
-          <div style="
-            width: 30px;
-            height: 30px;
-            background: #10b981;
-            border: 2px solid white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            color: white;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            font-size: 16px;
-          ">🎯</div>
-        `;
-
-        destinationMarker.current = new mapboxgl.Marker(destEl)
-          .setLngLat([destinationLocation.lng, destinationLocation.lat])
-          .addTo(map.current);
-      }
-    }
-  }, [userLocation, destinationLocation]); // Update markers when locations change
-
-  const resetToDefault = async () => {
-    if (!userLocation) return;
-    
-    setIsLoading(true);
-    setShowWarningMessage(null);
-    
-    try {
-      const optimalResult = await generateOptimalRoute(userLocation);
-      
-      if (optimalResult?.route && optimalResult?.destination) {
-        setDestinationLocation(optimalResult.destination);
-        setRouteData(optimalResult.route);
-        
-        // Reset only restores default route - does NOT unlock the map
-        // Do not modify isLocked or clickCount
-        
-        // Show permanent block message
-        setShowWarningMessage("Destination par défaut rétablie — modifications désactivées.");
-        
-        // Simplified route data to prevent DataCloneError
-        const simpleRouteData = {
-          distance: optimalResult.route.distance,
-          duration: optimalResult.route.duration,
-          calories: optimalResult.route.calories,
-          steps: optimalResult.route.steps,
-          startCoordinates: { lat: userLocation.lat, lng: userLocation.lng },
-          endCoordinates: { lat: optimalResult.destination.lat, lng: optimalResult.destination.lng },
-          routeGeoJSON: {
-            type: 'LineString',
-            coordinates: optimalResult.route.coordinates.slice(),
-            outboundCoordinates: optimalResult.route.outboundCoordinates ? optimalResult.route.outboundCoordinates.slice() : undefined,
-            returnCoordinates: optimalResult.route.returnCoordinates ? optimalResult.route.returnCoordinates.slice() : undefined
-          }
-        };
-        
-        if (onRouteCalculated) {
-          onRouteCalculated(simpleRouteData);
-        }
-      } else {
-        const targetSteps = parseInt(planningData.steps);
-        const tolerance = Math.round(targetSteps * 0.05);
-        console.warn(`No optimal route found. Target: ${targetSteps} steps (±${tolerance} tolerance)`);
-        
-        // Show user-friendly error message
-        setShowWarningMessage(`Aucun itinéraire optimal trouvé. Objectif: ${targetSteps} pas. Veuillez ajuster votre objectif de pas ou réessayer.`);
-        setTimeout(() => setShowWarningMessage(null), 4000);
-        
-        // Set default destination position
-        const defaultDest = calculateDefaultDestination(userLocation);
-        setDestinationLocation(defaultDest);
-      }
-    } catch (error) {
-      console.error('Error resetting to default route:', error);
-      setShowWarningMessage('Erreur lors de la génération de l\'itinéraire. Veuillez réessayer.');
-      setTimeout(() => setShowWarningMessage(null), 4000);
-    }
-    
-    setIsLoading(false);
-  };
+  if (permissionDenied) {
+    return (
+      <div className={`${className} min-h-[500px] bg-muted rounded-2xl flex items-center justify-center`}>
+        <div className="text-center p-8">
+          <div className="text-4xl mb-4">📍</div>
+          <h3 className="text-lg font-semibold mb-2">Géolocalisation requise</h3>
+          <p className="text-muted-foreground mb-4">
+            Veuillez autoriser l'accès à votre position pour planifier votre marche.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (!mapboxToken || !userLocation) {
     return (
-      <div className={`h-96 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl flex items-center justify-center ${className}`}>
-        <div className="text-center">
+      <div className={`${className} min-h-[500px] bg-muted rounded-2xl flex items-center justify-center`}>
+        <div className="text-center p-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-sm text-muted-foreground mb-2">
-            {permissionDenied ? "Géolocalisation refusée" : "Chargement de la carte..."}
-          </p>
-          {permissionDenied && (
-            <p className="text-xs text-muted-foreground">
-              Position par défaut: Paris
-            </p>
-          )}
+          <p className="text-muted-foreground">Chargement de la carte...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`h-96 relative rounded-2xl overflow-hidden shadow-lg ${className}`}>
-      <div 
-        ref={mapContainer} 
-        className="absolute inset-0 w-full h-full" 
-      />
-      
-      {/* Overlay when map is blocked */}
-      {isLocked && (
-        <div className="absolute inset-0 bg-black/30 flex items-center justify-center rounded-2xl pointer-events-none">
-          <div className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-gray-600/90">
-            🔒 Limite atteinte — utilisez 'Réinitialiser' pour restaurer la marche par défaut.
-          </div>
-        </div>
-      )}
+    <div className={`relative ${className}`}>
+      <div ref={mapContainer} className="w-full h-[500px] rounded-2xl shadow-lg" />
       
       {/* Route summary */}
       {routeData && (
-        <div className="absolute top-4 left-4 bg-white/95 dark:bg-black/95 rounded-lg p-4 shadow-lg max-w-xs">
-          <h3 className="font-semibold text-sm mb-2 flex items-center">
+        <div className="absolute top-4 left-4 bg-card/95 backdrop-blur-sm rounded-lg p-4 shadow-lg max-w-xs">
+          <h3 className="font-semibold text-sm mb-3 flex items-center">
             <MapPin className="w-4 h-4 mr-2 text-primary" />
             Itinéraire planifié
           </h3>
           
-          {/* Click attempts counter */}
-          <div className="mb-3 text-xs">
-            <span className="text-muted-foreground">Tentatives: </span>
-            <span className={`font-semibold ${clickCount >= 3 ? 'text-red-500' : 'text-primary'}`}>
-              {clickCount}/3
-            </span>
-          </div>
-          
-          {/* Route type indicator for round-trip */}
-          {planningData.tripType === 'round-trip' && routeData.outboundCoordinates && routeData.returnCoordinates && (
-            <div className="flex items-center space-x-4 mb-3 text-xs">
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-0.5 bg-emerald-500"></div>
-                <span className="text-muted-foreground">Aller</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-0.5 bg-blue-500 border-dashed border-t border-blue-500" style={{borderTopStyle: 'dashed'}}></div>
-                <span className="text-muted-foreground">Retour</span>
-              </div>
-            </div>
-          )}
-          
-          <div className="grid grid-cols-4 gap-3 text-sm">
+          <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="flex items-center space-x-2">
               <MapPin className="h-4 w-4 text-primary" />
               <div>
@@ -967,26 +658,12 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       {/* Loading indicator */}
       {isLoading && (
         <div className="absolute inset-0 bg-black/20 flex items-center justify-center rounded-2xl">
-          <div className="bg-white/95 dark:bg-black/95 rounded-lg p-4 flex items-center space-x-3">
+          <div className="bg-card/95 backdrop-blur-sm rounded-lg p-4 flex items-center space-x-3">
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-            <span className="text-sm font-medium">Calcul de l'itinéraire optimal...</span>
+            <span className="text-sm font-medium">Calcul de l'itinéraire...</span>
           </div>
         </div>
       )}
-
-      {/* Reset button */}
-      <div className="absolute top-4 right-4">
-        <Button
-          onClick={resetToDefault}
-          size="sm"
-          variant="outline"
-          className="bg-white/95 dark:bg-black/95 backdrop-blur-sm"
-          disabled={isLoading}
-        >
-          <RotateCcw className="h-4 w-4 mr-1" />
-          Réinitialiser
-        </Button>
-      </div>
 
       {/* Warning message */}
       {showWarningMessage && (
@@ -998,11 +675,11 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({ planningData, onBack, classNa
       )}
 
       {/* Instructions */}
-      <div className="absolute bottom-4 left-4 right-4 bg-white/95 dark:bg-black/95 rounded-lg p-3 text-center">
+      <div className="absolute bottom-4 left-4 right-4 bg-card/95 backdrop-blur-sm rounded-lg p-3 text-center">
         <p className="text-sm text-muted-foreground">
-          {isLocked 
-            ? "🔒 Carte verrouillée. Utilisez 'Réinitialiser' pour restaurer la marche par défaut." 
-            : `📍 Tapez sur la carte pour choisir une destination (${3 - clickCount} tentatives restantes)`
+          {!canClick 
+            ? "🔒 Limite d'essais atteinte. Utilisez 'Réinitialiser' pour restaurer." 
+            : "📍 Tapez sur la carte pour choisir une destination (dans ±5% de votre objectif)"
           }
         </p>
       </div>

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, RotateCcw } from 'lucide-react';
 import EnhancedMap from './EnhancedMap';
+import { useMapClickLimiter } from '@/hooks/useMapClickLimiter';
 
 interface MapScreenProps {
   onComplete: (destination: any) => void;
@@ -27,6 +28,8 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     endCoordinates: { lat: number; lng: number };
     routeGeoJSON?: any;
   } | null>(null);
+  
+  const { attemptCount, canClick, isLocked, incrementAttempts, reset, remainingAttempts } = useMapClickLimiter(3);
 
   const handleRouteCalculated = (data: {
     distance: number;
@@ -129,12 +132,40 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
         </div>
 
         {/* Enhanced Map */}
-        <div className="mb-6">
+        <div className="mb-6 relative">
           <EnhancedMap 
             planningData={planningData}
             className="w-full"
             onRouteCalculated={handleRouteCalculated}
+            canClick={canClick}
+            onUserClick={incrementAttempts}
           />
+          
+          {/* Click Counter & Reset */}
+          <div className="absolute top-4 right-4 bg-card/90 backdrop-blur-sm rounded-lg p-3 shadow-lg">
+            <div className="text-sm text-center mb-2">
+              <span className="text-muted-foreground">Essais: </span>
+              <span className="font-semibold text-primary">{attemptCount}/3</span>
+            </div>
+            
+            {isLocked && (
+              <Button
+                onClick={reset}
+                size="sm"
+                variant="outline"
+                className="w-full text-xs"
+              >
+                <RotateCcw className="w-3 h-3 mr-1" />
+                Réinitialiser
+              </Button>
+            )}
+            
+            {!isLocked && remainingAttempts > 0 && (
+              <p className="text-xs text-muted-foreground text-center">
+                {remainingAttempts} essai{remainingAttempts > 1 ? 's' : ''} restant{remainingAttempts > 1 ? 's' : ''}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Action Button */}
