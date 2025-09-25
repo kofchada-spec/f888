@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
 import { WheelPicker } from './WheelPicker';
 
 interface ProfilePickerModalProps {
@@ -168,14 +167,8 @@ export const ProfilePickerModal = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md mx-auto rounded-3xl p-0 overflow-hidden border-0 shadow-2xl">
-        <div className="bg-card px-6 py-5 flex items-center justify-between border-b border-border/50">
+        <div className="bg-card px-6 py-5 border-b border-border/50">
           <h2 className="font-inter text-xl font-bold text-foreground">{getTitle()}</h2>
-          <button
-            onClick={onClose}
-            className="text-foreground/70 hover:text-foreground hover:bg-muted/80 transition-all duration-200 p-2 rounded-full border border-border/30 hover:border-border/60 shadow-sm hover:shadow-md"
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
         
         <div className="px-6 py-10 bg-gradient-to-br from-background via-background to-muted/10">
