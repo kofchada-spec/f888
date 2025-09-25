@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Button } from '@/components/ui/button';
-import { MapPin, Clock, Zap, RotateCcw } from 'lucide-react';
+import { RotateCcw, AlertTriangle } from 'lucide-react';
 
 interface EnhancedMapProps {
   planningData: {
@@ -12,11 +12,8 @@ interface EnhancedMapProps {
     height: string;
     weight: string;
   };
-  onBack?: () => void;
   className?: string;
-  canClick?: boolean;
-  onUserClick?: () => void;
-  onRouteCalculated?: (routeData: {
+  onRouteCalculated?: (data: {
     distance: number;
     duration: number;
     calories: number;
@@ -25,80 +22,77 @@ interface EnhancedMapProps {
     endCoordinates: { lat: number; lng: number };
     routeGeoJSON?: any;
   }) => void;
+  canClick: boolean;
+  onUserClick?: () => void;
+  onBack?: () => void;
 }
 
 interface RouteData {
-  distance: number; // in km
-  duration: number; // in minutes
+  distance: number;
+  duration: number;
   calories: number;
   steps: number;
-  coordinates: number[][]; // [lng, lat] pairs
-  outboundCoordinates?: number[][]; // For round-trip: outbound path
-  returnCoordinates?: number[][]; // For round-trip: return path
+  startCoordinates: { lat: number; lng: number };
+  endCoordinates: { lat: number; lng: number };
+  routeGeoJSON?: any;
 }
 
-const EnhancedMap: React.FC<EnhancedMapProps> = ({ 
-  planningData, 
-  className = '', 
-  canClick = true, 
-  onUserClick, 
-  onRouteCalculated 
-}) => {
+const EnhancedMap = ({ planningData, className = '', onRouteCalculated, canClick, onUserClick }: EnhancedMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
-  const userMarker = useRef<mapboxgl.Marker | null>(null);
-  const destinationMarker = useRef<mapboxgl.Marker | null>(null);
   
-  const [mapboxToken, setMapboxToken] = useState<string | null>(null);
+  const [currentRoute, setCurrentRoute] = useState<RouteData | null>(null);
+  const [defaultRoute, setDefaultRoute] = useState<RouteData | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [destinationLocation, setDestinationLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [routeData, setRouteData] = useState<RouteData | null>(null);
-  const [defaultRouteData, setDefaultRouteData] = useState<{ route: RouteData; destination: { lat: number; lng: number } } | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [permissionDenied, setPermissionDenied] = useState(false);
-  const [showWarningMessage, setShowWarningMessage] = useState<string | null>(null);
-  const [mapInitialized, setMapInitialized] = useState(false);
+  const [mapboxToken, setMapboxToken] = useState<string>('');
+  const [error, setError] = useState<string>('');
+  const [routeError, setRouteError] = useState<string>('');
+  const [isCalculating, setIsCalculating] = useState(false);
 
   // Calculate steps based on distance and user data
-  const calculateSteps = useCallback((distanceKm: number) => {
-    const heightM = parseFloat(planningData.height);
-    const strideM = heightM ? 0.415 * heightM : 0.72;
-    const distanceM = distanceKm * 1000;
-    return Math.round(distanceM / strideM);
-  }, [planningData.height]);
+  const calculateSteps = (distanceKm: number): number => {
+    const heightCm = parseFloat(planningData.height) * 100;
+    const strideLength = heightCm * 0.45; // Average stride length formula
+    const distanceInCm = distanceKm * 100000;
+    return Math.round(distanceInCm / strideLength);
+  };
 
   // Calculate time based on distance and pace
-  const calculateTime = useCallback((distanceKm: number) => {
-    const speedKmh = {
-      slow: 4,
-      moderate: 5,
-      fast: 6
-    }[planningData.pace];
-    return Math.round((distanceKm / speedKmh) * 60);
-  }, [planningData.pace]);
-
-  // Calculate calories based on distance and user data
-  const calculateCalories = useCallback((distanceKm: number) => {
-    const weightKg = parseFloat(planningData.weight) || 70;
-    const calorieCoefficients = {
-      slow: 0.35,
-      moderate: 0.50,
-      fast: 0.70
+  const calculateTime = (distanceKm: number): number => {
+    const paceMultiplier = {
+      'slow': 0.8, // 4 km/h
+      'moderate': 1.0, // 5 km/h
+      'fast': 1.25 // 6.25 km/h
     };
-    const coefficient = calorieCoefficients[planningData.pace];
-    return Math.round(distanceKm * weightKg * coefficient);
-  }, [planningData.weight, planningData.pace]);
-
-  // Validate route against step target with ±5% tolerance
-  const validateRouteSteps = useCallback((route: RouteData, targetSteps: number) => {
-    const tolerance = 0.05; // 5% tolerance
-    const minAcceptableSteps = targetSteps * (1 - tolerance);
-    const maxAcceptableSteps = targetSteps * (1 + tolerance);
     
-    return route.steps >= minAcceptableSteps && route.steps <= maxAcceptableSteps;
-  }, []);
+    const baseSpeedKmh = 5;
+    const actualSpeedKmh = baseSpeedKmh * paceMultiplier[planningData.pace];
+    return Math.round((distanceKm / actualSpeedKmh) * 60); // in minutes
+  };
 
-  // Get Mapbox token
+  // Calculate calories based on distance, weight and pace
+  const calculateCalories = (distanceKm: number, timeMinutes: number): number => {
+    const weight = parseFloat(planningData.weight);
+    const paceMultiplier = {
+      'slow': 0.8,
+      'moderate': 1.0,
+      'fast': 1.2
+    };
+    
+    // MET values for walking at different paces
+    const met = 3.5 * paceMultiplier[planningData.pace];
+    return Math.round((met * weight * (timeMinutes / 60)));
+  };
+
+  // Check if route is within ±5% tolerance of target steps
+  const isWithinTolerance = (actualSteps: number, targetSteps: number): boolean => {
+    const tolerance = targetSteps * 0.05;
+    return Math.abs(actualSteps - targetSteps) <= tolerance;
+  };
+
+  // Fetch Mapbox token
   useEffect(() => {
     const getMapboxToken = async () => {
       try {
@@ -106,14 +100,12 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
         const { data, error } = await supabase.functions.invoke('mapbox-token');
         
         if (error) throw error;
-        if (data?.token && typeof data.token === 'string' && data.token.startsWith('pk.')) {
-          console.log('Mapbox token loaded successfully');
+        if (data?.token) {
           setMapboxToken(data.token);
-        } else {
-          throw new Error('Invalid token received');
         }
       } catch (error) {
         console.error('Error fetching Mapbox token:', error);
+        setError('Failed to load map token');
       }
     };
     getMapboxToken();
@@ -125,7 +117,6 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (position) => {
-            console.log('User location obtained:', position.coords);
             setUserLocation({
               lat: position.coords.latitude,
               lng: position.coords.longitude
@@ -134,199 +125,80 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
           (error) => {
             console.error('Geolocation error:', error);
             setPermissionDenied(true);
-            setUserLocation({ lat: 48.8566, lng: 2.3522 }); // Default to Paris
+            // Fallback to Paris center
+            setUserLocation({ lat: 48.8566, lng: 2.3522 });
           }
         );
       }
     };
-
     getUserLocation();
   }, []);
 
-  // Compute route using Mapbox Directions API
-  const computeRoute = useCallback(async (start: { lat: number; lng: number }, end: { lat: number; lng: number }): Promise<RouteData | null> => {
-    if (!mapboxToken) return null;
-
-    try {
-      const profile = 'walking';
-      
-      if (planningData.tripType === 'round-trip') {
-        // For round-trip, calculate outbound route then return route
-        const outboundCoords = `${start.lng},${start.lat};${end.lng},${end.lat}`;
-        const outboundUrl = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${outboundCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
-        const outboundResponse = await fetch(outboundUrl);
-        const outboundData = await outboundResponse.json();
-        
-        if (outboundData.routes && outboundData.routes.length > 0) {
-          const outboundRoute = outboundData.routes[0];
-          
-          // Calculate return route (can be same path for simplicity)
-          const returnCoords = `${end.lng},${end.lat};${start.lng},${start.lat}`;
-          const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${returnCoords}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
-          const returnResponse = await fetch(returnUrl);
-          const returnData = await returnResponse.json();
-          
-          if (returnData.routes && returnData.routes.length > 0) {
-            const returnRoute = returnData.routes[0];
-            const totalDistanceKm = (outboundRoute.distance + returnRoute.distance) / 1000;
-            const steps = calculateSteps(totalDistanceKm);
-            const durationMin = calculateTime(totalDistanceKm);
-            const calories = calculateCalories(totalDistanceKm);
-
-            return {
-              distance: totalDistanceKm,
-              duration: durationMin,
-              calories,
-              steps,
-              coordinates: [...outboundRoute.geometry.coordinates, ...returnRoute.geometry.coordinates],
-              outboundCoordinates: outboundRoute.geometry.coordinates,
-              returnCoordinates: returnRoute.geometry.coordinates
-            };
-          }
-        }
-      } else {
-        // One-way route
-        const coordinates = `${start.lng},${start.lat};${end.lng},${end.lat}`;
-        const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${coordinates}?access_token=${mapboxToken}&geometries=geojson&overview=full`;
-
-        const response = await fetch(url);
-        const data = await response.json();
-
-        if (data.routes && data.routes.length > 0) {
-          const route = data.routes[0];
-          const distanceKm = route.distance / 1000;
-          const steps = calculateSteps(distanceKm);
-          const durationMin = calculateTime(distanceKm);
-          const calories = calculateCalories(distanceKm);
-
-          return {
-            distance: distanceKm,
-            duration: durationMin,
-            calories,
-            steps,
-            coordinates: route.geometry.coordinates
-          };
-        }
-      }
-    } catch (error) {
-      console.error('Error computing route:', error);
-    }
-    return null;
-  }, [mapboxToken, planningData.tripType, calculateSteps, calculateTime, calculateCalories]);
-
-  // Generate optimal route that meets step target within ±5%
-  const generateOptimalRoute = useCallback(async (userLoc: { lat: number; lng: number }): Promise<{ route: RouteData; destination: { lat: number; lng: number } } | null> => {
-    if (!mapboxToken) return null;
-
+  // Generate optimal route within step tolerance at startup
+  const generateDefaultRoute = async (startLat: number, startLng: number): Promise<RouteData | null> => {
     const targetSteps = parseInt(planningData.steps);
-    const heightM = parseFloat(planningData.height);
-    const strideM = heightM ? 0.415 * heightM : 0.72;
-    const targetDistanceKm = (targetSteps * strideM) / 1000;
-
-    // Try different directions to find optimal route
-    const bearings = [45, 90, 135, 180, 225, 270, 315, 0];
-    const distanceMultipliers = [0.9, 1.0, 1.1, 0.8, 1.2];
-
-    let bestRoute = null;
-    let bestScore = Infinity;
-    let bestDestination = null;
-
-    for (const bearing of bearings) {
-      for (const multiplier of distanceMultipliers) {
+    const heightCm = parseFloat(planningData.height) * 100;
+    const strideLength = heightCm * 0.45;
+    const targetDistanceKm = (targetSteps * strideLength) / 100000;
+    
+    if (planningData.tripType === 'round-trip') {
+      // For round-trip, target distance is half since we go out and back
+      const oneWayDistance = targetDistanceKm / 2;
+      
+      // Try multiple bearings to find valid routes
+      for (let bearing = 0; bearing < 360; bearing += 30) {
+        const endPoint = calculateDestination(startLat, startLng, oneWayDistance, bearing);
+        
         try {
-          const testRadius = planningData.tripType === 'round-trip' ? 
-            (targetDistanceKm / 2.2) * multiplier :
-            targetDistanceKm * multiplier * 0.9;
-
-          const bearingRad = (bearing * Math.PI) / 180;
-          const earthRadiusKm = 6371;
-          const userLatRad = (userLoc.lat * Math.PI) / 180;
-          const userLngRad = (userLoc.lng * Math.PI) / 180;
-
-          const destLatRad = Math.asin(
-            Math.sin(userLatRad) * Math.cos(testRadius / earthRadiusKm) +
-            Math.cos(userLatRad) * Math.sin(testRadius / earthRadiusKm) * Math.cos(bearingRad)
-          );
-
-          const destLngRad = userLngRad + Math.atan2(
-            Math.sin(bearingRad) * Math.sin(testRadius / earthRadiusKm) * Math.cos(userLatRad),
-            Math.cos(testRadius / earthRadiusKm) - Math.sin(userLatRad) * Math.sin(destLatRad)
-          );
-
-          const testDestination = {
-            lat: (destLatRad * 180) / Math.PI,
-            lng: (destLngRad * 180) / Math.PI
-          };
-
-          const testRoute = await computeRoute(userLoc, testDestination);
+          const outboundRoute = await computeRoute(startLat, startLng, endPoint.lat, endPoint.lng);
+          const returnRoute = await computeRoute(endPoint.lat, endPoint.lng, startLat, startLng);
           
-          if (testRoute && validateRouteSteps(testRoute, targetSteps)) {
-            const stepDeviation = Math.abs(testRoute.steps - targetSteps) / targetSteps;
+          if (outboundRoute && returnRoute) {
+            const totalDistance = (outboundRoute.distance + returnRoute.distance) / 1000;
+            const totalSteps = calculateSteps(totalDistance);
             
-            if (stepDeviation < bestScore) {
-              bestScore = stepDeviation;
-              bestRoute = testRoute;
-              bestDestination = testDestination;
-              
-              // If we found a very good match, stop searching
-              if (stepDeviation < 0.01) break;
+            if (isWithinTolerance(totalSteps, targetSteps)) {
+              return {
+                distance: totalDistance,
+                duration: calculateTime(totalDistance),
+                calories: calculateCalories(totalDistance, calculateTime(totalDistance)),
+                steps: totalSteps,
+                startCoordinates: { lat: startLat, lng: startLng },
+                endCoordinates: endPoint,
+                routeGeoJSON: {
+                  outbound: outboundRoute.geometry,
+                  return: returnRoute.geometry
+                }
+              };
             }
           }
         } catch (error) {
           continue;
         }
       }
-      if (bestScore < 0.01) break; // Good enough, stop searching
-    }
-
-    if (bestRoute && bestDestination) {
-      console.log(`Generated default route: ${bestRoute.steps} steps (target: ${targetSteps})`);
-      return { route: bestRoute, destination: bestDestination };
-    }
-
-    console.warn(`No valid default route found within ±5% tolerance. Target: ${targetSteps} steps`);
-    return null;
-  }, [mapboxToken, planningData, computeRoute, validateRouteSteps]);
-
-  // Adjust clicked route to meet step requirements
-  const adjustRouteForSteps = useCallback(async (start: { lat: number; lng: number }, clickedEnd: { lat: number; lng: number }): Promise<{ route: RouteData; destination: { lat: number; lng: number } } | null> => {
-    const targetSteps = parseInt(planningData.steps);
-    
-    // First try the exact clicked route
-    const initialRoute = await computeRoute(start, clickedEnd);
-    if (initialRoute && validateRouteSteps(initialRoute, targetSteps)) {
-      return { route: initialRoute, destination: clickedEnd };
-    }
-    
-    // If not valid, try adjusting the destination slightly
-    const adjustmentDistances = [0.1, 0.2, 0.3]; // km adjustments
-    const bearings = [0, 45, 90, 135, 180, 225, 270, 315];
-    
-    for (const distance of adjustmentDistances) {
-      for (const bearing of bearings) {
+    } else {
+      // One-way route
+      for (let bearing = 0; bearing < 360; bearing += 30) {
+        const endPoint = calculateDestination(startLat, startLng, targetDistanceKm, bearing);
+        
         try {
-          const bearingRad = (bearing * Math.PI) / 180;
-          const earthRadiusKm = 6371;
+          const route = await computeRoute(startLat, startLng, endPoint.lat, endPoint.lng);
           
-          const adjustedLatRad = Math.asin(
-            Math.sin((clickedEnd.lat * Math.PI) / 180) * Math.cos(distance / earthRadiusKm) +
-            Math.cos((clickedEnd.lat * Math.PI) / 180) * Math.sin(distance / earthRadiusKm) * Math.cos(bearingRad)
-          );
-          
-          const adjustedLngRad = (clickedEnd.lng * Math.PI) / 180 + Math.atan2(
-            Math.sin(bearingRad) * Math.sin(distance / earthRadiusKm) * Math.cos((clickedEnd.lat * Math.PI) / 180),
-            Math.cos(distance / earthRadiusKm) - Math.sin((clickedEnd.lat * Math.PI) / 180) * Math.sin(adjustedLatRad)
-          );
-          
-          const adjustedDestination = {
-            lat: (adjustedLatRad * 180) / Math.PI,
-            lng: (adjustedLngRad * 180) / Math.PI
-          };
-          
-          const adjustedRoute = await computeRoute(start, adjustedDestination);
-          
-          if (adjustedRoute && validateRouteSteps(adjustedRoute, targetSteps)) {
-            return { route: adjustedRoute, destination: adjustedDestination };
+          if (route) {
+            const distanceKm = route.distance / 1000;
+            const calculatedSteps = calculateSteps(distanceKm);
+            
+            if (isWithinTolerance(calculatedSteps, targetSteps)) {
+              return {
+                distance: distanceKm,
+                duration: calculateTime(distanceKm),
+                calories: calculateCalories(distanceKm, calculateTime(distanceKm)),
+                steps: calculatedSteps,
+                startCoordinates: { lat: startLat, lng: startLng },
+                endCoordinates: endPoint,
+                routeGeoJSON: route.geometry
+              };
+            }
           }
         } catch (error) {
           continue;
@@ -335,113 +207,252 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     }
     
     return null;
-  }, [computeRoute, validateRouteSteps, planningData.steps]);
+  };
+
+  // Calculate destination point given start, distance and bearing
+  const calculateDestination = (startLat: number, startLng: number, distanceKm: number, bearing: number) => {
+    const R = 6371; // Earth's radius in km
+    const lat1 = (startLat * Math.PI) / 180;
+    const lng1 = (startLng * Math.PI) / 180;
+    const bearingRad = (bearing * Math.PI) / 180;
+    
+    const lat2 = Math.asin(
+      Math.sin(lat1) * Math.cos(distanceKm / R) +
+      Math.cos(lat1) * Math.sin(distanceKm / R) * Math.cos(bearingRad)
+    );
+    
+    const lng2 = lng1 + Math.atan2(
+      Math.sin(bearingRad) * Math.sin(distanceKm / R) * Math.cos(lat1),
+      Math.cos(distanceKm / R) - Math.sin(lat1) * Math.sin(lat2)
+    );
+    
+    return {
+      lat: (lat2 * 180) / Math.PI,
+      lng: (lng2 * 180) / Math.PI
+    };
+  };
+
+  // Compute route using Mapbox Directions API
+  const computeRoute = async (startLat: number, startLng: number, endLat: number, endLng: number) => {
+    if (!mapboxToken) return null;
+
+    try {
+      const response = await fetch(
+        `https://api.mapbox.com/directions/v5/mapbox/walking/${startLng},${startLat};${endLng},${endLat}?steps=true&geometries=geojson&access_token=${mapboxToken}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.routes && data.routes.length > 0) {
+        return data.routes[0];
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error computing route:', error);
+      return null;
+    }
+  };
+
+  // Find nearest valid destination that meets step target
+  const findNearestValidDestination = async (clickedLat: number, clickedLng: number, startLat: number, startLng: number): Promise<RouteData | null> => {
+    const targetSteps = parseInt(planningData.steps);
+    setIsCalculating(true);
+    setRouteError('');
+    
+    // First try the exact clicked location
+    try {
+      let route, totalSteps, totalDistance;
+      
+      if (planningData.tripType === 'round-trip') {
+        const outboundRoute = await computeRoute(startLat, startLng, clickedLat, clickedLng);
+        const returnRoute = await computeRoute(clickedLat, clickedLng, startLat, startLng);
+        
+        if (outboundRoute && returnRoute) {
+          totalDistance = (outboundRoute.distance + returnRoute.distance) / 1000;
+          totalSteps = calculateSteps(totalDistance);
+          
+          if (isWithinTolerance(totalSteps, targetSteps)) {
+            setIsCalculating(false);
+            return {
+              distance: totalDistance,
+              duration: calculateTime(totalDistance),
+              calories: calculateCalories(totalDistance, calculateTime(totalDistance)),
+              steps: totalSteps,
+              startCoordinates: { lat: startLat, lng: startLng },
+              endCoordinates: { lat: clickedLat, lng: clickedLng },
+              routeGeoJSON: {
+                outbound: outboundRoute.geometry,
+                return: returnRoute.geometry
+              }
+            };
+          }
+        }
+      } else {
+        route = await computeRoute(startLat, startLng, clickedLat, clickedLng);
+        
+        if (route) {
+          totalDistance = route.distance / 1000;
+          totalSteps = calculateSteps(totalDistance);
+          
+          if (isWithinTolerance(totalSteps, targetSteps)) {
+            setIsCalculating(false);
+            return {
+              distance: totalDistance,
+              duration: calculateTime(totalDistance),
+              calories: calculateCalories(totalDistance, calculateTime(totalDistance)),
+              steps: totalSteps,
+              startCoordinates: { lat: startLat, lng: startLng },
+              endCoordinates: { lat: clickedLat, lng: clickedLng },
+              routeGeoJSON: route.geometry
+            };
+          }
+        }
+      }
+      
+      // If clicked location doesn't work, try to find nearest valid point
+      const heightCm = parseFloat(planningData.height) * 100;
+      const strideLength = heightCm * 0.45;
+      let targetDistanceKm = (targetSteps * strideLength) / 100000;
+      
+      if (planningData.tripType === 'round-trip') {
+        targetDistanceKm = targetDistanceKm / 2; // Half distance for round-trip
+      }
+      
+      // Calculate bearing from start to clicked point
+      const bearing = Math.atan2(
+        clickedLng - startLng,
+        clickedLat - startLat
+      ) * 180 / Math.PI;
+      
+      // Try adjusting the destination along the same bearing
+      for (let factor of [0.8, 0.9, 1.1, 1.2, 0.7, 1.3]) {
+        const adjustedDistance = targetDistanceKm * factor;
+        const adjustedDestination = calculateDestination(startLat, startLng, adjustedDistance, bearing);
+        
+        try {
+          if (planningData.tripType === 'round-trip') {
+            const outboundRoute = await computeRoute(startLat, startLng, adjustedDestination.lat, adjustedDestination.lng);
+            const returnRoute = await computeRoute(adjustedDestination.lat, adjustedDestination.lng, startLat, startLng);
+            
+            if (outboundRoute && returnRoute) {
+              totalDistance = (outboundRoute.distance + returnRoute.distance) / 1000;
+              totalSteps = calculateSteps(totalDistance);
+              
+              if (isWithinTolerance(totalSteps, targetSteps)) {
+                setIsCalculating(false);
+                setRouteError('No direct route found — auto-adjusting to the nearest target.');
+                return {
+                  distance: totalDistance,
+                  duration: calculateTime(totalDistance),
+                  calories: calculateCalories(totalDistance, calculateTime(totalDistance)),
+                  steps: totalSteps,
+                  startCoordinates: { lat: startLat, lng: startLng },
+                  endCoordinates: adjustedDestination,
+                  routeGeoJSON: {
+                    outbound: outboundRoute.geometry,
+                    return: returnRoute.geometry
+                  }
+                };
+              }
+            }
+          } else {
+            route = await computeRoute(startLat, startLng, adjustedDestination.lat, adjustedDestination.lng);
+            
+            if (route) {
+              totalDistance = route.distance / 1000;
+              totalSteps = calculateSteps(totalDistance);
+              
+              if (isWithinTolerance(totalSteps, targetSteps)) {
+                setIsCalculating(false);
+                setRouteError('No direct route found — auto-adjusting to the nearest target.');
+                return {
+                  distance: totalDistance,
+                  duration: calculateTime(totalDistance),
+                  calories: calculateCalories(totalDistance, calculateTime(totalDistance)),
+                  steps: totalSteps,
+                  startCoordinates: { lat: startLat, lng: startLng },
+                  endCoordinates: adjustedDestination,
+                  routeGeoJSON: route.geometry
+                };
+              }
+            }
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+      
+    } catch (error) {
+      console.error('Error finding nearest valid destination:', error);
+    }
+    
+    setIsCalculating(false);
+    setRouteError('No direct route found — auto-adjusting to the nearest target.');
+    return null;
+  };
 
   // Reset to default route
-  const resetToDefault = useCallback(() => {
-    if (defaultRouteData) {
-      setDestinationLocation(defaultRouteData.destination);
-      setRouteData(defaultRouteData.route);
-      setShowWarningMessage(null);
-      
-      if (onRouteCalculated) {
-        const simpleRouteData = {
-          distance: defaultRouteData.route.distance,
-          duration: defaultRouteData.route.duration,
-          calories: defaultRouteData.route.calories,
-          steps: defaultRouteData.route.steps,
-          startCoordinates: userLocation!,
-          endCoordinates: defaultRouteData.destination,
-          routeGeoJSON: {
-            type: 'LineString',
-            coordinates: defaultRouteData.route.coordinates,
-            outboundCoordinates: defaultRouteData.route.outboundCoordinates,
-            returnCoordinates: defaultRouteData.route.returnCoordinates
-          }
-        };
-        onRouteCalculated(simpleRouteData);
-      }
+  const resetToDefault = () => {
+    if (defaultRoute) {
+      setCurrentRoute(defaultRoute);
+      setRouteError('');
+      onRouteCalculated?.(defaultRoute);
     }
-  }, [defaultRouteData, userLocation, onRouteCalculated]);
+  };
 
   // Update route display on map
-  const updateRouteDisplay = useCallback((route: RouteData, destination: { lat: number; lng: number }) => {
-    if (!map.current || !userLocation || !mapInitialized) return;
+  const updateRouteDisplay = () => {
+    if (!map.current || !currentRoute) return;
 
-    // Remove existing markers
-    if (userMarker.current) {
-      userMarker.current.remove();
-    }
-    if (destinationMarker.current) {
-      destinationMarker.current.remove();
-    }
-
-    // Add user marker
-    userMarker.current = new mapboxgl.Marker({ color: '#10b981' })
-      .setLngLat([userLocation.lng, userLocation.lat])
-      .addTo(map.current);
-
-    // Add destination marker
-    destinationMarker.current = new mapboxgl.Marker({ color: '#ef4444' })
-      .setLngLat([destination.lng, destination.lat])
-      .addTo(map.current);
-
-    // Add route to map
-    const routeGeojson = {
-      type: 'Feature' as const,
-      properties: {},
-      geometry: {
-        type: 'LineString' as const,
-        coordinates: route.coordinates
+    // Remove existing layers and sources
+    ['route', 'outbound-route', 'return-route', 'start-point', 'end-point'].forEach(id => {
+      if (map.current?.getLayer(id)) {
+        map.current.removeLayer(id);
       }
-    };
-
-    // Remove existing route source and layer
-    if (map.current.getSource('route')) {
-      map.current.removeLayer('route');
-      map.current.removeSource('route');
-    }
-
-    // Add new route
-    map.current.addSource('route', {
-      type: 'geojson',
-      data: routeGeojson
-    });
-
-    map.current.addLayer({
-      id: 'route',
-      type: 'line',
-      source: 'route',
-      layout: {
-        'line-join': 'round',
-        'line-cap': 'round'
-      },
-      paint: {
-        'line-color': planningData.tripType === 'round-trip' ? '#10b981' : '#3b82f6',
-        'line-width': 4,
-        'line-opacity': 0.8
+      if (map.current?.getSource(id)) {
+        map.current.removeSource(id);
       }
     });
 
-    // For round-trip, add return route
-    if (planningData.tripType === 'round-trip' && route.returnCoordinates) {
-      const returnGeojson = {
-        type: 'Feature' as const,
-        properties: {},
-        geometry: {
-          type: 'LineString' as const,
-          coordinates: route.returnCoordinates
+    // Handle round-trip routes
+    if (planningData.tripType === 'round-trip' && currentRoute.routeGeoJSON?.outbound && currentRoute.routeGeoJSON?.return) {
+      // Add outbound route (solid green)
+      map.current.addSource('outbound-route', {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {},
+          geometry: currentRoute.routeGeoJSON.outbound
         }
-      };
+      });
 
-      if (map.current.getSource('return-route')) {
-        map.current.removeLayer('return-route');
-        map.current.removeSource('return-route');
-      }
+      map.current.addLayer({
+        id: 'outbound-route',
+        type: 'line',
+        source: 'outbound-route',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': '#10b981',
+          'line-width': 4
+        }
+      });
 
+      // Add return route (dashed blue)
       map.current.addSource('return-route', {
         type: 'geojson',
-        data: returnGeojson
+        data: {
+          type: 'Feature',
+          properties: {},
+          geometry: currentRoute.routeGeoJSON.return
+        }
       });
 
       map.current.addLayer({
@@ -454,120 +465,120 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
         },
         paint: {
           'line-color': '#3b82f6',
-          'line-width': 3,
-          'line-opacity': 0.6,
+          'line-width': 4,
           'line-dasharray': [2, 2]
         }
       });
+    } else if (currentRoute.routeGeoJSON) {
+      // Add single route line
+      map.current.addSource('route', {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {},
+          geometry: currentRoute.routeGeoJSON
+        }
+      });
+
+      map.current.addLayer({
+        id: 'route',
+        type: 'line',
+        source: 'route',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': '#10b981',
+          'line-width': 4
+        }
+      });
     }
 
-    // Fit map to route bounds
-    const bounds = new mapboxgl.LngLatBounds();
-    route.coordinates.forEach((coord: number[]) => bounds.extend(coord as [number, number]));
-    map.current.fitBounds(bounds, { padding: 50, maxZoom: 15 });
-  }, [userLocation, planningData.tripType, mapInitialized]);
+    // Add start point
+    map.current.addSource('start-point', {
+      type: 'geojson',
+      data: {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'Point',
+          coordinates: [currentRoute.startCoordinates.lng, currentRoute.startCoordinates.lat]
+        }
+      }
+    });
+
+    map.current.addLayer({
+      id: 'start-point',
+      type: 'circle',
+      source: 'start-point',
+      paint: {
+        'circle-radius': 8,
+        'circle-color': '#3b82f6',
+        'circle-stroke-width': 2,
+        'circle-stroke-color': '#ffffff'
+      }
+    });
+
+    // Add end point
+    map.current.addSource('end-point', {
+      type: 'geojson',
+      data: {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'Point',
+          coordinates: [currentRoute.endCoordinates.lng, currentRoute.endCoordinates.lat]
+        }
+      }
+    });
+
+    map.current.addLayer({
+      id: 'end-point',
+      type: 'circle',
+      source: 'end-point',
+      paint: {
+        'circle-radius': 8,
+        'circle-color': '#ef4444',
+        'circle-stroke-width': 2,
+        'circle-stroke-color': '#ffffff'
+      }
+    });
+  };
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || !mapboxToken || !userLocation) {
-      console.log('Map initialization waiting for:', { 
-        container: !!mapContainer.current, 
-        token: !!mapboxToken,
-        userLocation: !!userLocation
-      });
-      return;
-    }
+    if (!mapContainer.current || !mapboxToken || !userLocation) return;
+    if (map.current) return; // Map already initialized
 
-    if (mapInitialized) {
-      console.log('Map already initialized, skipping');
-      return;
-    }
-
-    console.log('Initializing Mapbox map...');
+    mapboxgl.accessToken = mapboxToken;
     
-    try {
-      mapboxgl.accessToken = mapboxToken;
-      
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/streets-v12',
-        center: [userLocation.lng, userLocation.lat],
-        zoom: 13,
-        preserveDrawingBuffer: true
-      });
+    map.current = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: 'mapbox://styles/mapbox/streets-v12',
+      center: [userLocation.lng, userLocation.lat],
+      zoom: 13
+    });
 
-      map.current.on('load', () => {
-        console.log('Map loaded successfully');
-        setMapInitialized(true);
-        
-        // Trigger map resize to ensure proper rendering
-        setTimeout(() => {
-          if (map.current) {
-            map.current.resize();
-          }
-        }, 100);
-        
-        // Generate default route after map loads
-        if (!defaultRouteData) {
-          setIsLoading(true);
-          generateOptimalRoute(userLocation).then((result) => {
-            if (result) {
-              setDefaultRouteData(result);
-              setDestinationLocation(result.destination);
-              setRouteData(result.route);
-              updateRouteDisplay(result.route, result.destination);
-              
-              if (onRouteCalculated) {
-                const simpleRouteData = {
-                  distance: result.route.distance,
-                  duration: result.route.duration,
-                  calories: result.route.calories,
-                  steps: result.route.steps,
-                  startCoordinates: userLocation,
-                  endCoordinates: result.destination,
-                  routeGeoJSON: {
-                    type: 'LineString',
-                    coordinates: result.route.coordinates,
-                    outboundCoordinates: result.route.outboundCoordinates,
-                    returnCoordinates: result.route.returnCoordinates
-                  }
-                };
-                onRouteCalculated(simpleRouteData);
-              }
+    map.current.on('load', () => {
+      // Generate initial default route when user location is available
+      if (userLocation && mapboxToken && !defaultRoute && !currentRoute) {
+        generateDefaultRoute(userLocation.lat, userLocation.lng)
+          .then(route => {
+            if (route) {
+              setDefaultRoute(route);
+              setCurrentRoute(route);
+              onRouteCalculated?.(route);
             }
-            setIsLoading(false);
-          }).catch((error) => {
-            console.error('Error generating default route:', error);
-            setIsLoading(false);
+            setLoading(false);
+          })
+          .catch(error => {
+            console.error('Error generating initial route:', error);
+            setLoading(false);
           });
-        }
-      });
+      }
+    });
 
-      map.current.on('error', (e) => {
-        console.error('Mapbox error:', e.error);
-        setMapInitialized(false);
-      });
-
-      map.current.on('styledata', () => {
-        if (map.current && map.current.isStyleLoaded()) {
-          map.current.resize();
-        }
-      });
-
-      // Add navigation controls
-      map.current.addControl(
-        new mapboxgl.NavigationControl({
-          visualizePitch: true,
-        }),
-        'top-right'
-      );
-      
-    } catch (error) {
-      console.error('Error initializing map:', error);
-      setMapInitialized(false);
-    }
-
-    // Cleanup
     return () => {
       if (map.current) {
         map.current.remove();
@@ -578,86 +589,42 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
 
   // Handle map clicks for destination selection
   useEffect(() => {
-    if (!map.current || !mapInitialized || !userLocation) return;
-
-    const handleMapClick = async (e: any) => {
-      if (!canClick || isLoading) return;
-
-      const clickedDestination = {
-        lat: e.lngLat.lat,
-        lng: e.lngLat.lng
-      };
-      
-      setIsLoading(true);
-      setShowWarningMessage(null);
-      
-      try {
-        const adjustedResult = await adjustRouteForSteps(userLocation, clickedDestination);
+    // Handle map clicks for destination selection
+    if (map.current && canClick && userLocation) {
+      const handleMapClick = async (e: mapboxgl.MapMouseEvent) => {
+        const { lng, lat } = e.lngLat;
+        onUserClick?.();
         
-        if (adjustedResult) {
-          // Valid route found - trigger user click callback
-          if (onUserClick) {
-            onUserClick();
-          }
-          
-          setDestinationLocation(adjustedResult.destination);
-          setRouteData(adjustedResult.route);
-          
-          if (onRouteCalculated) {
-            const simpleRouteData = {
-              distance: adjustedResult.route.distance,
-              duration: adjustedResult.route.duration,
-              calories: adjustedResult.route.calories,
-              steps: adjustedResult.route.steps,
-              startCoordinates: userLocation,
-              endCoordinates: adjustedResult.destination,
-              routeGeoJSON: {
-                type: 'LineString',
-                coordinates: adjustedResult.route.coordinates,
-                outboundCoordinates: adjustedResult.route.outboundCoordinates,
-                returnCoordinates: adjustedResult.route.returnCoordinates
-              }
-            };
-            onRouteCalculated(simpleRouteData);
-          }
-        } else {
-          // No valid route found within tolerance
-          setShowWarningMessage('Aucun itinéraire trouvé dans la tolérance de ±5%. Essayez un autre point.');
-          setTimeout(() => setShowWarningMessage(null), 4000);
+        const newRoute = await findNearestValidDestination(lat, lng, userLocation.lat, userLocation.lng);
+        if (newRoute) {
+          setCurrentRoute(newRoute);
+          onRouteCalculated?.(newRoute);
         }
-      } catch (error) {
-        console.error('Error calculating route:', error);
-        setShowWarningMessage('Erreur lors du calcul de l\'itinéraire. Veuillez réessayer.');
-        setTimeout(() => setShowWarningMessage(null), 4000);
-      }
-      
-      setIsLoading(false);
-    };
+      };
 
-    map.current.on('click', handleMapClick);
+      map.current.on('click', handleMapClick);
 
-    return () => {
-      if (map.current) {
-        map.current.off('click', handleMapClick);
-      }
-    };
-  }, [mapInitialized, canClick, isLoading, userLocation, onUserClick, onRouteCalculated, adjustRouteForSteps]);
-
-  // Update route display when data changes
-  useEffect(() => {
-    if (routeData && destinationLocation && map.current && mapInitialized) {
-      updateRouteDisplay(routeData, destinationLocation);
+      return () => {
+        map.current?.off('click', handleMapClick);
+      };
     }
-  }, [routeData, destinationLocation, updateRouteDisplay, mapInitialized]);
+  }, [canClick, userLocation, onUserClick, planningData]);
+
+  // Update route display when route changes
+  useEffect(() => {
+    if (currentRoute && map.current) {
+      updateRouteDisplay();
+    }
+  }, [currentRoute]);
 
   if (permissionDenied) {
     return (
-      <div className={`${className} min-h-[500px] bg-muted rounded-2xl flex items-center justify-center`}>
+      <div className={`${className} flex items-center justify-center bg-muted rounded-xl`}>
         <div className="text-center p-8">
           <div className="text-4xl mb-4">📍</div>
           <h3 className="text-lg font-semibold mb-2">Géolocalisation requise</h3>
-          <p className="text-muted-foreground mb-4">
-            Veuillez autoriser l'accès à votre position pour planifier votre marche.
+          <p className="text-muted-foreground">
+            Veuillez autoriser l'accès à votre position pour utiliser la carte.
           </p>
         </div>
       </div>
@@ -666,7 +633,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
 
   if (!mapboxToken || !userLocation) {
     return (
-      <div className={`${className} min-h-[500px] bg-muted rounded-2xl flex items-center justify-center`}>
+      <div className={`${className} flex items-center justify-center bg-muted rounded-xl`}>
         <div className="text-center p-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Chargement de la carte...</p>
@@ -677,106 +644,73 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
 
   return (
     <div className={`relative ${className}`}>
-      <div ref={mapContainer} className="w-full h-[500px] rounded-2xl shadow-lg" style={{ minHeight: '500px' }} />
+      <div ref={mapContainer} className="w-full h-full rounded-xl" />
       
-      {!mapInitialized && mapboxToken && userLocation && (
-        <div className="absolute inset-0 flex items-center justify-center bg-muted/50 backdrop-blur-sm rounded-2xl">
-          <div className="text-center p-6">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Initialisation de la carte...</p>
+      {/* Route Summary */}
+      {currentRoute && (
+        <div className="absolute top-4 left-4 bg-card/90 backdrop-blur-sm rounded-lg p-4 shadow-lg max-w-xs">
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>
+              <span className="text-muted-foreground">Distance:</span>
+              <p className="font-semibold">{currentRoute.distance.toFixed(1)} km</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Durée:</span>
+              <p className="font-semibold">{currentRoute.duration} min</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Calories:</span>
+              <p className="font-semibold">{currentRoute.calories}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Pas:</span>
+              <p className="font-semibold text-primary">{currentRoute.steps.toLocaleString()}</p>
+            </div>
           </div>
+          
+          {planningData.tripType === 'round-trip' && (
+            <div className="mt-2 text-xs text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-0.5 bg-emerald-500"></div>
+                <span>Aller</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-0.5 bg-blue-500 border-dashed border-t-2"></div>
+                <span>Retour</span>
+              </div>
+            </div>
+          )}
         </div>
       )}
-      
-      {/* Route summary */}
-      {routeData && (
-        <div className="absolute top-4 left-4 bg-card/95 backdrop-blur-sm rounded-lg p-4 shadow-lg max-w-xs">
-          <h3 className="font-semibold text-sm mb-3 flex items-center">
-            <MapPin className="w-4 h-4 mr-2 text-primary" />
-            Itinéraire planifié
-          </h3>
-          <div className="grid grid-cols-2 gap-3 text-xs">
-            <div className="flex items-center space-x-2">
-              <div className="h-4 w-4 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
-                📏
-              </div>
-              <div>
-                <div className="font-medium text-blue-600">{routeData.distance.toFixed(1)} km</div>
-                <div className="text-muted-foreground">Distance</div>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="h-4 w-4 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold">
-                ⏱️
-              </div>
-              <div>
-                <div className="font-medium text-orange-600">{routeData.duration} min</div>
-                <div className="text-muted-foreground">Durée</div>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="h-4 w-4 rounded-full bg-red-500 flex items-center justify-center text-white text-xs font-bold">
-                🔥
-              </div>
-              <div>
-                <div className="font-medium text-red-600">{routeData.calories}</div>
-                <div className="text-muted-foreground">Calories</div>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center text-white text-xs font-bold">
-                👣
-              </div>
-              <div>
-                <div className="font-medium text-green-600">{routeData.steps}</div>
-                <div className="text-muted-foreground">Pas</div>
-              </div>
-            </div>
+
+      {/* Route Error Message */}
+      {routeError && (
+        <div className="absolute bottom-4 left-4 right-4 bg-amber-50 border border-amber-200 rounded-lg p-3 shadow-lg">
+          <div className="flex items-center gap-2 text-amber-800">
+            <AlertTriangle className="w-4 h-4" />
+            <span className="text-sm font-medium">{routeError}</span>
           </div>
         </div>
       )}
 
-      {/* Loading overlay */}
-      {isLoading && (
-        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-            <p className="text-sm text-muted-foreground">Calcul de l'itinéraire...</p>
+      {/* Loading Indicator */}
+      {isCalculating && (
+        <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-card rounded-lg p-6 shadow-xl">
+            <div className="flex items-center gap-3">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              <span className="text-foreground font-medium">Calcul de l'itinéraire...</span>
+            </div>
           </div>
-        </div>
-      )}
-
-      {/* Warning message */}
-      {showWarningMessage && (
-        <div className="absolute top-20 left-4 right-4 bg-yellow-100 border-l-4 border-yellow-500 p-3 rounded shadow-lg">
-          <div className="flex items-center space-x-2">
-            <span className="text-yellow-600 text-sm font-medium">⚠️</span>
-            <p className="text-yellow-700 text-sm">{showWarningMessage}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Reset button */}
-      {defaultRouteData && routeData && routeData !== defaultRouteData.route && (
-        <div className="absolute bottom-20 right-4">
-          <Button
-            onClick={resetToDefault}
-            variant="outline"
-            size="sm"
-            className="bg-card/95 backdrop-blur-sm shadow-lg"
-          >
-            <RotateCcw className="w-4 h-4 mr-2" />
-            Réinitialiser
-          </Button>
         </div>
       )}
 
       {/* Instructions */}
-      <div className="absolute bottom-4 left-4 right-4 bg-card/95 backdrop-blur-sm rounded-lg p-3 text-center">
+      <div className="absolute bottom-4 left-4 right-4 bg-card/90 backdrop-blur-sm rounded-lg p-3 text-center">
         <p className="text-sm text-muted-foreground">
           {!canClick 
-            ? "🔒 Limite d'essais atteinte. Utilisez 'Réinitialiser' pour restaurer." 
-            : "📍 Tapez sur la carte pour choisir une destination (dans ±5% de votre objectif)"
+            ? "🔒 Limite d'essais atteinte. Utilisez 'Réinitialiser' pour restaurer l'itinéraire par défaut." 
+            : "📍 Tapez sur la carte pour choisir une destination"
           }
         </p>
       </div>

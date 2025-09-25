@@ -29,7 +29,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     routeGeoJSON?: any;
   } | null>(null);
   
-  const { attemptCount, canClick, isLocked, incrementAttempts, reset, remainingAttempts } = useMapClickLimiter(3);
+  const { attemptCount, canClick, isLocked, hasReset, incrementAttempts, reset, remainingAttempts } = useMapClickLimiter(3);
 
   const handleRouteCalculated = (data: {
     distance: number;
@@ -136,9 +136,9 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
           <EnhancedMap 
             planningData={planningData}
             className="w-full h-full"
-            onRouteCalculated={handleRouteCalculated}
             canClick={canClick}
             onUserClick={incrementAttempts}
+            onRouteCalculated={handleRouteCalculated}
           />
           
           {/* Click Counter & Reset */}
@@ -148,7 +148,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
               <span className="font-semibold text-primary">{attemptCount}/3</span>
             </div>
             
-            {isLocked && (
+            {isLocked && !hasReset && (
               <Button
                 onClick={reset}
                 size="sm"
@@ -160,7 +160,13 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
               </Button>
             )}
             
-            {!isLocked && remainingAttempts > 0 && (
+            {hasReset && (
+              <p className="text-xs text-amber-600 text-center font-medium">
+                Itinéraire par défaut restauré
+              </p>
+            )}
+            
+            {!isLocked && !hasReset && remainingAttempts > 0 && (
               <p className="text-xs text-muted-foreground text-center">
                 {remainingAttempts} essai{remainingAttempts > 1 ? 's' : ''} restant{remainingAttempts > 1 ? 's' : ''}
               </p>
