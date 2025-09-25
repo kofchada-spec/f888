@@ -609,30 +609,53 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
   useEffect(() => {
     if (!map || !userLocation || !mapboxToken) return;
     
-    // Centrer la carte et mettre à jour les marqueurs (sans recalculer la route)
-    map.setCenter([userLocation.lng, userLocation.lat]);
+    // Éviter les recentrages multiples qui peuvent déclencher des événements
+    const currentCenter = map.getCenter();
+    const distance = turf.distance(
+      [currentCenter.lng, currentCenter.lat],
+      [userLocation.lng, userLocation.lat]
+    );
+    
+    // Ne recentrer que si la distance est significative (>100m)
+    if (distance > 0.1) {
+      map.setCenter([userLocation.lng, userLocation.lat]);
+    }
+    
     updateUserMarkers();
     
     // Calculer la destination par défaut UNIQUEMENT la première fois
     if (!isDefaultRouteCalculated.current) {
       console.log('Calculating default route for the first time');
       isDefaultRouteCalculated.current = true;
-      calculateDefaultDestination();
+      
+      // Délai pour s'assurer que la carte est prête
+      setTimeout(() => {
+        calculateDefaultDestination();
+      }, 100);
     }
     
   }, [map, userLocation, mapboxToken, updateUserMarkers, calculateDefaultDestination]);
 
-  // Abonnement clic carte - déléguer complètement au hook useMapClickLimiter
+  // Abonnement clic carte - UNIQUEMENT pour les vrais clics utilisateur
   useEffect(() => {
     if (!map) return;
     
+    const canvas = map.getCanvas();
+    
     const onClick = (e: mapboxgl.MapMouseEvent) => {
-      // PAS de debounce ici - le hook s'en charge
-      handleMapClick({ lng: e.lngLat.lng, lat: e.lngLat.lat });
+      // Vérifier que c'est un vrai clic utilisateur (pas programmatique)
+      if (e.originalEvent && e.originalEvent.isTrusted) {
+        console.log('Valid user click detected on map');
+        handleMapClick({ lng: e.lngLat.lng, lat: e.lngLat.lat });
+      }
     };
     
+    // Ajouter l'événement sur le canvas pour éviter les clics multiples
     map.on('click', onClick);
-    return () => { map.off('click', onClick); };
+    
+    return () => { 
+      map.off('click', onClick); 
+    };
   }, [map, handleMapClick]);
 
   // Affichage des états de chargement

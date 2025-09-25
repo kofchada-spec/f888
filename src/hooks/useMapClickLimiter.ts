@@ -24,16 +24,15 @@ export function useMapClickLimiter(opts: LimiterOptions) {
       return;
     }
 
-    // Anti double-tap strict (600ms)
+    // Anti double-tap strict (800ms pour éviter les clics accidentels)
     if (debounceRef.current) {
       console.log('Click ignored: debounce active');
       return;
     }
     
     debounceRef.current = window.setTimeout(() => {
-      if (debounceRef.current) window.clearTimeout(debounceRef.current);
       debounceRef.current = null;
-    }, 600);
+    }, 800);
 
     console.log(`User click detected: processing attempt ${clickCount + 1}/${maxValidClicks}`);
 
@@ -42,15 +41,18 @@ export function useMapClickLimiter(opts: LimiterOptions) {
       await onValidClick(lngLat);
       
       // 2) SEULEMENT si le traitement a réussi, incrémenter le compteur
-      const next = clickCount + 1;
-      console.log(`User click processed successfully: ${next}/${maxValidClicks}`);
-      
-      setClickCount(next);
-      if (next >= maxValidClicks) {
-        setIsLocked(true);
-        console.log('Map locked after maximum successful clicks reached');
-        onLock?.();
-      }
+      setClickCount(prev => {
+        const next = prev + 1;
+        console.log(`User click processed successfully: ${next}/${maxValidClicks}`);
+        
+        if (next >= maxValidClicks) {
+          setIsLocked(true);
+          console.log('Map locked after maximum successful clicks reached');
+          onLock?.();
+        }
+        
+        return next;
+      });
     } catch (error) {
       console.log('Click processing failed, not counting as attempt:', error);
       // Ne pas incrémenter le compteur si le traitement échoue
