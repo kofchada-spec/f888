@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { User, Edit3, Footprints, MapPin, Flame, Clock, LogOut, Crown, Settings, UserCircle, CreditCard, HelpCircle } from 'lucide-react';
+import { User, Edit3, Footprints, MapPin, Flame, Clock, LogOut, Crown, Settings, UserCircle, CreditCard, HelpCircle, Target, Award } from 'lucide-react';
 import { useWalkStats } from '@/hooks/useWalkStats';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
@@ -98,6 +99,74 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
 
   // Get today's actual stats from walk sessions
   const todayStats = getTodayStats();
+  
+  // Daily goals
+  const dailyGoals = {
+    steps: 10000,
+    distanceKm: 8.0,
+    calories: 400,
+    walkTime: 60
+  };
+
+  // Calculate progress percentages
+  const progress = {
+    steps: Math.min((todayStats.steps / dailyGoals.steps) * 100, 100),
+    distanceKm: Math.min((todayStats.distanceKm / dailyGoals.distanceKm) * 100, 100),
+    calories: Math.min((todayStats.calories / dailyGoals.calories) * 100, 100),
+    walkTime: Math.min((todayStats.walkTime / dailyGoals.walkTime) * 100, 100)
+  };
+
+  // Calculate current streak
+  const { getWeeklyStats } = useWalkStats();
+  const weeklyStats = getWeeklyStats();
+  
+  const calculateStreak = () => {
+    let streak = 0;
+    const today = new Date();
+    
+    // Check today first
+    if (todayStats.steps > 0) {
+      streak = 1;
+    }
+    
+    // Check previous days (max 7 days for now)
+    for (let i = 1; i < 7; i++) {
+      const checkDate = new Date(today);
+      checkDate.setDate(today.getDate() - i);
+      const dayIndex = (checkDate.getDay() + 6) % 7; // Convert to 0=Monday format
+      
+      if (weeklyStats[dayIndex]?.steps > 0) {
+        if (i === 1 || streak > 0) { // Only continue streak if consecutive
+          streak++;
+        }
+      } else {
+        break; // Break streak if no activity
+      }
+    }
+    
+    return streak;
+  };
+
+  const currentStreak = calculateStreak();
+
+  // Motivational messages
+  const getMotivationalMessage = () => {
+    const overallProgress = (progress.steps + progress.distanceKm + progress.calories + progress.walkTime) / 4;
+    
+    if (overallProgress >= 100) {
+      return "🎉 Objectifs atteints ! Fantastique !";
+    } else if (overallProgress >= 75) {
+      return "🔥 Presque au bout ! Continue comme ça !";
+    } else if (overallProgress >= 50) {
+      return "💪 Tu es à mi-chemin, c'est super !";
+    } else if (overallProgress >= 25) {
+      return "🚀 Bon début, continue sur ta lancée !";
+    } else if (todayStats.steps > 0) {
+      return "👟 C'est parti ! Chaque pas compte !";
+    } else {
+      return "☀️ Nouvelle journée, nouveaux objectifs !";
+    }
+  };
   
   // Format walk time for display
   const formatWalkTime = (minutes: number) => {
@@ -271,54 +340,101 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
           </CardContent>
         </Card>
 
-        {/* Statistiques du jour */}
-        {todayStats.steps === 0 ? (
-          <Card className="bg-gradient-to-br from-gray-100 to-gray-200 border border-gray-300 shadow-lg">
+        {/* Streak et Message Motivationnel */}
+        <div className="grid md:grid-cols-2 gap-4">
+          {/* Carte Streak */}
+          <Card className="bg-gradient-to-br from-yellow-400 to-orange-500 text-white shadow-lg border-0">
             <CardContent className="p-6 text-center">
-              <div className="text-gray-500">
-                <Footprints className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <h3 className="text-lg font-semibold mb-2">Aucune marche aujourd'hui</h3>
-                <p className="text-sm text-muted-foreground">
-                  Commencez votre première marche pour voir vos statistiques apparaître ici !
-                </p>
-              </div>
+              <Award className="h-8 w-8 mx-auto mb-3 opacity-90" />
+              <p className="text-2xl font-bold">{currentStreak}</p>
+              <p className="text-sm opacity-90">
+                {currentStreak === 0 ? "Commence ta série !" : 
+                 currentStreak === 1 ? "jour actif" : 
+                 "jours consécutifs"}
+              </p>
             </CardContent>
           </Card>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg border-0">
-              <CardContent className="p-4 text-center">
-                <Footprints className="h-8 w-8 mx-auto mb-2 opacity-90" />
-                <p className="text-2xl font-bold">{todayStats.steps.toLocaleString()}</p>
-                <p className="text-sm opacity-90">pas</p>
-              </CardContent>
-            </Card>
 
-            <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg border-0">
-              <CardContent className="p-4 text-center">
-                <MapPin className="h-8 w-8 mx-auto mb-2 opacity-90" />
-                <p className="text-2xl font-bold">{todayStats.distanceKm.toFixed(1)}</p>
-                <p className="text-sm opacity-90">km</p>
-              </CardContent>
-            </Card>
+          {/* Message Motivationnel */}
+          <Card className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg border-0">
+            <CardContent className="p-6 text-center flex flex-col justify-center">
+              <p className="text-lg font-medium">{getMotivationalMessage()}</p>
+            </CardContent>
+          </Card>
+        </div>
 
-            <Card className="bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-lg border-0">
-              <CardContent className="p-4 text-center">
-                <Flame className="h-8 w-8 mx-auto mb-2 opacity-90" />
-                <p className="text-2xl font-bold">{todayStats.calories}</p>
-                <p className="text-sm opacity-90">kcal</p>
-              </CardContent>
-            </Card>
+        {/* Objectifs du jour avec barres de progression */}
+        <Card className="bg-card shadow-lg border-0">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-foreground flex items-center">
+                <Target className="h-5 w-5 mr-2 text-primary" />
+                Mes objectifs du jour
+              </h2>
+              <div className="text-sm text-muted-foreground">
+                {Math.round((progress.steps + progress.distanceKm + progress.calories + progress.walkTime) / 4)}% complétés
+              </div>
+            </div>
+            
+            <div className="space-y-6">
+              {/* Pas */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Footprints className="h-4 w-4 mr-2 text-green-500" />
+                    <span className="text-sm font-medium">Pas</span>
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {todayStats.steps.toLocaleString()} / {dailyGoals.steps.toLocaleString()}
+                  </span>
+                </div>
+                <Progress value={progress.steps} className="h-2" />
+              </div>
 
-            <Card className="bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg border-0">
-              <CardContent className="p-4 text-center">
-                <Clock className="h-8 w-8 mx-auto mb-2 opacity-90" />
-                <p className="text-2xl font-bold">{formatWalkTime(todayStats.walkTime)}</p>
-                <p className="text-sm opacity-90">marche</p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+              {/* Distance */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <MapPin className="h-4 w-4 mr-2 text-blue-500" />
+                    <span className="text-sm font-medium">Distance</span>
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {todayStats.distanceKm.toFixed(1)} / {dailyGoals.distanceKm} km
+                  </span>
+                </div>
+                <Progress value={progress.distanceKm} className="h-2" />
+              </div>
+
+              {/* Calories */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Flame className="h-4 w-4 mr-2 text-orange-500" />
+                    <span className="text-sm font-medium">Calories</span>
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {todayStats.calories} / {dailyGoals.calories} kcal
+                  </span>
+                </div>
+                <Progress value={progress.calories} className="h-2" />
+              </div>
+
+              {/* Temps de marche */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Clock className="h-4 w-4 mr-2 text-purple-500" />
+                    <span className="text-sm font-medium">Temps de marche</span>
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {formatWalkTime(todayStats.walkTime)} / {formatWalkTime(dailyGoals.walkTime)}
+                  </span>
+                </div>
+                <Progress value={progress.walkTime} className="h-2" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Statistiques de la semaine */}
         <WeeklyStats userProfile={{ height: userProfile.height, weight: userProfile.weight }} />
