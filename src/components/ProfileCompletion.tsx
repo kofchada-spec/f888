@@ -107,6 +107,15 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
     return '';
   };
 
+  const getPlaceholder = (type: 'height' | 'weight' | 'birthDate') => {
+    switch (type) {
+      case 'height': return 'Choisir la taille';
+      case 'weight': return 'Choisir le poids';
+      case 'birthDate': return 'Choisir la date';
+      default: return '';
+    }
+  };
+
   const isFormValid = selectedGender && selectedHeight && selectedWeight && selectedBirthDate;
 
   const onSubmit = async (data: ProfileFormData) => {
@@ -217,7 +226,9 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
                 errors.height && "border-destructive focus:border-destructive focus:ring-destructive/20"
               )}
             >
-              {formatDisplayValue('height') || 'Sélectionner votre taille'}
+              <span className="truncate">
+                {formatDisplayValue('height') || getPlaceholder('height')}
+              </span>
             </button>
             {errors.height && (
               <p className="font-inter text-sm text-destructive font-medium">{errors.height.message}</p>
@@ -238,7 +249,9 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
                 errors.weight && "border-destructive focus:border-destructive focus:ring-destructive/20"
               )}
             >
-              {formatDisplayValue('weight') || 'Sélectionner votre poids'}
+              <span className="truncate">
+                {formatDisplayValue('weight') || getPlaceholder('weight')}
+              </span>
             </button>
             {errors.weight && (
               <p className="font-inter text-sm text-destructive font-medium">{errors.weight.message}</p>
@@ -259,7 +272,9 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
                 errors.birthDate && "border-destructive focus:border-destructive focus:ring-destructive/20"
               )}
             >
-              {formatDisplayValue('birthDate') || 'Sélectionner votre date de naissance'}
+              <span className="truncate">
+                {formatDisplayValue('birthDate') || getPlaceholder('birthDate')}
+              </span>
             </button>
             {errors.birthDate && (
               <p className="font-inter text-sm text-destructive font-medium">{errors.birthDate.message}</p>
