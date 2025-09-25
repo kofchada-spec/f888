@@ -3,13 +3,18 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, RotateCcw } from 'lucide-react';
 import EnhancedMap from './EnhancedMap';
 import { useMapClickLimiter } from '@/hooks/useMapClickLimiter';
-import { type PlanningData } from '@/lib/routeHelpers';
 
 interface MapScreenProps {
   onComplete: (destination: any) => void;
   onBack: () => void;
   onGoToDashboard: () => void;
-  planningData: PlanningData;
+  planningData: {
+    steps: string;
+    pace: 'slow' | 'moderate' | 'fast';
+    tripType: 'one-way' | 'round-trip';
+    height: string;
+    weight: string;
+  };
 }
 
 const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScreenProps) => {
@@ -21,13 +26,10 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     steps: number;
     startCoordinates: { lat: number; lng: number };
     endCoordinates: { lat: number; lng: number };
-    routes: {
-      go: GeoJSON.Feature<GeoJSON.LineString>;
-      back?: GeoJSON.Feature<GeoJSON.LineString>;
-    };
+    routeGeoJSON?: any;
   } | null>(null);
   
-  const { attemptCount, canClick, isLocked, hasReset, incrementAttempts, reset, remainingAttempts } = useMapClickLimiter(3);
+  const { attemptCount, canClick, isLocked, incrementAttempts, reset, remainingAttempts } = useMapClickLimiter(3);
 
   const handleRouteCalculated = (data: {
     distance: number;
@@ -36,25 +38,16 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     steps: number;
     startCoordinates: { lat: number; lng: number };
     endCoordinates: { lat: number; lng: number };
-    routes: {
-      go: GeoJSON.Feature<GeoJSON.LineString>;
-      back?: GeoJSON.Feature<GeoJSON.LineString>;
-    };
+    routeGeoJSON?: any;
   }) => {
     setRouteData(data);
     setIsReadyToStart(true);
-    // Only increment attempts when a valid route is calculated
-    incrementAttempts(true);
-  };
-
-  const handleUserClick = () => {
-    // This is called on every click, but we only increment attempts when a valid route is found
-    // The actual increment happens in handleRouteCalculated
   };
 
   const handleStartWalk = () => {
     if (!routeData) return;
     
+    // Create destination object with the actual calculated route data
     const destination = {
       id: 'map-selected-destination',
       name: 'Destination sélectionnée',
@@ -62,7 +55,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
       distanceKm: routeData.distance,
       durationMin: routeData.duration,
       calories: routeData.calories,
-      routes: routeData.routes
+      routeGeoJSON: routeData.routeGeoJSON
     };
     
     onComplete(destination);
@@ -100,7 +93,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
         {/* Title */}
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-foreground mb-4">
-            Choisis ta destination
+            Planifiez votre marche
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             Tapez sur la carte pour placer votre destination. Un itinéraire sera calculé automatiquement.
@@ -139,13 +132,13 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
         </div>
 
         {/* Enhanced Map */}
-        <div className="mb-6 relative h-[500px] rounded-xl overflow-hidden bg-muted">
+        <div className="mb-6 relative">
           <EnhancedMap 
             planningData={planningData}
-            className="w-full h-full"
-            canClick={canClick}
-            onUserClick={handleUserClick}
+            className="w-full"
             onRouteCalculated={handleRouteCalculated}
+            canClick={canClick}
+            onUserClick={incrementAttempts}
           />
           
           {/* Click Counter & Reset */}
@@ -155,7 +148,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
               <span className="font-semibold text-primary">{attemptCount}/3</span>
             </div>
             
-            {(isLocked || attemptCount > 0) && (
+            {isLocked && (
               <Button
                 onClick={reset}
                 size="sm"
@@ -167,7 +160,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
               </Button>
             )}
             
-            {!isLocked && !hasReset && remainingAttempts > 0 && (
+            {!isLocked && remainingAttempts > 0 && (
               <p className="text-xs text-muted-foreground text-center">
                 {remainingAttempts} essai{remainingAttempts > 1 ? 's' : ''} restant{remainingAttempts > 1 ? 's' : ''}
               </p>
