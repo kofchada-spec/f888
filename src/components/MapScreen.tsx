@@ -93,7 +93,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
         {/* Title */}
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-foreground mb-4">
-            Planifiez votre marche
+            Choisis ta destination
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             Tapez sur la carte pour placer votre destination. Un itinéraire sera calculé automatiquement.
