@@ -46,6 +46,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     calories: number;
     isValid: boolean;
   } | null>(null);
+  const [routeError, setRouteError] = useState<string | null>(null);
 
   const defaultRouteRef = useRef<{ geojson: GeoJSON.FeatureCollection; color: string } | null>(null);
   const userMarkerRef = useRef<mapboxgl.Marker | null>(null);
@@ -370,7 +371,8 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     if (finalRoute && finalCandidate) {
       console.log('Using final route with distance:', finalRoute.distance);
       
-      // Nettoyer les routes précédentes
+      // Nettoyer les erreurs et routes précédentes
+      setRouteError(null);
       clearRoute('route-default');
       clearRoute('route-return');
       
@@ -446,6 +448,8 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
       console.log('Default destination calculation completed successfully');
     } else {
       console.error('No route could be calculated for any candidate');
+      setRouteError("Aucun itinéraire valide trouvé dans votre plage d'objectif de pas. Veuillez réessayer.");
+      setRouteStats(null);
     }
   }, [userLocation, map, mapboxToken, targetMeters, minMeters, maxMeters, planningData.tripType, fetchRoute, addOrUpdateSourceLayer, generateCandidateDestinations, stride, speedKmh, clearRoute, stepGoal]);
 
@@ -471,8 +475,11 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
         }
       }
       
-      // Vérifier si le trajet respecte les règles selon le mode
+      // Vérifier si le trajet respecte les règles selon le mode - validation stricte
       if (!isValidRoute(distance, retourDistance)) {
+        setRouteError("Aucun itinéraire valide trouvé dans votre plage d'objectif de pas. Veuillez réessayer.");
+        setRouteStats(null);
+        return;
         console.log(`Route rejected: aller=${distance}m, retour=${retourDistance}m, total=${distance + retourDistance}m (target range: [${totalRange.min}, ${totalRange.max}])`);
         return;
       }
@@ -646,8 +653,18 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
           )}
         </div>
 
+        {/* Route Error */}
+        {routeError && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 mb-6 shadow-sm">
+            <div className="text-center">
+              <h3 className="text-lg font-medium text-destructive mb-2">Aucun itinéraire trouvé</h3>
+              <p className="text-sm text-destructive/80">{routeError}</p>
+            </div>
+          </div>
+        )}
+
         {/* Route Stats */}
-        {routeStats && (
+        {routeStats && !routeError && (
           <div className={`bg-card rounded-xl p-4 mb-6 shadow-sm border-l-4 ${
             routeStats.isValid ? 'border-l-green-500' : 'border-l-orange-500'
           }`}>
@@ -736,7 +753,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
               durationMin: routeStats ? routeStats.duration : 15,
               calories: routeStats ? routeStats.calories : 50
             })}
-            disabled={!routeStats}
+            disabled={!routeStats || !!routeError}
             className="w-full max-w-md h-14 text-lg font-semibold bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground text-primary-foreground rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] border-0"
           >
             Commencer la marche
