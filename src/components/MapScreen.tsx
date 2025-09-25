@@ -31,6 +31,28 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
   
   const { attemptCount, canClick, isLocked, incrementAttempts, reset, remainingAttempts } = useMapClickLimiter(3);
 
+  // Calculate estimated values based on planning data
+  const calculateEstimatedDistance = () => {
+    const stepCount = parseInt(planningData.steps);
+    const heightInM = parseFloat(planningData.height);
+    const strideLength = 0.415 * heightInM;
+    return (stepCount * strideLength) / 1000; // km
+  };
+
+  const calculateEstimatedCalories = () => {
+    const distance = calculateEstimatedDistance();
+    const weightKg = parseFloat(planningData.weight);
+    const met = planningData.pace === 'slow' ? 3.0 : planningData.pace === 'moderate' ? 4.0 : 5.0;
+    const timeHours = distance / (planningData.pace === 'slow' ? 4 : planningData.pace === 'moderate' ? 5 : 6);
+    return Math.round(met * weightKg * timeHours);
+  };
+
+  const calculateEstimatedDuration = () => {
+    const distance = calculateEstimatedDistance();
+    const speed = planningData.pace === 'slow' ? 4 : planningData.pace === 'moderate' ? 5 : 6; // km/h
+    return Math.round((distance / speed) * 60); // minutes
+  };
+
   const handleRouteCalculated = (data: {
     distance: number;
     duration: number;
@@ -163,6 +185,44 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
               </p>
             )}
           </div>
+        </div>
+
+        {/* Walk Estimation */}
+        <div className="bg-card rounded-xl p-6 mb-6 shadow-lg">
+          <h3 className="text-lg font-semibold text-foreground mb-4 text-center">Estimation de votre marche</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center p-4 bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg">
+              <div className="text-2xl font-bold text-primary mb-1">
+                {routeData ? `${routeData.distance.toFixed(1)} km` : `${calculateEstimatedDistance().toFixed(1)} km`}
+              </div>
+              <p className="text-sm text-muted-foreground">Distance</p>
+            </div>
+            <div className="text-center p-4 bg-gradient-to-br from-secondary/5 to-secondary/10 rounded-lg">
+              <div className="text-2xl font-bold text-secondary mb-1">
+                {parseInt(planningData.steps).toLocaleString()}
+              </div>
+              <p className="text-sm text-muted-foreground">Pas estimés</p>
+            </div>
+            <div className="text-center p-4 bg-gradient-to-br from-orange-500/5 to-orange-500/10 rounded-lg">
+              <div className="text-2xl font-bold text-orange-600 mb-1">
+                {routeData ? `${routeData.calories}` : `${calculateEstimatedCalories()}`} kcal
+              </div>
+              <p className="text-sm text-muted-foreground">Calories</p>
+            </div>
+            <div className="text-center p-4 bg-gradient-to-br from-green-500/5 to-green-500/10 rounded-lg">
+              <div className="text-2xl font-bold text-green-600 mb-1">
+                {routeData ? `${routeData.duration} min` : `${calculateEstimatedDuration()} min`}
+              </div>
+              <p className="text-sm text-muted-foreground">Durée estimée</p>
+            </div>
+          </div>
+          {routeData && (
+            <div className="mt-4 pt-4 border-t text-center">
+              <p className="text-sm text-muted-foreground">
+                ✅ Itinéraire calculé • Prêt à commencer
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Action Button */}
