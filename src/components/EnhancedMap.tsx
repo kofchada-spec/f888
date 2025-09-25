@@ -551,40 +551,46 @@ const EnhancedMap = ({ planningData, className = '', onRouteCalculated, canClick
     if (!mapContainer.current || !mapboxToken || !userLocation) return;
     if (map.current) return; // Map already initialized
 
-    mapboxgl.accessToken = mapboxToken;
-    
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [userLocation.lng, userLocation.lat],
-      zoom: 13
-    });
+    try {
+      mapboxgl.accessToken = mapboxToken;
+      
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [userLocation.lng, userLocation.lat],
+        zoom: 13
+      });
 
-    map.current.on('load', () => {
-      // Generate initial default route when user location is available
-      if (userLocation && mapboxToken && !defaultRoute && !currentRoute) {
-        generateDefaultRoute(userLocation.lat, userLocation.lng)
-          .then(route => {
-            if (route) {
-              setDefaultRoute(route);
-              setCurrentRoute(route);
-              onRouteCalculated?.(route);
-            }
-            setLoading(false);
-          })
-          .catch(error => {
-            console.error('Error generating initial route:', error);
-            setLoading(false);
-          });
-      }
-    });
+      map.current.on('load', () => {
+        console.log('Map loaded successfully');
+        setLoading(false);
+        
+        // Generate initial default route when user location is available
+        if (userLocation && mapboxToken && !defaultRoute && !currentRoute) {
+          generateDefaultRoute(userLocation.lat, userLocation.lng)
+            .then(route => {
+              if (route) {
+                setDefaultRoute(route);
+                setCurrentRoute(route);
+                onRouteCalculated?.(route);
+              }
+            })
+            .catch(error => {
+              console.error('Error generating initial route:', error);
+            });
+        }
+      });
 
-    return () => {
-      if (map.current) {
-        map.current.remove();
-        map.current = null;
-      }
-    };
+      return () => {
+        if (map.current) {
+          map.current.remove();
+          map.current = null;
+        }
+      };
+    } catch (error) {
+      console.error('Error initializing map:', error);
+      setLoading(false);
+    }
   }, [mapboxToken, userLocation]);
 
   // Handle map clicks for destination selection
@@ -631,7 +637,7 @@ const EnhancedMap = ({ planningData, className = '', onRouteCalculated, canClick
     );
   }
 
-  if (!mapboxToken || !userLocation) {
+  if (!mapboxToken || !userLocation || loading) {
     return (
       <div className={`${className} flex items-center justify-center bg-muted rounded-xl`}>
         <div className="text-center p-8">

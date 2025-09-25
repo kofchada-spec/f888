@@ -47,7 +47,6 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
   const handleStartWalk = () => {
     if (!routeData) return;
     
-    // Create destination object with the actual calculated route data
     const destination = {
       id: 'map-selected-destination',
       name: 'Destination sélectionnée',
