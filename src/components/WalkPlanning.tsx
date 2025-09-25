@@ -92,41 +92,43 @@ const WalkPlanning = ({ onComplete, onBack, onGoToDashboard }: WalkPlanningProps
     });
   };
 
-  // Calculs préliminaires pour affichage selon les spécifications exactes
+  // Calculs préliminaires pour affichage
   const calculatePreview = () => {
     const stepCount = steps;
     const heightInM = parseFloat(height);
     const weightInKg = parseFloat(weight);
     
-    // Formule de foulée : 0.415 × taille (m)
+    // Formule de foulée : 0.415 × taille (m) ou défaut 0.72m
     const strideLength = heightInM > 0 ? 0.415 * heightInM : 0.72;
     
-    // Distance cible (km) = pas × foulée / 1000
+    // Distance cible (km) = pas × foulée / 1000 (total distance to walk)
     const targetDistanceKm = (stepCount * strideLength) / 1000;
     
-    // Vitesses selon l'allure (km/h)
+    // The target distance is already the total distance the user wants to walk
+    const displayDistance = targetDistanceKm;
+    
+    // Vitesse selon l'allure
     const paceSpeed = {
-      slow: 4,      // 4 km/h
-      moderate: 5,  // 5 km/h 
-      fast: 6       // 6 km/h
+      slow: 4,
+      moderate: 5, 
+      fast: 6
     };
     
     const speed = paceSpeed[selectedPace];
-    // Durée (minutes) = distance ÷ vitesse
-    const duration = targetDistanceKm / speed * 60; // en minutes
+    const duration = displayDistance / speed * 60; // en minutes
     
-    // Calories : distance (km) × poids (kg) × coefficient
+    // Calories : distance × poids × coefficient
     const calorieCoefficients = {
-      slow: 0.35,     // coefficient pour allure lente
-      moderate: 0.5,  // coefficient pour allure modérée  
-      fast: 0.7       // coefficient pour allure rapide
+      slow: 0.35,
+      moderate: 0.50,
+      fast: 0.70
     };
     
     const coefficient = calorieCoefficients[selectedPace];
-    const calories = targetDistanceKm * weightInKg * coefficient;
+    const calories = displayDistance * weightInKg * coefficient;
     
     return {
-      distance: targetDistanceKm.toFixed(1),
+      distance: displayDistance.toFixed(1),
       duration: Math.round(duration),
       calories: Math.round(calories),
       strideLength: (strideLength * 100).toFixed(1), // en cm pour affichage
