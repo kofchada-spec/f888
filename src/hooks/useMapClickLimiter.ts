@@ -21,7 +21,7 @@ export const useMapClickLimiter = (maxAttempts: number = 3) => {
   const reset = useCallback(() => {
     setAttemptCount(0);
     setIsLocked(false);
-    setHasReset(true); // After reset, no more clicks allowed
+    setHasReset(false); // Allow clicks after reset
   }, []);
 
   return {

@@ -155,7 +155,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
               <span className="font-semibold text-primary">{attemptCount}/3</span>
             </div>
             
-            {isLocked && !hasReset && (
+            {(isLocked || attemptCount > 0) && (
               <Button
                 onClick={reset}
                 size="sm"
@@ -165,12 +165,6 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
                 <RotateCcw className="w-3 h-3 mr-1" />
                 Réinitialiser
               </Button>
-            )}
-            
-            {hasReset && (
-              <p className="text-xs text-amber-600 text-center font-medium">
-                Itinéraire par défaut restauré
-              </p>
             )}
             
             {!isLocked && !hasReset && remainingAttempts > 0 && (
