@@ -122,7 +122,7 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
           </div>
 
           <div className="space-y-8 text-center px-4">
-            <h1 className="font-inter text-3xl font-black text-gray-900 leading-tight max-w-sm tracking-tight">
+            <h1 className="font-inter text-2xl font-bold text-gray-900 leading-tight max-w-sm tracking-tight">
               Planifie ta marche en fonction de ton{' '}
               <span className="text-primary">objectif de pas</span>{' '}
               à atteindre.
@@ -134,7 +134,7 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
               <div className="h-0.5 w-8 bg-gradient-to-l from-primary to-transparent"></div>
             </div>
 
-            <p className="font-inter text-lg text-gray-600 max-w-sm leading-relaxed font-light">
+            <p className="font-inter text-base text-gray-600 max-w-sm leading-relaxed font-light">
               Définis ton objectif et laisse{' '}
               <span className="font-semibold text-primary">Fitpas</span>{' '}
               t'accompagner.
@@ -188,7 +188,7 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
           </div>
 
           <div className="space-y-8 text-center">
-            <h1 className="font-inter text-3xl font-black text-gray-900 max-w-sm leading-tight tracking-tight">
+            <h1 className="font-inter text-2xl font-bold text-gray-900 max-w-sm leading-tight tracking-tight">
               <span className="text-primary">Fitpas</span> te propose des{' '}
               <span className="text-secondary">destinations</span>{' '}
               selon tes objectifs à atteindre.
@@ -200,7 +200,7 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
               <div className="h-0.5 w-10 bg-gradient-to-l from-secondary to-transparent"></div>
             </div>
 
-            <p className="font-inter text-lg text-gray-600 max-w-sm leading-relaxed font-light">
+            <p className="font-inter text-base text-gray-600 max-w-sm leading-relaxed font-light">
               <span className="font-semibold text-primary">Fitpas</span> estime l'heure et la distance à parcourir en fonction de ton{' '}
               <span className="font-medium">allure</span> et du{' '}
               <span className="font-medium">nombre de pas</span>.
