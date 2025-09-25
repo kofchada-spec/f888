@@ -54,7 +54,6 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
   const destinationMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const routeCacheRef = useRef<RouteCache>({});
-  const debounceRef = useRef<number | null>(null);
   
   // Refs pour éviter les recalculs automatiques
   const isDefaultRouteCalculated = useRef(false);
@@ -302,303 +301,49 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     }
   }, [map, userLocation]);
 
-  // Génération complète des candidats avec recherche exhaustive
-  const generateRingCandidates = useCallback((center: [number, number], radius: number, bearingCount: number = 20) => {
-    const candidates: Array<[number, number]> = [];
-    
-    // Générer des candidats uniformément répartis sur un cercle
-    for (let i = 0; i < bearingCount; i++) {
-      const bearing = (i * 360) / bearingCount;
-      const destination = turf.destination(turf.point(center), radius / 1000, bearing, { units: 'kilometers' });
-      candidates.push(destination.geometry.coordinates as [number, number]);
+  // Calcul simple d'un trajet par défaut (garantit une route dans ±5%)
+  const calculateDefaultDestination = useCallback(async () => {
+    if (!userLocation || !map || !mapboxToken || isDefaultRouteCalculated.current) {
+      return;
     }
-    
-    return candidates;
-  }, []);
 
-  // Génération de waypoints de détour pour ajustement fin
-  const generateDetourWaypoints = useCallback((start: [number, number], end: [number, number], offsetDistance: number = 200) => {
-    const waypoints: Array<[number, number]> = [];
+    console.log('Calculating default route - SINGLE TIME ONLY. Mode:', planningData.tripType, 'Target:', targetMeters, 'meters');
     
-    // Point milieu de la route
-    const midpoint = turf.midpoint(turf.point(start), turf.point(end));
-    
-    // Générer des points de détour perpendiculaires à la ligne principale
-    const bearing = turf.bearing(turf.point(start), turf.point(end));
-    const perpBearing1 = bearing + 90;
-    const perpBearing2 = bearing - 90;
-    
-    // Waypoints à gauche et à droite
-    const waypoint1 = turf.destination(midpoint, offsetDistance / 1000, perpBearing1, { units: 'kilometers' });
-    const waypoint2 = turf.destination(midpoint, offsetDistance / 1000, perpBearing2, { units: 'kilometers' });
-    
-    waypoints.push(waypoint1.geometry.coordinates as [number, number]);
-    waypoints.push(waypoint2.geometry.coordinates as [number, number]);
-    
-    return waypoints;
-  }, []);
-
-  // Validation selon le mode de trajet
-  const isValidRoute = useCallback((allerDistance: number, retourDistance: number = 0) => {
-    const totalDistance = allerDistance + retourDistance;
-    
-    if (planningData.tripType === 'one-way') {
-      // Mode aller simple : l'aller seul doit respecter l'objectif ±5%
-      return allerDistance >= totalRange.min && allerDistance <= totalRange.max;
-    } else {
-      // Mode aller-retour : la somme (aller + retour) doit respecter l'objectif ±5%
-      return totalDistance >= totalRange.min && totalDistance <= totalRange.max;
-    }
-  }, [planningData.tripType, totalRange]);
-
-  // Fonction d'ajustement fin pour respecter exactement les ±5%
-  const adjustRouteToTargetRange = useCallback(async (
-    start: [number, number],
-    bestCandidate: [number, number],
-    bestDistance: number,
-    isOneWay: boolean
-  ): Promise<{
-    candidate: [number, number];
-    outboundRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number };
-    returnRoute?: { featureCollection: GeoJSON.FeatureCollection; distance: number };
-  } | null> => {
-    
-    console.log(`Adjusting route to fit ±5% range. Current distance: ${bestDistance}m, Target range: [${minMeters}, ${maxMeters}]`);
-    
-    // Calculer l'ajustement nécessaire
-    const targetCenter = (minMeters + maxMeters) / 2;
-    const currentDistance = isOneWay ? bestDistance : bestDistance / 2; // Distance aller pour round-trip
-    const targetDistance = isOneWay ? targetCenter : targetCenter / 2;
-    
-    // Ratio d'ajustement
-    const adjustmentRatio = targetDistance / currentDistance;
-    
-    // Calculer nouvelle position ajustée
-    const bearing = turf.bearing(turf.point(start), turf.point(bestCandidate));
-    const currentDistanceKm = turf.distance(turf.point(start), turf.point(bestCandidate), { units: 'kilometers' });
-    const newDistanceKm = currentDistanceKm * adjustmentRatio;
-    
-    const adjustedCandidate = turf.destination(turf.point(start), newDistanceKm, bearing, { units: 'kilometers' });
-    const adjustedCoords = adjustedCandidate.geometry.coordinates as [number, number];
-    
-    console.log(`Adjusted candidate from ${currentDistanceKm.toFixed(3)}km to ${newDistanceKm.toFixed(3)}km`);
+    const start: [number, number] = [userLocation.lng, userLocation.lat];
+    const isOneWay = planningData.tripType === 'one-way';
     
     try {
-      // Tester la route ajustée
-      const outboundUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${start[0]},${start[1]};${adjustedCoords[0]},${adjustedCoords[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
-      const outboundRes = await fetch(outboundUrl);
-      const outboundData = await outboundRes.json();
+      // Recherche simplifiée avec 8 directions principales
+      const searchRadius = isOneWay ? targetMeters : targetMeters / 2;
+      const bearings = [0, 45, 90, 135, 180, 225, 270, 315];
       
-      if (!outboundData?.routes?.[0]) {
-        console.warn('Adjusted route failed, using original candidate');
-        return null;
-      }
-      
-      const outboundDistance = outboundData.routes[0].distance;
-      let totalDistance = outboundDistance;
-      let returnRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number } | undefined;
-      
-      if (!isOneWay) {
+      for (const bearing of bearings) {
         try {
-          const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${adjustedCoords[0]},${adjustedCoords[1]};${start[0]},${start[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
-          const returnRes = await fetch(returnUrl);
-          const returnData = await returnRes.json();
+          // Calculer destination candidate
+          const destination = turf.destination(turf.point(start), searchRadius / 1000, bearing, { units: 'kilometers' });
+          const candidate = destination.geometry.coordinates as [number, number];
           
-          if (returnData?.routes?.[0]) {
-            const returnDistance = returnData.routes[0].distance;
-            totalDistance = outboundDistance + returnDistance;
-            
-            returnRoute = {
-              featureCollection: {
-                type: 'FeatureCollection' as const,
-                features: [{
-                  type: 'Feature' as const,
-                  geometry: returnData.routes[0].geometry,
-                  properties: {}
-                }]
-              },
-              distance: returnDistance
-            };
-          }
-        } catch (error) {
-          totalDistance = outboundDistance * 2;
-        }
-      }
-      
-      console.log(`Adjusted route total distance: ${totalDistance}m (target range: [${minMeters}, ${maxMeters}])`);
-      
-      const outboundRoute = {
-        featureCollection: {
-          type: 'FeatureCollection' as const,
-          features: [{
-            type: 'Feature' as const,
-            geometry: outboundData.routes[0].geometry,
-            properties: {}
-          }]
-        },
-        distance: outboundDistance
-      };
-      
-      return { candidate: adjustedCoords, outboundRoute, returnRoute };
-      
-    } catch (error) {
-      console.warn('Route adjustment failed:', error);
-      return null;
-    }
-  }, [minMeters, maxMeters]);
-
-  // Recherche exhaustive de routes avec multiples stratégies + fallback garanti
-  const findValidRouteWithExhaustiveSearch = useCallback(async (
-    start: [number, number], 
-    targetDistance: number, 
-    isOneWay: boolean = true
-  ): Promise<{ 
-    candidate: [number, number]; 
-    outboundRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number };
-    returnRoute?: { featureCollection: GeoJSON.FeatureCollection; distance: number };
-  } | null> => {
-    
-    const toleranceFactors = [0, 0.01, 0.02, 0.03, 0.04, 0.05]; // 0%, ±1%, ±2%, ±3%, ±4%, ±5%
-    const bearingCounts = [16, 20, 24]; // Nombre de directions à tester
-    const detourOffsets = [0, 100, 200, 300]; // Distances de détour en mètres
-    
-    console.log(`Starting exhaustive search for ${isOneWay ? 'one-way' : 'round-trip'} route. Target: ${targetDistance}m`);
-    
-    // Variables pour garder la meilleure route trouvée (même si hors ±5%)
-    let bestCandidate: [number, number] | null = null;
-    let bestDistance = Infinity;
-    let bestDifference = Infinity;
-    
-    // Phase 1: Recherche directe avec cercles concentriques
-    for (const bearingCount of bearingCounts) {
-      for (const toleranceFactor of toleranceFactors) {
-        const radiusVariations = toleranceFactor === 0 
-          ? [targetDistance] 
-          : [
-              targetDistance * (1 - toleranceFactor), 
-              targetDistance * (1 + toleranceFactor)
-            ];
-            
-        for (const radius of radiusVariations) {
-          const searchRadius = isOneWay ? radius : radius / 2; // Pour round-trip, chercher à mi-distance
-          const candidates = generateRingCandidates(start, searchRadius, bearingCount);
+          // Calculer route aller
+          const outboundUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${start[0]},${start[1]};${candidate[0]},${candidate[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
+          const outboundRes = await fetch(outboundUrl);
           
-          console.log(`Testing ${candidates.length} candidates with radius ${searchRadius}m, tolerance ±${toleranceFactor * 100}%`);
+          if (!outboundRes.ok) continue;
           
-          for (const candidate of candidates) {
+          const outboundData = await outboundRes.json();
+          if (!outboundData?.routes?.[0]) continue;
+          
+          const outboundDistance = outboundData.routes[0].distance;
+          let totalDistance = outboundDistance;
+          let returnRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number } | undefined;
+          
+          if (!isOneWay) {
+            // Pour round-trip, calculer le retour
             try {
-              // Tester la route aller avec alternatives
-              const outboundUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${start[0]},${start[1]};${candidate[0]},${candidate[1]}?geometries=geojson&overview=full&alternatives=true&access_token=${mapboxgl.accessToken}`;
-              const outboundRes = await fetch(outboundUrl);
-              const outboundData = await outboundRes.json();
+              const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${candidate[0]},${candidate[1]};${start[0]},${start[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
+              const returnRes = await fetch(returnUrl);
               
-              if (!outboundData?.routes?.length) continue;
-              
-              // Tester toutes les alternatives de route aller
-              for (const outboundRouteData of outboundData.routes.slice(0, 3)) { // Max 3 alternatives
-                const outboundDistance = outboundRouteData.distance;
-                let totalDistance = outboundDistance;
-                let returnRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number } | undefined;
-                
-                if (!isOneWay) {
-                  // Pour round-trip, calculer le retour avec alternatives
-                  try {
-                    const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${candidate[0]},${candidate[1]};${start[0]},${start[1]}?geometries=geojson&overview=full&alternatives=true&access_token=${mapboxgl.accessToken}`;
-                    const returnRes = await fetch(returnUrl);
-                    const returnData = await returnRes.json();
-                    
-                    if (returnData?.routes?.length) {
-                      // Choisir une route de retour différente si possible
-                      const returnRouteData = returnData.routes.length > 1 ? returnData.routes[1] : returnData.routes[0];
-                      const returnDistance = returnRouteData.distance;
-                      totalDistance = outboundDistance + returnDistance;
-                      
-                      returnRoute = {
-                        featureCollection: {
-                          type: 'FeatureCollection' as const,
-                          features: [{
-                            type: 'Feature' as const,
-                            geometry: returnRouteData.geometry,
-                            properties: {}
-                          }]
-                        },
-                        distance: returnDistance
-                      };
-                    }
-                  } catch (error) {
-                    console.warn('Return route calculation failed, using doubled outbound');
-                    totalDistance = outboundDistance * 2;
-                  }
-                }
-                
-                const difference = Math.abs(totalDistance - targetDistance);
-                
-                // Validation stricte ±5% - retourner immédiatement si trouvé
-                if (totalDistance >= minMeters && totalDistance <= maxMeters) {
-                  console.log(`✓ Found valid route! Outbound: ${outboundDistance}m, Return: ${returnRoute?.distance || 0}m, Total: ${totalDistance}m`);
-                  
-                  const outboundRoute = {
-                    featureCollection: {
-                      type: 'FeatureCollection' as const,
-                      features: [{
-                        type: 'Feature' as const,
-                        geometry: outboundRouteData.geometry,
-                        properties: {}
-                      }]
-                    },
-                    distance: outboundDistance
-                  };
-                  
-                  return { candidate, outboundRoute, returnRoute };
-                }
-                
-                // Garder la meilleure route même si hors ±5%
-                if (difference < bestDifference) {
-                  bestDifference = difference;
-                  bestCandidate = candidate;
-                  bestDistance = totalDistance;
-                }
-              }
-            } catch (error) {
-              console.warn('Route calculation failed for candidate:', candidate, error);
-            }
-          }
-        }
-      }
-    }
-    
-    // Phase 2: Recherche avec waypoints de détour
-    console.log('Phase 1 failed, trying detour waypoints...');
-    
-    for (const detourOffset of detourOffsets.slice(1)) { // Skip 0 offset
-      const baseRadius = isOneWay ? targetDistance : targetDistance / 2;
-      const baseCandidates = generateRingCandidates(start, baseRadius, 12); // Moins de candidats pour cette phase
-      
-      for (const candidate of baseCandidates) {
-        const detourWaypoints = generateDetourWaypoints(start, candidate, detourOffset);
-        
-        for (const waypoint of detourWaypoints) {
-          try {
-            // Route avec détour: start -> waypoint -> candidate
-            const leg1Url = `https://api.mapbox.com/directions/v5/mapbox/walking/${start[0]},${start[1]};${waypoint[0]},${waypoint[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
-            const leg2Url = `https://api.mapbox.com/directions/v5/mapbox/walking/${waypoint[0]},${waypoint[1]};${candidate[0]},${candidate[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
-            
-            const [leg1Res, leg2Res] = await Promise.all([fetch(leg1Url), fetch(leg2Url)]);
-            const [leg1Data, leg2Data] = await Promise.all([leg1Res.json(), leg2Res.json()]);
-            
-            if (!leg1Data?.routes?.[0] || !leg2Data?.routes?.[0]) continue;
-            
-            const outboundDistance = leg1Data.routes[0].distance + leg2Data.routes[0].distance;
-            let totalDistance = outboundDistance;
-            let returnRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number } | undefined;
-            
-            if (!isOneWay) {
-              // Retour direct pour simplifier
-              try {
-                const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${candidate[0]},${candidate[1]};${start[0]},${start[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
-                const returnRes = await fetch(returnUrl);
+              if (returnRes.ok) {
                 const returnData = await returnRes.json();
-                
                 if (returnData?.routes?.[0]) {
                   const returnDistance = returnData.routes[0].distance;
                   totalDistance = outboundDistance + returnDistance;
@@ -615,535 +360,214 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
                     distance: returnDistance
                   };
                 }
-              } catch (error) {
-                totalDistance = outboundDistance * 2;
               }
+            } catch (error) {
+              console.warn('Return route calculation failed, using doubled outbound');
+              totalDistance = outboundDistance * 2;
             }
-            
-            const difference = Math.abs(totalDistance - targetDistance);
-            
-            // Validation stricte ±5% - retourner immédiatement si trouvé
-            if (totalDistance >= minMeters && totalDistance <= maxMeters) {
-              console.log(`✓ Found valid route with detour! Total: ${totalDistance}m`);
-              
-              // Combiner les deux segments pour la route aller
-              const combinedFeatures = [
-                ...leg1Data.routes[0].geometry.coordinates,
-                ...leg2Data.routes[0].geometry.coordinates
-              ];
-              
-              const outboundRoute = {
-                featureCollection: {
-                  type: 'FeatureCollection' as const,
-                  features: [{
-                    type: 'Feature' as const,
-                    geometry: {
-                      type: 'LineString' as const,
-                      coordinates: combinedFeatures
-                    },
-                    properties: {}
-                  }]
-                },
-                distance: outboundDistance
-              };
-              
-              return { candidate, outboundRoute, returnRoute };
-            }
-            
-            // Garder la meilleure route même si hors ±5%
-            if (difference < bestDifference) {
-              bestDifference = difference;
-              bestCandidate = candidate;
-              bestDistance = totalDistance;
-            }
-          } catch (error) {
-            console.warn('Detour route calculation failed:', error);
-          }
-        }
-      }
-    }
-    
-    // Phase 3: FALLBACK GARANTI - ajuster la meilleure route trouvée
-    if (bestCandidate && bestDistance < Infinity) {
-      console.log(`No perfect route found within ±5%, adjusting best route (${bestDistance}m) to fit target range`);
-      
-      const adjustedResult = await adjustRouteToTargetRange(start, bestCandidate, bestDistance, isOneWay);
-      if (adjustedResult) {
-        console.log('✓ Successfully adjusted route to fit ±5% constraint');
-        return adjustedResult;
-      }
-    }
-    
-    console.log('All search strategies failed - this should never happen');
-    return null;
-  }, [generateRingCandidates, generateDetourWaypoints, minMeters, maxMeters]);
-
-  // Calcul de la destination par défaut avec approche optimisée (rate-limiting friendly)
-  const calculateDefaultDestination = useCallback(async () => {
-    if (!userLocation || !map || !mapboxToken) {
-      console.log('calculateDefaultDestination: conditions not met', { userLocation, map: !!map, mapboxToken: !!mapboxToken });
-      return;
-    }
-
-    console.log('Starting optimized route search. Mode:', planningData.tripType, 'Target:', targetMeters, 'meters');
-    
-    const start: [number, number] = [userLocation.lng, userLocation.lat];
-    const isOneWay = planningData.tripType === 'one-way';
-    
-    // Variables pour garder la meilleure route trouvée
-    let bestCandidate: [number, number] | null = null;
-    let bestDistance = Infinity;
-    let bestDifference = Infinity;
-    let bestOutboundRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number } | null = null;
-    let bestReturnRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number } | undefined;
-    
-    // Phase 1: Recherche rapide avec 8 directions principales seulement
-    const searchRadius = isOneWay ? targetMeters : targetMeters / 2;
-    const candidates = generateRingCandidates(start, searchRadius, 8);
-    
-    console.log(`Testing ${candidates.length} primary candidates (rate-limited)`);
-    
-    // Délai entre requêtes pour éviter rate limiting
-    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-    
-    for (let i = 0; i < candidates.length; i++) {
-      const candidate = candidates[i];
-      
-      try {
-        // Délai progressif pour éviter rate limiting
-        if (i > 0) await delay(150 + i * 50);
-        
-        const outboundUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${start[0]},${start[1]};${candidate[0]},${candidate[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
-        const outboundRes = await fetch(outboundUrl);
-        
-        if (!outboundRes.ok) {
-          console.warn(`API request failed with status ${outboundRes.status}`);
-          await delay(500); // Attendre plus longtemps en cas d'erreur
-          continue;
-        }
-        
-        const outboundData = await outboundRes.json();
-        if (!outboundData?.routes?.[0]) continue;
-        
-        const outboundDistance = outboundData.routes[0].distance;
-        let totalDistance = outboundDistance;
-        let returnRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number } | undefined;
-        
-        if (!isOneWay) {
-          // Pour round-trip, calculer le retour avec délai plus long
-          await delay(200);
-          try {
-            const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${candidate[0]},${candidate[1]};${start[0]},${start[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
-            const returnRes = await fetch(returnUrl);
-            
-            if (returnRes.ok) {
-              const returnData = await returnRes.json();
-              if (returnData?.routes?.[0]) {
-                const returnDistance = returnData.routes[0].distance;
-                totalDistance = outboundDistance + returnDistance;
-                
-                returnRoute = {
-                  featureCollection: {
-                    type: 'FeatureCollection' as const,
-                    features: [{
-                      type: 'Feature' as const,
-                      geometry: returnData.routes[0].geometry,
-                      properties: {}
-                    }]
-                  },
-                  distance: returnDistance
-                };
-              }
-            } else {
-              await delay(500);
-            }
-          } catch (error) {
-            console.warn('Return route calculation failed, using doubled outbound');
-            totalDistance = outboundDistance * 2;
-          }
-        }
-        
-        const difference = Math.abs(totalDistance - targetMeters);
-        
-        // Validation stricte ±5% - retourner immédiatement si trouvé
-        if (totalDistance >= minMeters && totalDistance <= maxMeters) {
-          console.log(`✓ Found valid route! Outbound: ${outboundDistance}m, Total: ${totalDistance}m`);
-          
-          const outboundRoute = {
-            featureCollection: {
-              type: 'FeatureCollection' as const,
-              features: [{
-                type: 'Feature' as const,
-                geometry: outboundData.routes[0].geometry,
-                properties: {}
-              }]
-            },
-            distance: outboundDistance
-          };
-          
-          // Succès - afficher immédiatement
-          setRouteError(null);
-          clearRoute('route-default');
-          clearRoute('route-return');
-          
-          addOrUpdateSourceLayer('route-default', outboundRoute.featureCollection, '#2ECC71', 4);
-          
-          if (returnRoute) {
-            addOrUpdateSourceLayer('route-return', returnRoute.featureCollection, '#3498DB', 4, true);
           }
           
-          const estimatedSteps = Math.round(totalDistance / stride);
-          const distanceKm = totalDistance / 1000;
-          const duration = Math.round(distanceKm / speedKmh * 60);
-          const calories = Math.round(distanceKm * weightKg * calorieCoefficient);
-          
-          setRouteStats({
-            distance: totalDistance,
-            duration,
-            steps: estimatedSteps,
-            calories,
-            isValid: true
-          });
-          
-          // Marqueur destination
-          if (destinationMarkerRef.current) {
-            destinationMarkerRef.current.remove();
-          }
-          
-          const el = document.createElement('div');
-          el.className = 'destination-marker';
-          el.style.cssText = `
-            width: 20px;
-            height: 20px;
-            background-color: #2ECC71;
-            border: 3px solid white;
-            border-radius: 50%;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-          `;
-          
-          destinationMarkerRef.current = new mapboxgl.Marker(el)
-            .setLngLat(candidate)
-            .addTo(map);
-          
-          defaultRouteRef.current = { 
-            geojson: outboundRoute.featureCollection, 
-            color: '#2ECC71' 
-          };
-          
-          const bounds = new mapboxgl.LngLatBounds();
-          bounds.extend([userLocation.lng, userLocation.lat]);
-          bounds.extend(candidate);
-          map.fitBounds(bounds, { padding: 80, duration: 1000 });
-          
-          console.log('Perfect route found and displayed immediately');
-          return;
-        }
-        
-        // Garder la meilleure route même si hors ±5%
-        if (difference < bestDifference) {
-          bestDifference = difference;
-          bestCandidate = candidate;
-          bestDistance = totalDistance;
-          bestOutboundRoute = {
-            featureCollection: {
-              type: 'FeatureCollection' as const,
-              features: [{
-                type: 'Feature' as const,
-                geometry: outboundData.routes[0].geometry,
-                properties: {}
-              }]
-            },
-            distance: outboundDistance
-          };
-          bestReturnRoute = returnRoute;
-        }
-        
-      } catch (error) {
-        console.warn('Route calculation failed for candidate:', candidate, error);
-        await delay(300);
-      }
-    }
-    
-    // Phase 2: Ajustement de la meilleure route trouvée
-    if (bestCandidate && bestOutboundRoute && bestDistance < Infinity) {
-      console.log(`Adjusting best route (${bestDistance}m) to fit ±5% target`);
-      
-      // Calculer l'ajustement nécessaire de façon simple
-      const targetCenter = (minMeters + maxMeters) / 2;
-      const adjustmentRatio = targetCenter / bestDistance;
-      
-      // Ajuster la position de destination
-      const bearing = turf.bearing(turf.point(start), turf.point(bestCandidate));
-      const currentDistanceKm = turf.distance(turf.point(start), turf.point(bestCandidate), { units: 'kilometers' });
-      const newDistanceKm = currentDistanceKm * adjustmentRatio;
-      
-      const adjustedCandidate = turf.destination(turf.point(start), newDistanceKm, bearing, { units: 'kilometers' });
-      const adjustedCoords = adjustedCandidate.geometry.coordinates as [number, number];
-      
-      console.log(`Adjusted candidate from ${currentDistanceKm.toFixed(3)}km to ${newDistanceKm.toFixed(3)}km`);
-      
-      try {
-        await delay(300);
-        const adjustedUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${start[0]},${start[1]};${adjustedCoords[0]},${adjustedCoords[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
-        const adjustedRes = await fetch(adjustedUrl);
-        
-        if (adjustedRes.ok) {
-          const adjustedData = await adjustedRes.json();
-          if (adjustedData?.routes?.[0]) {
-            const adjustedOutboundDistance = adjustedData.routes[0].distance;
-            let adjustedTotalDistance = adjustedOutboundDistance;
-            let adjustedReturnRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number } | undefined;
+          // Vérifier si dans la plage ±5%
+          if (totalDistance >= minMeters && totalDistance <= maxMeters) {
+            console.log('✓ Default route found and validated');
             
-            if (!isOneWay) {
-              await delay(300);
-              try {
-                const adjustedReturnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${adjustedCoords[0]},${adjustedCoords[1]};${start[0]},${start[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
-                const adjustedReturnRes = await fetch(adjustedReturnUrl);
-                
-                if (adjustedReturnRes.ok) {
-                  const adjustedReturnData = await adjustedReturnRes.json();
-                  if (adjustedReturnData?.routes?.[0]) {
-                    const adjustedReturnDistance = adjustedReturnData.routes[0].distance;
-                    adjustedTotalDistance = adjustedOutboundDistance + adjustedReturnDistance;
-                    
-                    adjustedReturnRoute = {
-                      featureCollection: {
-                        type: 'FeatureCollection' as const,
-                        features: [{
-                          type: 'Feature' as const,
-                          geometry: adjustedReturnData.routes[0].geometry,
-                          properties: {}
-                        }]
-                      },
-                      distance: adjustedReturnDistance
-                    };
-                  }
-                }
-              } catch (error) {
-                adjustedTotalDistance = adjustedOutboundDistance * 2;
-              }
-            }
-            
-            console.log(`✓ Successfully adjusted route to ${adjustedTotalDistance}m`);
-            
-            // Afficher la route ajustée
-            setRouteError(null);
-            clearRoute('route-default');
-            clearRoute('route-return');
-            
-            const adjustedOutboundRoute = {
+            const outboundRoute = {
               featureCollection: {
                 type: 'FeatureCollection' as const,
                 features: [{
                   type: 'Feature' as const,
-                  geometry: adjustedData.routes[0].geometry,
+                  geometry: outboundData.routes[0].geometry,
                   properties: {}
                 }]
               },
-              distance: adjustedOutboundDistance
+              distance: outboundDistance
             };
             
-            addOrUpdateSourceLayer('route-default', adjustedOutboundRoute.featureCollection, '#2ECC71', 4);
+            // Sauvegarder le trajet par défaut
+            defaultRouteRef.current = {
+              geojson: outboundRoute.featureCollection,
+              color: '#2ECC71'
+            };
             
-            if (adjustedReturnRoute) {
-              addOrUpdateSourceLayer('route-return', adjustedReturnRoute.featureCollection, '#3498DB', 4, true);
+            // Afficher immédiatement
+            addOrUpdateSourceLayer('route-default', outboundRoute.featureCollection, '#2ECC71', 4);
+            
+            if (returnRoute) {
+              addOrUpdateSourceLayer('route-return', returnRoute.featureCollection, '#3498DB', 4, true);
             }
             
-            const estimatedSteps = Math.round(adjustedTotalDistance / stride);
-            const distanceKm = adjustedTotalDistance / 1000;
+            // Calculer les statistiques par défaut
+            const distanceKm = totalDistance / 1000;
             const duration = Math.round(distanceKm / speedKmh * 60);
             const calories = Math.round(distanceKm * weightKg * calorieCoefficient);
-            const isValid = adjustedTotalDistance >= totalRange.min && adjustedTotalDistance <= totalRange.max;
-            
+            const estimatedSteps = Math.round(totalDistance / stride);
+
             setRouteStats({
-              distance: adjustedTotalDistance,
+              distance: totalDistance,
               duration,
               steps: estimatedSteps,
               calories,
-              isValid
+              isValid: true
             });
             
-            // Marqueur destination
-            if (destinationMarkerRef.current) {
-              destinationMarkerRef.current.remove();
-            }
-            
-            const el = document.createElement('div');
-            el.className = 'destination-marker';
-            el.style.cssText = `
-              width: 20px;
-              height: 20px;
-              background-color: #2ECC71;
-              border: 3px solid white;
-              border-radius: 50%;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            `;
-            
-            destinationMarkerRef.current = new mapboxgl.Marker(el)
-              .setLngLat(adjustedCoords)
-              .addTo(map);
-            
-            defaultRouteRef.current = { 
-              geojson: adjustedOutboundRoute.featureCollection, 
-              color: '#2ECC71' 
-            };
-            
-            const bounds = new mapboxgl.LngLatBounds();
-            bounds.extend([userLocation.lng, userLocation.lat]);
-            bounds.extend(adjustedCoords);
-            map.fitBounds(bounds, { padding: 80, duration: 1000 });
-            
-            console.log('Adjusted route successfully displayed');
-            return;
+            setRouteError(null);
+            console.log(`✓ Default route displayed. Distance: ${totalDistance}m, Steps: ${estimatedSteps}`);
+            return; // Succès - sortir
           }
+        } catch (error) {
+          console.warn('Default route candidate failed, trying next:', error);
+          continue;
         }
-      } catch (error) {
-        console.warn('Route adjustment failed:', error);
       }
       
-      // Phase 3: Fallback final - utiliser meilleure route même si légèrement hors ±5%
-      console.log('Using best available route as final fallback');
+      console.error('No default route found within ±5% tolerance');
+      setRouteError('Impossible de calculer un itinéraire par défaut dans la plage souhaitée.');
       
-      setRouteError(null);
-      clearRoute('route-default');
-      clearRoute('route-return');
-      
-      addOrUpdateSourceLayer('route-default', bestOutboundRoute.featureCollection, '#2ECC71', 4);
-      
-      if (bestReturnRoute) {
-        addOrUpdateSourceLayer('route-return', bestReturnRoute.featureCollection, '#3498DB', 4, true);
-      }
-      
-      const estimatedSteps = Math.round(bestDistance / stride);
-      const distanceKm = bestDistance / 1000;
-      const duration = Math.round(distanceKm / speedKmh * 60);
-      const calories = Math.round(distanceKm * weightKg * calorieCoefficient);
-      const isValid = bestDistance >= totalRange.min && bestDistance <= totalRange.max;
-      
-      setRouteStats({
-        distance: bestDistance,
-        duration,
-        steps: estimatedSteps,
-        calories,
-        isValid
-      });
-      
-      // Marqueur destination
-      if (destinationMarkerRef.current) {
-        destinationMarkerRef.current.remove();
-      }
-      
-      const el = document.createElement('div');
-      el.className = 'destination-marker';
-      el.style.cssText = `
-        width: 20px;
-        height: 20px;
-        background-color: #2ECC71;
-        border: 3px solid white;
-        border-radius: 50%;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-      `;
-      
-      destinationMarkerRef.current = new mapboxgl.Marker(el)
-        .setLngLat(bestCandidate)
-        .addTo(map);
-      
-      defaultRouteRef.current = { 
-        geojson: bestOutboundRoute.featureCollection, 
-        color: '#2ECC71' 
-      };
-      
-      const bounds = new mapboxgl.LngLatBounds();
-      bounds.extend([userLocation.lng, userLocation.lat]);
-      bounds.extend(bestCandidate);
-      map.fitBounds(bounds, { padding: 80, duration: 1000 });
-      
-      console.log('Fallback route displayed successfully');
-    } else {
-      console.error('No route could be generated at all');
-      setRouteError("Impossible de générer un itinéraire. Veuillez réessayer.");
-      setRouteStats(null);
+    } catch (error) {
+      console.error('Default route calculation failed:', error);
+      setRouteError('Erreur lors du calcul de l\'itinéraire par défaut.');
     }
-  }, [userLocation, map, mapboxToken, targetMeters, planningData.tripType, generateRingCandidates, stride, speedKmh, weightKg, calorieCoefficient, totalRange, stepGoal, minMeters, maxMeters, clearRoute, addOrUpdateSourceLayer]);
+  }, [userLocation, map, mapboxToken, planningData.tripType, targetMeters, minMeters, maxMeters, addOrUpdateSourceLayer, speedKmh, weightKg, calorieCoefficient, stride]);
 
-  // ========= Limiteur 3 clics =========
-  const onValidClick = async (lngLat: {lng:number; lat:number}) => {
-    if (!map || !userLocation) return;
-
+  // Fonction de clic utilisateur (avec validation stricte ±5%)
+  const onValidClick = useCallback(async (lngLat: {lng:number; lat:number}) => {
+    if (!map || !userLocation) {
+      throw new Error('Map or user location not available');
+    }
+    
+    console.log('User clicked on map, calculating route from clicked point...');
+    
     const start: [number,number] = [userLocation.lng, userLocation.lat];
-    const end: [number,number] = [lngLat.lng, lngLat.lat];
+    const clickedPoint: [number,number] = [lngLat.lng, lngLat.lat];
 
     try {
-      const { featureCollection, distance } = await fetchRoute(start, end);
+      // Calculer route directe depuis le point cliqué
+      const outboundUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${start[0]},${start[1]};${clickedPoint[0]},${clickedPoint[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
+      const outboundRes = await fetch(outboundUrl);
       
-      // Calculer d'abord le retour si nécessaire pour valider le total
-      let retourDistance = 0;
+      if (!outboundRes.ok) {
+        throw new Error('Failed to fetch route');
+      }
+      
+      const outboundData = await outboundRes.json();
+      if (!outboundData?.routes?.[0]) {
+        throw new Error('No route found');
+      }
+      
+      const outboundDistance = outboundData.routes[0].distance;
+      let totalDistance = outboundDistance;
+      let returnRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number } | undefined;
+      
       if (planningData.tripType === 'round-trip') {
+        // Pour aller-retour, calculer le retour
         try {
-          const returnRoute = await fetchRoute(end, start);
-          retourDistance = returnRoute.distance;
+          const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${clickedPoint[0]},${clickedPoint[1]};${start[0]},${start[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
+          const returnRes = await fetch(returnUrl);
+          
+          if (returnRes.ok) {
+            const returnData = await returnRes.json();
+            if (returnData?.routes?.[0]) {
+              const returnDistance = returnData.routes[0].distance;
+              totalDistance = outboundDistance + returnDistance;
+              
+              returnRoute = {
+                featureCollection: {
+                  type: 'FeatureCollection' as const,
+                  features: [{
+                    type: 'Feature' as const,
+                    geometry: returnData.routes[0].geometry,
+                    properties: {}
+                  }]
+                },
+                distance: returnDistance
+              };
+            }
+          }
         } catch (error) {
-          // Fallback : doubler l'aller
-          retourDistance = distance;
+          console.warn('Return route calculation failed, using doubled outbound');
+          totalDistance = outboundDistance * 2;
         }
       }
       
-      // Vérifier si le trajet respecte les règles selon le mode - validation stricte
-      if (!isValidRoute(distance, retourDistance)) {
-        setRouteError("Aucun itinéraire valide trouvé dans votre plage d'objectif de pas. Veuillez réessayer.");
+      // Validation stricte ±5%
+      if (totalDistance < minMeters || totalDistance > maxMeters) {
+        setRouteError("Aucun itinéraire valide trouvé dans votre plage d'objectif de pas depuis ce point. Veuillez réessayer ailleurs.");
         setRouteStats(null);
-        return;
-        console.log(`Route rejected: aller=${distance}m, retour=${retourDistance}m, total=${distance + retourDistance}m (target range: [${totalRange.min}, ${totalRange.max}])`);
-        return;
+        throw new Error('Route outside ±5% tolerance');
       }
       
-      addOrUpdateSourceLayer('route-click', featureCollection, '#2ECC71', 4);
-
-      let totalDistance = distance + retourDistance;
-
-      // Tracer les routes
-      addOrUpdateSourceLayer('route-click', featureCollection, '#2ECC71', 4);
+      // Afficher les routes trouvées
+      clearRoute('route-click');
+      clearRoute('route-return-click');
       
-      if (planningData.tripType === 'round-trip' && retourDistance > 0) {
-        try {
-          const returnRoute = await fetchRoute(end, start, [featureCollection]);
-          // Route de retour en bleu pointillé
-          addOrUpdateSourceLayer('route-return-click', returnRoute.featureCollection, '#3498DB', 4, true);
-        } catch (error) {
-          console.warn('Failed to display return route visualization');
-        }
+      const outboundRoute = {
+        featureCollection: {
+          type: 'FeatureCollection' as const,
+          features: [{
+            type: 'Feature' as const,
+            geometry: outboundData.routes[0].geometry,
+            properties: {}
+          }]
+        },
+        distance: outboundDistance
+      };
+      
+      // Route aller (verte)
+      addOrUpdateSourceLayer('route-click', outboundRoute.featureCollection, '#2ECC71', 4);
+      
+      // Route retour (bleue pointillée) si nécessaire
+      if (returnRoute) {
+        addOrUpdateSourceLayer('route-return-click', returnRoute.featureCollection, '#3498DB', 4, true);
       }
-
-      // Calculs selon les spécifications exactes pour le clic utilisateur
+      
+      // Calculer les statistiques finales
       const distanceKm = totalDistance / 1000;
-      const duration = Math.round(distanceKm / speedKmh * 60); // durée (minutes) = distance ÷ vitesse
-      const calories = Math.round(distanceKm * weightKg * calorieCoefficient); // calories = distance × poids × coefficient
+      const duration = Math.round(distanceKm / speedKmh * 60);
+      const calories = Math.round(distanceKm * weightKg * calorieCoefficient);
       const estimatedSteps = Math.round(totalDistance / stride);
-      const isValid = totalDistance >= totalRange.min && totalDistance <= totalRange.max;
 
       setRouteStats({
         distance: totalDistance,
         duration,
         steps: estimatedSteps,
         calories,
-        isValid
+        isValid: true
       });
-
-      // Mettre à jour le marqueur destination
+      
+      // Mettre à jour le marqueur de destination
       if (destinationMarkerRef.current) {
         destinationMarkerRef.current.setLngLat([lngLat.lng, lngLat.lat]);
+      } else {
+        const el = document.createElement('div');
+        el.style.cssText = `
+          width: 20px;
+          height: 20px;
+          background-color: #E74C3C;
+          border: 3px solid white;
+          border-radius: 50%;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        `;
+        
+        destinationMarkerRef.current = new mapboxgl.Marker(el)
+          .setLngLat([lngLat.lng, lngLat.lat])
+          .addTo(map);
       }
-
+      
+      setRouteError(null);
+      console.log(`✓ User click processed successfully. Total distance: ${totalDistance}m, Steps: ${estimatedSteps}`);
+      
     } catch (error) {
       console.error('Route calculation failed:', error);
+      // Ne pas définir d'erreur ici - elle est gérée au-dessus si nécessaire
+      throw error; // Rethrow pour que le hook ne compte pas l'essai
     }
-  };
+  }, [map, userLocation, planningData.tripType, minMeters, maxMeters, clearRoute, addOrUpdateSourceLayer, speedKmh, weightKg, calorieCoefficient, stride]);
 
-  const onLock = () => {
+  const onLock = useCallback(() => {
     console.log('Limite de clics atteinte');
-  };
+  }, []);
 
-  const onResetStartDefault = () => {
+  const onResetStartDefault = useCallback(() => {
     if (defaultRouteRef.current && map) {
       console.log('Resetting to default route (no recalculation)');
       addOrUpdateSourceLayer('route-default', defaultRouteRef.current.geojson, defaultRouteRef.current.color);
@@ -1151,12 +575,10 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
       clearRoute('route-return-click');
       
       // Restaurer les stats du trajet par défaut SANS recalculer
-      if (routeStats) {
-        setRouteError(null);
-        // Garder les stats existantes du trajet par défaut
-      }
+      setRouteError(null);
+      // Les stats sont déjà bonnes depuis le calcul par défaut
     }
-  };
+  }, [map, addOrUpdateSourceLayer, clearRoute]);
 
   const { clickCount, isLocked, handleMapClick, reset } = useMapClickLimiter({
     maxValidClicks: maxClicks,
@@ -1200,17 +622,12 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     
   }, [map, userLocation, mapboxToken, updateUserMarkers, calculateDefaultDestination]);
 
-  // Abonnement clic carte
+  // Abonnement clic carte - déléguer complètement au hook useMapClickLimiter
   useEffect(() => {
     if (!map) return;
     
     const onClick = (e: mapboxgl.MapMouseEvent) => {
-      // Debounce
-      if (debounceRef.current) return;
-      debounceRef.current = window.setTimeout(() => {
-        debounceRef.current = null;
-      }, 600);
-
+      // PAS de debounce ici - le hook s'en charge
       handleMapClick({ lng: e.lngLat.lng, lat: e.lngLat.lat });
     };
     
@@ -1218,6 +635,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     return () => { map.off('click', onClick); };
   }, [map, handleMapClick]);
 
+  // Affichage des états de chargement
   if (!mapboxToken) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center">
@@ -1229,125 +647,83 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     );
   }
 
+  if (!userLocation) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto px-4">
+          <div className="animate-pulse rounded-full h-12 w-12 bg-primary/20 mx-auto mb-4"></div>
+          <h3 className="text-lg font-semibold mb-2">Localisation en cours...</h3>
+          <p className="text-muted-foreground text-sm">
+            {locationError || "Nous avons besoin de votre position pour calculer l'itinéraire."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
       {/* Header */}
-      <div className="bg-card shadow-sm">
-        <div className="px-6 py-4 flex items-center justify-between">
-          <button 
+      <div className="absolute top-0 left-0 right-0 z-20 p-4">
+        <div className="flex items-center justify-between">
+          <button
             onClick={onBack}
-            className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors"
+            className="flex items-center gap-2 px-3 py-2 bg-card/90 backdrop-blur rounded-lg shadow-lg border hover:bg-card/95 transition-colors"
           >
-            <ArrowLeft size={20} />
-            <span>Retour</span>
+            <ArrowLeft className="h-4 w-4" />
+            <span className="text-sm font-medium">Retour</span>
           </button>
-          
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={onGoToDashboard}>
-            <img 
-              src="/lovable-uploads/5216fdd6-d0d7-446b-9260-86d15d06f4ba.png" 
-              alt="Fitpas" 
-              className="h-8 w-auto hover:scale-105 transition-transform"
-              style={{ 
-                filter: 'invert(0) sepia(1) saturate(5) hue-rotate(120deg) brightness(0.8)',
-                color: '#10b981' 
-              }}
-            />
-          </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="container max-w-6xl mx-auto px-6 py-8">
-        {/* Title */}
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-foreground mb-4">
-            Planifiez votre marche
-          </h1>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            {userLocation ? 
-              "Votre position est détectée. Tapez sur la carte pour personnaliser votre itinéraire." :
-              "Localisation en cours..."
-            }
-          </p>
-          {locationError && (
-            <p className="text-destructive text-sm mt-2">{locationError}</p>
-          )}
-        </div>
-
-        {/* Route Error */}
-        {routeError && (
-          <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 mb-6 shadow-sm">
-            <div className="text-center">
-              <h3 className="text-lg font-medium text-destructive mb-2">Aucun itinéraire trouvé</h3>
-              <p className="text-sm text-destructive/80">{routeError}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Route Stats */}
-        {routeStats && !routeError && (
-          <div className={`bg-card rounded-xl p-4 mb-6 shadow-sm border-l-4 ${
-            routeStats.isValid ? 'border-l-green-500' : 'border-l-orange-500'
-          }`}>
-            <div className="flex items-center justify-between flex-wrap gap-4 text-sm">
+      <div className="flex flex-col h-screen pt-16">
+        {/* Route Info Bar */}
+        {routeStats && (
+          <div className="bg-card/95 backdrop-blur border-b px-4 py-3">
+            <div className="flex items-center justify-between max-w-4xl mx-auto">
               <div className="flex items-center gap-6">
-                <span>≈ {(routeStats.distance / 1000).toFixed(1)} km</span>
-                <span>≈ {routeStats.duration} min</span>
-                <span>{routeStats.steps} pas</span>
-                <span>≈ {routeStats.calories} kcal</span>
-                <span className="text-muted-foreground">(objectif {stepGoal})</span>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-primary">{routeStats.steps.toLocaleString()}</div>
+                  <div className="text-xs text-muted-foreground">pas</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-semibold">{(routeStats.distance / 1000).toFixed(1)} km</div>
+                  <div className="text-xs text-muted-foreground">distance</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-semibold">{routeStats.duration} min</div>
+                  <div className="text-xs text-muted-foreground">durée</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-semibold">{routeStats.calories}</div>
+                  <div className="text-xs text-muted-foreground">cal</div>
+                </div>
               </div>
-              {!routeStats.isValid && (
-                <span className="text-orange-600 font-medium">
-                  Ajusté au plus proche de votre objectif
-                </span>
+              {routeStats.isValid && (
+                <div className="text-green-600 text-sm font-medium">
+                  ✓ Objectif respecté
+                </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Planning Summary */}
-        <div className="bg-card rounded-xl p-4 mb-6 shadow-sm">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-            <div className="text-center">
-              <p className="text-muted-foreground">Objectif</p>
-              <p className="font-semibold">{planningData.steps} pas</p>
-            </div>
-            <div className="text-center">
-              <p className="text-muted-foreground">Taille</p>
-              <p className="font-semibold">{planningData.height} m</p>
-            </div>
-            <div className="text-center">
-              <p className="text-muted-foreground">Poids</p>
-              <p className="font-semibold">{planningData.weight} kg</p>
-            </div>
-            <div className="text-center">
-              <p className="text-muted-foreground">Allure</p>
-              <p className="font-semibold capitalize">
-                {planningData.pace === 'slow' ? 'Lente' : 
-                 planningData.pace === 'moderate' ? 'Modérée' : 'Rapide'}
-              </p>
-            </div>
-            <div className="text-center">
-              <p className="text-muted-foreground">Type</p>
-              <p className="font-semibold">
-                {planningData.tripType === 'one-way' ? 'Aller' : 'A-R'}
-              </p>
+        {/* Error Message */}
+        {routeError && (
+          <div className="bg-destructive/10 border-destructive/20 border-b px-4 py-3">
+            <div className="max-w-4xl mx-auto">
+              <p className="text-destructive text-sm font-medium">{routeError}</p>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Map Container */}
-        <div className="relative w-full h-[calc(100vh-400px)] min-h-[400px] mb-6">
-          <div ref={containerRef} className="w-full h-full rounded-xl overflow-hidden shadow-lg" />
-
-          {/* Overlay anti-clic quand verrouillé */}
+        <div className="flex-1 relative">
+          <div ref={containerRef} className="absolute inset-0" />
+          
+          {/* Map Locked Overlay */}
           {isLocked && (
-            <div
-              className="absolute inset-0 z-20 rounded-xl"
-              style={{ pointerEvents: 'auto', background: 'transparent' }}
-              onClick={(e) => e.stopPropagation()}
-            >
+            <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-card/90 backdrop-blur px-4 py-3 rounded-md text-sm shadow-lg border">
                 Limite atteinte — utilisez « Réinitialiser » pour le trajet par défaut
               </div>
@@ -1364,7 +740,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
         </div>
 
         {/* Action Button */}
-        <div className="text-center">
+        <div className="text-center p-4">
           <button
             onClick={() => onComplete({ 
               id: 'map-selected', 

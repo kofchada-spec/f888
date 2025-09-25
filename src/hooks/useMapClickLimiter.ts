@@ -17,7 +17,7 @@ export function useMapClickLimiter(opts: LimiterOptions) {
   const [isLocked, setIsLocked] = useState(false);
   const debounceRef = useRef<number | null>(null);
 
-  // UNIQUEMENT les clics utilisateur sur la carte comptent
+  // UNIQUEMENT les clics utilisateur sur la carte comptent, et seulement s'ils réussissent
   const handleMapClick = useCallback(async (lngLat: {lng:number; lat:number}) => {
     if (isLocked) {
       console.log('Click ignored: map is locked');
@@ -35,18 +35,25 @@ export function useMapClickLimiter(opts: LimiterOptions) {
       debounceRef.current = null;
     }, 600);
 
-    const next = clickCount + 1;
-    console.log(`User click registered: attempt ${next}/${maxValidClicks}`);
+    console.log(`User click detected: processing attempt ${clickCount + 1}/${maxValidClicks}`);
 
-    // 1) Traiter le clic (calcul / tracé)
-    await onValidClick(lngLat);
-
-    // 2) Incrémenter + verrouiller au maximum
-    setClickCount(next);
-    if (next >= maxValidClicks) {
-      setIsLocked(true);
-      console.log('Map locked after maximum clicks reached');
-      onLock?.();
+    try {
+      // 1) Traiter le clic (calcul / tracé) - ATTENDRE le résultat
+      await onValidClick(lngLat);
+      
+      // 2) SEULEMENT si le traitement a réussi, incrémenter le compteur
+      const next = clickCount + 1;
+      console.log(`User click processed successfully: ${next}/${maxValidClicks}`);
+      
+      setClickCount(next);
+      if (next >= maxValidClicks) {
+        setIsLocked(true);
+        console.log('Map locked after maximum successful clicks reached');
+        onLock?.();
+      }
+    } catch (error) {
+      console.log('Click processing failed, not counting as attempt:', error);
+      // Ne pas incrémenter le compteur si le traitement échoue
     }
   }, [clickCount, isLocked, maxValidClicks, onValidClick, onLock]);
 
