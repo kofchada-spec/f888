@@ -165,16 +165,21 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
           </div>
         </div>
 
-        {/* Walk Estimation - Only show when route is calculated */}
+        {/* Walk Estimation - Enhanced for round-trip */}
         {routeData && (
           <div className="bg-card rounded-xl p-6 mb-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-foreground mb-4 text-center">Estimation de votre marche</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-4 text-center">
+              Estimation de votre marche
+              {planningData.tripType === 'round-trip' && (
+                <span className="text-sm font-normal text-muted-foreground ml-2">(Aller-retour)</span>
+              )}
+            </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center p-4 bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg">
                 <div className="text-2xl font-bold text-primary mb-1">
                   {routeData.distance.toFixed(1)} km
                 </div>
-                <p className="text-sm text-muted-foreground">Distance estimée</p>
+                <p className="text-sm text-muted-foreground">Distance totale</p>
               </div>
               <div className="text-center p-4 bg-gradient-to-br from-secondary/5 to-secondary/10 rounded-lg">
                 <div className="text-2xl font-bold text-secondary mb-1">
@@ -195,6 +200,25 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
                 <p className="text-sm text-muted-foreground">Durée estimée</p>
               </div>
             </div>
+            
+            {/* Route type indicator for round-trip */}
+            {planningData.tripType === 'round-trip' && (
+              <div className="mt-4 pt-4 border-t">
+                <div className="flex items-center justify-center space-x-6 text-sm">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-1 bg-green-500 rounded"></div>
+                    <span className="text-muted-foreground">Trajet aller</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-1 bg-blue-500 rounded" style={{
+                      backgroundImage: 'repeating-linear-gradient(90deg, #3b82f6 0, #3b82f6 3px, transparent 3px, transparent 6px)'
+                    }}></div>
+                    <span className="text-muted-foreground">Trajet retour</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="mt-4 pt-4 border-t text-center">
               <p className="text-sm text-muted-foreground">
                 ✅ Itinéraire calculé • Prêt à commencer
