@@ -266,24 +266,40 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     });
   }, [map, userLocation, clearRoute]);
 
-  // Génération des candidats pour destination par défaut
-  const generateCandidateDestinations = useCallback((center: [number, number], targetDistance: number) => {
+  // Génération complète des candidats avec recherche exhaustive
+  const generateRingCandidates = useCallback((center: [number, number], radius: number, bearingCount: number = 20) => {
     const candidates: Array<[number, number]> = [];
-    const angles = [0, 45, 90, 135, 180, 225, 270, 315]; // 8 directions
     
-    // Approximation: 1 degré ≈ 111km à l'équateur
-    const degreeToMeters = 111000;
-    const deltaLat = targetDistance / degreeToMeters;
-    const deltaLng = targetDistance / (degreeToMeters * Math.cos(center[1] * Math.PI / 180));
-    
-    angles.forEach(angle => {
-      const rad = (angle * Math.PI) / 180;
-      const lat = center[1] + deltaLat * Math.sin(rad);
-      const lng = center[0] + deltaLng * Math.cos(rad);
-      candidates.push([lng, lat]);
-    });
+    // Générer des candidats uniformément répartis sur un cercle
+    for (let i = 0; i < bearingCount; i++) {
+      const bearing = (i * 360) / bearingCount;
+      const destination = turf.destination(turf.point(center), radius / 1000, bearing, { units: 'kilometers' });
+      candidates.push(destination.geometry.coordinates as [number, number]);
+    }
     
     return candidates;
+  }, []);
+
+  // Génération de waypoints de détour pour ajustement fin
+  const generateDetourWaypoints = useCallback((start: [number, number], end: [number, number], offsetDistance: number = 200) => {
+    const waypoints: Array<[number, number]> = [];
+    
+    // Point milieu de la route
+    const midpoint = turf.midpoint(turf.point(start), turf.point(end));
+    
+    // Générer des points de détour perpendiculaires à la ligne principale
+    const bearing = turf.bearing(turf.point(start), turf.point(end));
+    const perpBearing1 = bearing + 90;
+    const perpBearing2 = bearing - 90;
+    
+    // Waypoints à gauche et à droite
+    const waypoint1 = turf.destination(midpoint, offsetDistance / 1000, perpBearing1, { units: 'kilometers' });
+    const waypoint2 = turf.destination(midpoint, offsetDistance / 1000, perpBearing2, { units: 'kilometers' });
+    
+    waypoints.push(waypoint1.geometry.coordinates as [number, number]);
+    waypoints.push(waypoint2.geometry.coordinates as [number, number]);
+    
+    return waypoints;
   }, []);
 
   // Validation selon le mode de trajet
@@ -299,98 +315,240 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     }
   }, [planningData.tripType, totalRange]);
 
-  // Calcul de la destination par défaut
+  // Recherche exhaustive de routes avec multiples stratégies
+  const findValidRouteWithExhaustiveSearch = useCallback(async (
+    start: [number, number], 
+    targetDistance: number, 
+    isOneWay: boolean = true
+  ): Promise<{ 
+    candidate: [number, number]; 
+    outboundRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number };
+    returnRoute?: { featureCollection: GeoJSON.FeatureCollection; distance: number };
+  } | null> => {
+    
+    const toleranceFactors = [0, 0.01, 0.02, 0.03, 0.04, 0.05]; // 0%, ±1%, ±2%, ±3%, ±4%, ±5%
+    const bearingCounts = [16, 20, 24]; // Nombre de directions à tester
+    const detourOffsets = [0, 100, 200, 300]; // Distances de détour en mètres
+    
+    console.log(`Starting exhaustive search for ${isOneWay ? 'one-way' : 'round-trip'} route. Target: ${targetDistance}m`);
+    
+    // Phase 1: Recherche directe avec cercles concentriques
+    for (const bearingCount of bearingCounts) {
+      for (const toleranceFactor of toleranceFactors) {
+        const radiusVariations = toleranceFactor === 0 
+          ? [targetDistance] 
+          : [
+              targetDistance * (1 - toleranceFactor), 
+              targetDistance * (1 + toleranceFactor)
+            ];
+            
+        for (const radius of radiusVariations) {
+          const searchRadius = isOneWay ? radius : radius / 2; // Pour round-trip, chercher à mi-distance
+          const candidates = generateRingCandidates(start, searchRadius, bearingCount);
+          
+          console.log(`Testing ${candidates.length} candidates with radius ${searchRadius}m, tolerance ±${toleranceFactor * 100}%`);
+          
+          for (const candidate of candidates) {
+            try {
+              // Tester la route aller avec alternatives
+              const outboundUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${start[0]},${start[1]};${candidate[0]},${candidate[1]}?geometries=geojson&overview=full&alternatives=true&access_token=${mapboxgl.accessToken}`;
+              const outboundRes = await fetch(outboundUrl);
+              const outboundData = await outboundRes.json();
+              
+              if (!outboundData?.routes?.length) continue;
+              
+              // Tester toutes les alternatives de route aller
+              for (const outboundRouteData of outboundData.routes.slice(0, 3)) { // Max 3 alternatives
+                const outboundDistance = outboundRouteData.distance;
+                let totalDistance = outboundDistance;
+                let returnRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number } | undefined;
+                
+                if (!isOneWay) {
+                  // Pour round-trip, calculer le retour avec alternatives
+                  try {
+                    const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${candidate[0]},${candidate[1]};${start[0]},${start[1]}?geometries=geojson&overview=full&alternatives=true&access_token=${mapboxgl.accessToken}`;
+                    const returnRes = await fetch(returnUrl);
+                    const returnData = await returnRes.json();
+                    
+                    if (returnData?.routes?.length) {
+                      // Choisir une route de retour différente si possible
+                      const returnRouteData = returnData.routes.length > 1 ? returnData.routes[1] : returnData.routes[0];
+                      const returnDistance = returnRouteData.distance;
+                      totalDistance = outboundDistance + returnDistance;
+                      
+                      returnRoute = {
+                        featureCollection: {
+                          type: 'FeatureCollection' as const,
+                          features: [{
+                            type: 'Feature' as const,
+                            geometry: returnRouteData.geometry,
+                            properties: {}
+                          }]
+                        },
+                        distance: returnDistance
+                      };
+                    }
+                  } catch (error) {
+                    console.warn('Return route calculation failed, using doubled outbound');
+                    totalDistance = outboundDistance * 2;
+                  }
+                }
+                
+                // Validation stricte ±5%
+                if (totalDistance >= minMeters && totalDistance <= maxMeters) {
+                  console.log(`✓ Found valid route! Outbound: ${outboundDistance}m, Return: ${returnRoute?.distance || 0}m, Total: ${totalDistance}m`);
+                  
+                  const outboundRoute = {
+                    featureCollection: {
+                      type: 'FeatureCollection' as const,
+                      features: [{
+                        type: 'Feature' as const,
+                        geometry: outboundRouteData.geometry,
+                        properties: {}
+                      }]
+                    },
+                    distance: outboundDistance
+                  };
+                  
+                  return { candidate, outboundRoute, returnRoute };
+                }
+              }
+            } catch (error) {
+              console.warn('Route calculation failed for candidate:', candidate, error);
+            }
+          }
+        }
+      }
+    }
+    
+    // Phase 2: Recherche avec waypoints de détour
+    console.log('Phase 1 failed, trying detour waypoints...');
+    
+    for (const detourOffset of detourOffsets.slice(1)) { // Skip 0 offset
+      const baseRadius = isOneWay ? targetDistance : targetDistance / 2;
+      const baseCandidates = generateRingCandidates(start, baseRadius, 12); // Moins de candidats pour cette phase
+      
+      for (const candidate of baseCandidates) {
+        const detourWaypoints = generateDetourWaypoints(start, candidate, detourOffset);
+        
+        for (const waypoint of detourWaypoints) {
+          try {
+            // Route avec détour: start -> waypoint -> candidate
+            const leg1Url = `https://api.mapbox.com/directions/v5/mapbox/walking/${start[0]},${start[1]};${waypoint[0]},${waypoint[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
+            const leg2Url = `https://api.mapbox.com/directions/v5/mapbox/walking/${waypoint[0]},${waypoint[1]};${candidate[0]},${candidate[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
+            
+            const [leg1Res, leg2Res] = await Promise.all([fetch(leg1Url), fetch(leg2Url)]);
+            const [leg1Data, leg2Data] = await Promise.all([leg1Res.json(), leg2Res.json()]);
+            
+            if (!leg1Data?.routes?.[0] || !leg2Data?.routes?.[0]) continue;
+            
+            const outboundDistance = leg1Data.routes[0].distance + leg2Data.routes[0].distance;
+            let totalDistance = outboundDistance;
+            let returnRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number } | undefined;
+            
+            if (!isOneWay) {
+              // Retour direct pour simplifier
+              try {
+                const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${candidate[0]},${candidate[1]};${start[0]},${start[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
+                const returnRes = await fetch(returnUrl);
+                const returnData = await returnRes.json();
+                
+                if (returnData?.routes?.[0]) {
+                  const returnDistance = returnData.routes[0].distance;
+                  totalDistance = outboundDistance + returnDistance;
+                  
+                  returnRoute = {
+                    featureCollection: {
+                      type: 'FeatureCollection' as const,
+                      features: [{
+                        type: 'Feature' as const,
+                        geometry: returnData.routes[0].geometry,
+                        properties: {}
+                      }]
+                    },
+                    distance: returnDistance
+                  };
+                }
+              } catch (error) {
+                totalDistance = outboundDistance * 2;
+              }
+            }
+            
+            // Validation stricte ±5%
+            if (totalDistance >= minMeters && totalDistance <= maxMeters) {
+              console.log(`✓ Found valid route with detour! Total: ${totalDistance}m`);
+              
+              // Combiner les deux segments pour la route aller
+              const combinedFeatures = [
+                ...leg1Data.routes[0].geometry.coordinates,
+                ...leg2Data.routes[0].geometry.coordinates
+              ];
+              
+              const outboundRoute = {
+                featureCollection: {
+                  type: 'FeatureCollection' as const,
+                  features: [{
+                    type: 'Feature' as const,
+                    geometry: {
+                      type: 'LineString' as const,
+                      coordinates: combinedFeatures
+                    },
+                    properties: {}
+                  }]
+                },
+                distance: outboundDistance
+              };
+              
+              return { candidate, outboundRoute, returnRoute };
+            }
+          } catch (error) {
+            console.warn('Detour route calculation failed:', error);
+          }
+        }
+      }
+    }
+    
+    console.log('Exhaustive search completed - no valid route found within ±5% tolerance');
+    return null;
+  }, [generateRingCandidates, generateDetourWaypoints, minMeters, maxMeters]);
+
+  // Calcul de la destination par défaut avec recherche exhaustive
   const calculateDefaultDestination = useCallback(async () => {
     if (!userLocation || !map || !mapboxToken) {
       console.log('calculateDefaultDestination: conditions not met', { userLocation, map: !!map, mapboxToken: !!mapboxToken });
       return;
     }
 
-    // En mode aller simple : cibler l'objectif complet
-    // En mode aller-retour : cibler environ la moitié pour l'aller (sera ajusté avec le retour)
-    const initialTargetMeters = planningData.tripType === 'round-trip' ? targetMeters / 2 : targetMeters;
-    console.log('Calculating default destination. Mode:', planningData.tripType, 'Total target:', targetMeters, 'Initial aller target:', initialTargetMeters);
+    console.log('Starting comprehensive route search. Mode:', planningData.tripType, 'Target:', targetMeters, 'meters');
     
     const start: [number, number] = [userLocation.lng, userLocation.lat];
-    const candidates = generateCandidateDestinations(start, initialTargetMeters);
+    const isOneWay = planningData.tripType === 'one-way';
     
-    console.log('Generated candidates:', candidates.length);
+    // Recherche exhaustive
+    const result = await findValidRouteWithExhaustiveSearch(start, targetMeters, isOneWay);
     
-    let bestCandidate: [number, number] | null = null;
-    let bestDistance = Infinity;
-    let bestRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number } | null = null;
-    let fallbackCandidate: [number, number] | null = null;
-    let fallbackRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number } | null = null;
-
-    // Tester chaque candidat
-    for (const candidate of candidates) {
-      try {
-        const allerRoute = await fetchRoute(start, candidate);
-        let totalDistance = allerRoute.distance;
-        let retourDistance = 0;
-        
-        // Si aller-retour, calculer aussi le retour pour avoir la distance totale
-        if (planningData.tripType === 'round-trip') {
-          try {
-            const retourRoute = await fetchRoute(candidate, start);
-            retourDistance = retourRoute.distance;
-            totalDistance = allerRoute.distance + retourDistance;
-          } catch (error) {
-            // Fallback : doubler l'aller
-            retourDistance = allerRoute.distance;
-            totalDistance = allerRoute.distance * 2;
-          }
-        }
-        
-        console.log(`Candidate: aller=${allerRoute.distance}m, retour=${retourDistance}m, total=${totalDistance}m (target: ${targetMeters}m)`);
-        
-        const totalDiff = Math.abs(totalDistance - targetMeters);
-        
-        // Priorité 1: candidat qui respecte les règles de validation
-        if (isValidRoute(allerRoute.distance, retourDistance) && totalDiff < bestDistance) {
-          bestDistance = totalDiff;
-          bestCandidate = candidate;
-          bestRoute = allerRoute;
-          console.log('Found valid candidate within target range');
-        }
-        
-        // Supprimer la logique de fallback qui gardait les routes hors limites
-        // Ne plus garder de candidat de fallback - validation stricte uniquement
-      } catch (error) {
-        console.warn('Route calculation failed for candidate:', candidate, error);
-      }
-    }
-
-    // Utiliser UNIQUEMENT le meilleur candidat qui respecte les ±5% - PAS de fallback
-    const finalCandidate = bestCandidate; // Suppression du fallback
-    const finalRoute = bestRoute;
-
-    if (finalRoute && finalCandidate) {
-      console.log('Using valid route within ±5% with distance:', finalRoute.distance);
+    if (result) {
+      const { candidate, outboundRoute, returnRoute } = result;
+      
+      console.log('Valid route found with comprehensive search');
       
       // Nettoyer les erreurs et routes précédentes
       setRouteError(null);
       clearRoute('route-default');
       clearRoute('route-return');
       
-      // Tracer l'itinéraire aller
-      addOrUpdateSourceLayer('route-default', finalRoute.featureCollection, '#2ECC71', 4);
+      // Tracer l'itinéraire aller (vert)
+      addOrUpdateSourceLayer('route-default', outboundRoute.featureCollection, '#2ECC71', 4);
       
-      let totalDistance = finalRoute.distance;
-      let returnRouteCalculated = false;
+      let totalDistance = outboundRoute.distance;
       
-      // Si aller-retour, calculer le retour
-      if (planningData.tripType === 'round-trip') {
-        try {
-          const returnRoute = await fetchRoute(finalCandidate, start, [finalRoute.featureCollection]);
-          addOrUpdateSourceLayer('route-return', returnRoute.featureCollection, '#3498DB', 4, true);
-          totalDistance = finalRoute.distance + returnRoute.distance;
-          returnRouteCalculated = true;
-          console.log('Return route calculated:', returnRoute.distance, 'total:', totalDistance);
-        } catch (error) {
-          console.warn('Return route calculation failed, doubling distance');
-          totalDistance = finalRoute.distance * 2;
-        }
+      // Si aller-retour et qu'on a une route de retour, la tracer (bleu pointillé)
+      if (!isOneWay && returnRoute) {
+        addOrUpdateSourceLayer('route-return', returnRoute.featureCollection, '#3498DB', 4, true);
+        totalDistance = outboundRoute.distance + returnRoute.distance;
+      } else if (!isOneWay) {
+        // Fallback: doubler la distance aller
+        totalDistance = outboundRoute.distance * 2;
       }
 
       // Calculs selon les spécifications exactes
@@ -410,7 +568,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
         isValid
       });
 
-      // Marqueur destination
+      // Marqueur destination (vert)
       if (destinationMarkerRef.current) {
         destinationMarkerRef.current.remove();
       }
@@ -427,28 +585,28 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
       `;
 
       destinationMarkerRef.current = new mapboxgl.Marker(el)
-        .setLngLat(finalCandidate)
+        .setLngLat(candidate)
         .addTo(map);
 
       // Mémoriser comme trajet par défaut
       defaultRouteRef.current = { 
-        geojson: finalRoute.featureCollection, 
+        geojson: outboundRoute.featureCollection, 
         color: '#2ECC71' 
       };
 
       // Ajuster la vue pour inclure le trajet
       const bounds = new mapboxgl.LngLatBounds();
       bounds.extend([userLocation.lng, userLocation.lat]);
-      bounds.extend(finalCandidate);
+      bounds.extend(candidate);
       map.fitBounds(bounds, { padding: 80, duration: 1000 });
       
       console.log('Default destination calculation completed successfully');
     } else {
-      console.error('No route could be calculated for any candidate');
+      console.error('Comprehensive search failed - no valid route found within ±5% tolerance');
       setRouteError("Aucun itinéraire valide trouvé dans votre plage d'objectif de pas. Veuillez réessayer.");
       setRouteStats(null);
     }
-  }, [userLocation, map, mapboxToken, targetMeters, minMeters, maxMeters, planningData.tripType, fetchRoute, addOrUpdateSourceLayer, generateCandidateDestinations, stride, speedKmh, clearRoute, stepGoal]);
+  }, [userLocation, map, mapboxToken, targetMeters, planningData.tripType, findValidRouteWithExhaustiveSearch, stride, speedKmh, weightKg, calorieCoefficient, totalRange, stepGoal, clearRoute, addOrUpdateSourceLayer]);
 
   // ========= Limiteur 3 clics =========
   const onValidClick = async (lngLat: {lng:number; lat:number}) => {
