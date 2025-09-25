@@ -59,18 +59,18 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
         )}
 
         <div className="flex-1 flex flex-col items-center justify-center">
-          <div className="mb-8 transform animate-pulse">
+          <div className="mb-10 transform animate-pulse">
             <img 
               src={fitpasLogo} 
               alt="Fitpas Logo" 
-              className="w-24 h-24 mx-auto drop-shadow-lg"
+              className="w-28 h-28 mx-auto drop-shadow-2xl"
             />
           </div>
-          <div className="space-y-4 text-center">
-            <h1 className="text-3xl font-extrabold text-white mb-2 tracking-tight">
+          <div className="space-y-6 text-center">
+            <h1 className="font-inter text-4xl font-black text-white mb-3 tracking-tight leading-none">
               Bienvenue
             </h1>
-            <p className="text-white/95 text-lg font-semibold leading-relaxed px-4">
+            <p className="font-inter text-white/95 text-lg font-light leading-relaxed px-6 tracking-wide">
               Ta marche, ton rythme, ton objectif.
             </p>
           </div>
@@ -113,23 +113,31 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
 
         <div className="flex-1 flex flex-col items-center justify-center">
           {/* Walking person illustration */}
-          <div className="mb-8 transform hover:scale-105 transition-transform duration-300">
+          <div className="mb-10 transform hover:scale-105 transition-all duration-500">
             <img 
               src="/lovable-uploads/18d7c199-1173-482f-9050-fbbb00132134.png"
               alt="Personne qui marche"
-              className="w-32 h-32 mx-auto drop-shadow-lg"
+              className="w-36 h-36 mx-auto drop-shadow-2xl"
             />
           </div>
 
-          <div className="space-y-6 text-center px-2">
-            <h1 className="text-2xl font-bold text-gray-900 leading-tight max-w-sm">
-              Planifie ta marche en fonction de ton objectif de pas à atteindre.
+          <div className="space-y-8 text-center px-4">
+            <h1 className="font-inter text-3xl font-black text-gray-900 leading-tight max-w-sm tracking-tight">
+              Planifie ta marche en fonction de ton{' '}
+              <span className="text-primary">objectif de pas</span>{' '}
+              à atteindre.
             </h1>
 
-            <div className="h-px w-12 bg-gradient-to-r from-primary to-secondary mx-auto"></div>
+            <div className="flex items-center justify-center space-x-2">
+              <div className="h-0.5 w-8 bg-gradient-to-r from-primary to-transparent"></div>
+              <div className="h-1 w-1 rounded-full bg-primary"></div>
+              <div className="h-0.5 w-8 bg-gradient-to-l from-primary to-transparent"></div>
+            </div>
 
-            <p className="text-base text-gray-700 max-w-sm leading-relaxed">
-              Définis ton objectif et laisse Fitpas t'accompagner.
+            <p className="font-inter text-lg text-gray-600 max-w-sm leading-relaxed font-light">
+              Définis ton objectif et laisse{' '}
+              <span className="font-semibold text-primary">Fitpas</span>{' '}
+              t'accompagner.
             </p>
           </div>
         </div>
@@ -171,23 +179,31 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
 
         <div className="flex-1 flex flex-col items-center justify-center px-4">
           {/* Map/destination illustration */}
-          <div className="mb-8 transform hover:scale-105 transition-transform duration-300">
+          <div className="mb-10 transform hover:scale-105 transition-all duration-500">
             <img 
               src={mapDestination}
               alt="Carte avec destinations"
-              className="w-32 h-32 mx-auto drop-shadow-lg"
+              className="w-36 h-36 mx-auto drop-shadow-2xl"
             />
           </div>
 
-          <div className="space-y-6 text-center">
-            <h1 className="text-2xl font-bold text-gray-900 max-w-sm leading-tight">
-              Fitpas te propose des destinations selon tes objectifs à atteindre.
+          <div className="space-y-8 text-center">
+            <h1 className="font-inter text-3xl font-black text-gray-900 max-w-sm leading-tight tracking-tight">
+              <span className="text-primary">Fitpas</span> te propose des{' '}
+              <span className="text-secondary">destinations</span>{' '}
+              selon tes objectifs à atteindre.
             </h1>
 
-            <div className="h-px w-12 bg-gradient-to-r from-primary to-secondary mx-auto"></div>
+            <div className="flex items-center justify-center space-x-2">
+              <div className="h-0.5 w-10 bg-gradient-to-r from-secondary to-transparent"></div>
+              <div className="h-1 w-1 rounded-full bg-secondary"></div>
+              <div className="h-0.5 w-10 bg-gradient-to-l from-secondary to-transparent"></div>
+            </div>
 
-            <p className="text-base text-gray-700 max-w-sm leading-relaxed">
-              Fitpas estime l'heure et la distance à parcourir en fonction de ton allure et du nombre de pas.
+            <p className="font-inter text-lg text-gray-600 max-w-sm leading-relaxed font-light">
+              <span className="font-semibold text-primary">Fitpas</span> estime l'heure et la distance à parcourir en fonction de ton{' '}
+              <span className="font-medium">allure</span> et du{' '}
+              <span className="font-medium">nombre de pas</span>.
             </p>
           </div>
         </div>
