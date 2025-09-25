@@ -364,7 +364,12 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
 
   // Update route display on map
   const updateRouteDisplay = useCallback((route: RouteData, destination: { lat: number; lng: number }) => {
-    if (!map.current || !userLocation || !mapInitialized) return;
+    if (!map.current || !userLocation || !mapInitialized) {
+      console.log('Cannot update route display - map not ready');
+      return;
+    }
+
+    console.log('Updating route display with', route.steps, 'steps');
 
     // Remove existing markers
     if (userMarker.current) {
@@ -384,86 +389,66 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
       .setLngLat([destination.lng, destination.lat])
       .addTo(map.current);
 
-    // Add route to map
-    const routeGeojson = {
-      type: 'Feature' as const,
-      properties: {},
-      geometry: {
-        type: 'LineString' as const,
-        coordinates: route.coordinates
-      }
-    };
+    // Update route sources using persistent layers
+    try {
+      if (planningData.tripType === 'round-trip' && route.outboundCoordinates && route.returnCoordinates) {
+        // Update outbound route
+        const outboundGeojson = {
+          type: 'Feature' as const,
+          properties: {},
+          geometry: {
+            type: 'LineString' as const,
+            coordinates: route.outboundCoordinates
+          }
+        };
+        
+        // Update return route  
+        const returnGeojson = {
+          type: 'Feature' as const,
+          properties: {},
+          geometry: {
+            type: 'LineString' as const,
+            coordinates: route.returnCoordinates
+          }
+        };
 
-    // Remove existing route source and layer
-    if (map.current.getSource('route')) {
-      map.current.removeLayer('route');
-      map.current.removeSource('route');
+        (map.current.getSource('route-go') as mapboxgl.GeoJSONSource)?.setData(outboundGeojson);
+        (map.current.getSource('route-back') as mapboxgl.GeoJSONSource)?.setData(returnGeojson);
+      } else {
+        // One-way route - only update route-go
+        const routeGeojson = {
+          type: 'Feature' as const,
+          properties: {},
+          geometry: {
+            type: 'LineString' as const,
+            coordinates: route.coordinates
+          }
+        };
+        
+        (map.current.getSource('route-go') as mapboxgl.GeoJSONSource)?.setData(routeGeojson);
+        
+        // Clear return route for one-way trips
+        (map.current.getSource('route-back') as mapboxgl.GeoJSONSource)?.setData({
+          type: 'FeatureCollection',
+          features: []
+        });
+      }
+
+      // Fit map to route bounds
+      const bounds = new mapboxgl.LngLatBounds();
+      route.coordinates.forEach((coord: number[]) => bounds.extend(coord as [number, number]));
+      
+      // Add some padding to include both start and end markers
+      bounds.extend([userLocation.lng, userLocation.lat]);
+      bounds.extend([destination.lng, destination.lat]);
+      
+      map.current.fitBounds(bounds, { padding: 50, maxZoom: 15 });
+      
+      console.log('Route display updated successfully');
+    } catch (error) {
+      console.error('Error updating route display:', error);
     }
-
-    // Add new route
-    map.current.addSource('route', {
-      type: 'geojson',
-      data: routeGeojson
-    });
-
-    map.current.addLayer({
-      id: 'route',
-      type: 'line',
-      source: 'route',
-      layout: {
-        'line-join': 'round',
-        'line-cap': 'round'
-      },
-      paint: {
-        'line-color': planningData.tripType === 'round-trip' ? '#10b981' : '#3b82f6',
-        'line-width': 4,
-        'line-opacity': 0.8
-      }
-    });
-
-    // For round-trip, add return route
-    if (planningData.tripType === 'round-trip' && route.returnCoordinates) {
-      const returnGeojson = {
-        type: 'Feature' as const,
-        properties: {},
-        geometry: {
-          type: 'LineString' as const,
-          coordinates: route.returnCoordinates
-        }
-      };
-
-      if (map.current.getSource('return-route')) {
-        map.current.removeLayer('return-route');
-        map.current.removeSource('return-route');
-      }
-
-      map.current.addSource('return-route', {
-        type: 'geojson',
-        data: returnGeojson
-      });
-
-      map.current.addLayer({
-        id: 'return-route',
-        type: 'line',
-        source: 'return-route',
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round'
-        },
-        paint: {
-          'line-color': '#3b82f6',
-          'line-width': 3,
-          'line-opacity': 0.6,
-          'line-dasharray': [2, 2]
-        }
-      });
-    }
-
-    // Fit map to route bounds
-    const bounds = new mapboxgl.LngLatBounds();
-    route.coordinates.forEach((coord: number[]) => bounds.extend(coord as [number, number]));
-    map.current.fitBounds(bounds, { padding: 50, maxZoom: 15 });
-  }, [userLocation, planningData.tripType]);
+  }, [userLocation, planningData.tripType, mapInitialized]);
 
   // Initialize map
   useEffect(() => {
@@ -479,16 +464,66 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     });
 
     map.current.on('load', async () => {
+      console.log('Map loaded successfully');
       setMapInitialized(true);
+      
+      // Create persistent route sources
+      if (map.current) {
+        map.current.addSource('route-go', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
+        
+        map.current.addSource('route-back', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
+        
+        // Add route layers
+        map.current.addLayer({
+          id: 'route-go',
+          type: 'line',
+          source: 'route-go',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': '#10b981',
+            'line-width': 4,
+            'line-opacity': 0.8
+          }
+        });
+        
+        map.current.addLayer({
+          id: 'route-back',
+          type: 'line',
+          source: 'route-back',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': '#3b82f6',
+            'line-width': 3,
+            'line-opacity': 0.6,
+            'line-dasharray': [2, 2]
+          }
+        });
+      }
       
       // Generate default route
       setIsLoading(true);
       try {
         const defaultResult = await generateOptimalRoute(userLocation);
         if (defaultResult) {
+          console.log('Default route generated:', defaultResult.route.steps, 'steps');
           setDefaultRouteData(defaultResult);
           setDestinationLocation(defaultResult.destination);
           setRouteData(defaultResult.route);
+          
+          // Immediately display the default route
+          updateRouteDisplay(defaultResult.route, defaultResult.destination);
           
           if (onRouteCalculated) {
             const simpleRouteData = {
@@ -507,6 +542,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
             };
             onRouteCalculated(simpleRouteData);
           }
+        } else {
+          console.error('Failed to generate default route');
         }
       } catch (error) {
         console.error('Error generating default route:', error);
