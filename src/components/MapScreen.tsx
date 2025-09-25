@@ -178,7 +178,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
               </div>
               <div className="text-center p-4 bg-gradient-to-br from-secondary/5 to-secondary/10 rounded-lg">
                 <div className="text-2xl font-bold text-secondary mb-1">
-                  {routeData.steps.toLocaleString()}
+                  {Math.round((routeData.distance * 1000) / (0.415 * parseFloat(planningData.height))).toLocaleString()}
                 </div>
                 <p className="text-sm text-muted-foreground">Pas estimés</p>
               </div>
