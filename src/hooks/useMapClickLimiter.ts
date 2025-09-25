@@ -7,8 +7,8 @@ export const useMapClickLimiter = (maxAttempts: number = 3) => {
 
   const canClick = attemptCount < maxAttempts && !isLocked && !hasReset;
 
-  const incrementAttempts = useCallback(() => {
-    if (attemptCount < maxAttempts && !hasReset) {
+  const incrementAttempts = useCallback((validRoute: boolean = true) => {
+    if (validRoute && attemptCount < maxAttempts && !hasReset) {
       const newCount = attemptCount + 1;
       setAttemptCount(newCount);
       

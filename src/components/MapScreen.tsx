@@ -3,18 +3,13 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, RotateCcw } from 'lucide-react';
 import EnhancedMap from './EnhancedMap';
 import { useMapClickLimiter } from '@/hooks/useMapClickLimiter';
+import { type PlanningData } from '@/lib/routeHelpers';
 
 interface MapScreenProps {
   onComplete: (destination: any) => void;
   onBack: () => void;
   onGoToDashboard: () => void;
-  planningData: {
-    steps: string;
-    pace: 'slow' | 'moderate' | 'fast';
-    tripType: 'one-way' | 'round-trip';
-    height: string;
-    weight: string;
-  };
+  planningData: PlanningData;
 }
 
 const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScreenProps) => {
@@ -26,7 +21,10 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     steps: number;
     startCoordinates: { lat: number; lng: number };
     endCoordinates: { lat: number; lng: number };
-    routeGeoJSON?: any;
+    routes: {
+      go: GeoJSON.Feature<GeoJSON.LineString>;
+      back?: GeoJSON.Feature<GeoJSON.LineString>;
+    };
   } | null>(null);
   
   const { attemptCount, canClick, isLocked, hasReset, incrementAttempts, reset, remainingAttempts } = useMapClickLimiter(3);
@@ -38,10 +36,20 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     steps: number;
     startCoordinates: { lat: number; lng: number };
     endCoordinates: { lat: number; lng: number };
-    routeGeoJSON?: any;
+    routes: {
+      go: GeoJSON.Feature<GeoJSON.LineString>;
+      back?: GeoJSON.Feature<GeoJSON.LineString>;
+    };
   }) => {
     setRouteData(data);
     setIsReadyToStart(true);
+    // Only increment attempts when a valid route is calculated
+    incrementAttempts(true);
+  };
+
+  const handleUserClick = () => {
+    // This is called on every click, but we only increment attempts when a valid route is found
+    // The actual increment happens in handleRouteCalculated
   };
 
   const handleStartWalk = () => {
@@ -54,7 +62,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
       distanceKm: routeData.distance,
       durationMin: routeData.duration,
       calories: routeData.calories,
-      routeGeoJSON: routeData.routeGeoJSON
+      routes: routeData.routes
     };
     
     onComplete(destination);
@@ -136,7 +144,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
             planningData={planningData}
             className="w-full h-full"
             canClick={canClick}
-            onUserClick={incrementAttempts}
+            onUserClick={handleUserClick}
             onRouteCalculated={handleRouteCalculated}
           />
           
