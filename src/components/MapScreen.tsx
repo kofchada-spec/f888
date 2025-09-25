@@ -642,67 +642,361 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     return null;
   }, [generateRingCandidates, generateDetourWaypoints, minMeters, maxMeters]);
 
-  // Calcul de la destination par défaut avec recherche exhaustive
+  // Calcul de la destination par défaut avec approche optimisée (rate-limiting friendly)
   const calculateDefaultDestination = useCallback(async () => {
     if (!userLocation || !map || !mapboxToken) {
       console.log('calculateDefaultDestination: conditions not met', { userLocation, map: !!map, mapboxToken: !!mapboxToken });
       return;
     }
 
-    console.log('Starting comprehensive route search. Mode:', planningData.tripType, 'Target:', targetMeters, 'meters');
+    console.log('Starting optimized route search. Mode:', planningData.tripType, 'Target:', targetMeters, 'meters');
     
     const start: [number, number] = [userLocation.lng, userLocation.lat];
     const isOneWay = planningData.tripType === 'one-way';
     
-    // Recherche exhaustive
-    const result = await findValidRouteWithExhaustiveSearch(start, targetMeters, isOneWay);
+    // Variables pour garder la meilleure route trouvée
+    let bestCandidate: [number, number] | null = null;
+    let bestDistance = Infinity;
+    let bestDifference = Infinity;
+    let bestOutboundRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number } | null = null;
+    let bestReturnRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number } | undefined;
     
-    if (result) {
-      const { candidate, outboundRoute, returnRoute } = result;
+    // Phase 1: Recherche rapide avec 8 directions principales seulement
+    const searchRadius = isOneWay ? targetMeters : targetMeters / 2;
+    const candidates = generateRingCandidates(start, searchRadius, 8);
+    
+    console.log(`Testing ${candidates.length} primary candidates (rate-limited)`);
+    
+    // Délai entre requêtes pour éviter rate limiting
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    
+    for (let i = 0; i < candidates.length; i++) {
+      const candidate = candidates[i];
       
-      console.log('Valid route found with comprehensive search');
+      try {
+        // Délai progressif pour éviter rate limiting
+        if (i > 0) await delay(150 + i * 50);
+        
+        const outboundUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${start[0]},${start[1]};${candidate[0]},${candidate[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
+        const outboundRes = await fetch(outboundUrl);
+        
+        if (!outboundRes.ok) {
+          console.warn(`API request failed with status ${outboundRes.status}`);
+          await delay(500); // Attendre plus longtemps en cas d'erreur
+          continue;
+        }
+        
+        const outboundData = await outboundRes.json();
+        if (!outboundData?.routes?.[0]) continue;
+        
+        const outboundDistance = outboundData.routes[0].distance;
+        let totalDistance = outboundDistance;
+        let returnRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number } | undefined;
+        
+        if (!isOneWay) {
+          // Pour round-trip, calculer le retour avec délai plus long
+          await delay(200);
+          try {
+            const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${candidate[0]},${candidate[1]};${start[0]},${start[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
+            const returnRes = await fetch(returnUrl);
+            
+            if (returnRes.ok) {
+              const returnData = await returnRes.json();
+              if (returnData?.routes?.[0]) {
+                const returnDistance = returnData.routes[0].distance;
+                totalDistance = outboundDistance + returnDistance;
+                
+                returnRoute = {
+                  featureCollection: {
+                    type: 'FeatureCollection' as const,
+                    features: [{
+                      type: 'Feature' as const,
+                      geometry: returnData.routes[0].geometry,
+                      properties: {}
+                    }]
+                  },
+                  distance: returnDistance
+                };
+              }
+            } else {
+              await delay(500);
+            }
+          } catch (error) {
+            console.warn('Return route calculation failed, using doubled outbound');
+            totalDistance = outboundDistance * 2;
+          }
+        }
+        
+        const difference = Math.abs(totalDistance - targetMeters);
+        
+        // Validation stricte ±5% - retourner immédiatement si trouvé
+        if (totalDistance >= minMeters && totalDistance <= maxMeters) {
+          console.log(`✓ Found valid route! Outbound: ${outboundDistance}m, Total: ${totalDistance}m`);
+          
+          const outboundRoute = {
+            featureCollection: {
+              type: 'FeatureCollection' as const,
+              features: [{
+                type: 'Feature' as const,
+                geometry: outboundData.routes[0].geometry,
+                properties: {}
+              }]
+            },
+            distance: outboundDistance
+          };
+          
+          // Succès - afficher immédiatement
+          setRouteError(null);
+          clearRoute('route-default');
+          clearRoute('route-return');
+          
+          addOrUpdateSourceLayer('route-default', outboundRoute.featureCollection, '#2ECC71', 4);
+          
+          if (returnRoute) {
+            addOrUpdateSourceLayer('route-return', returnRoute.featureCollection, '#3498DB', 4, true);
+          }
+          
+          const estimatedSteps = Math.round(totalDistance / stride);
+          const distanceKm = totalDistance / 1000;
+          const duration = Math.round(distanceKm / speedKmh * 60);
+          const calories = Math.round(distanceKm * weightKg * calorieCoefficient);
+          
+          setRouteStats({
+            distance: totalDistance,
+            duration,
+            steps: estimatedSteps,
+            calories,
+            isValid: true
+          });
+          
+          // Marqueur destination
+          if (destinationMarkerRef.current) {
+            destinationMarkerRef.current.remove();
+          }
+          
+          const el = document.createElement('div');
+          el.className = 'destination-marker';
+          el.style.cssText = `
+            width: 20px;
+            height: 20px;
+            background-color: #2ECC71;
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          `;
+          
+          destinationMarkerRef.current = new mapboxgl.Marker(el)
+            .setLngLat(candidate)
+            .addTo(map);
+          
+          defaultRouteRef.current = { 
+            geojson: outboundRoute.featureCollection, 
+            color: '#2ECC71' 
+          };
+          
+          const bounds = new mapboxgl.LngLatBounds();
+          bounds.extend([userLocation.lng, userLocation.lat]);
+          bounds.extend(candidate);
+          map.fitBounds(bounds, { padding: 80, duration: 1000 });
+          
+          console.log('Perfect route found and displayed immediately');
+          return;
+        }
+        
+        // Garder la meilleure route même si hors ±5%
+        if (difference < bestDifference) {
+          bestDifference = difference;
+          bestCandidate = candidate;
+          bestDistance = totalDistance;
+          bestOutboundRoute = {
+            featureCollection: {
+              type: 'FeatureCollection' as const,
+              features: [{
+                type: 'Feature' as const,
+                geometry: outboundData.routes[0].geometry,
+                properties: {}
+              }]
+            },
+            distance: outboundDistance
+          };
+          bestReturnRoute = returnRoute;
+        }
+        
+      } catch (error) {
+        console.warn('Route calculation failed for candidate:', candidate, error);
+        await delay(300);
+      }
+    }
+    
+    // Phase 2: Ajustement de la meilleure route trouvée
+    if (bestCandidate && bestOutboundRoute && bestDistance < Infinity) {
+      console.log(`Adjusting best route (${bestDistance}m) to fit ±5% target`);
       
-      // Nettoyer les erreurs et routes précédentes
+      // Calculer l'ajustement nécessaire de façon simple
+      const targetCenter = (minMeters + maxMeters) / 2;
+      const adjustmentRatio = targetCenter / bestDistance;
+      
+      // Ajuster la position de destination
+      const bearing = turf.bearing(turf.point(start), turf.point(bestCandidate));
+      const currentDistanceKm = turf.distance(turf.point(start), turf.point(bestCandidate), { units: 'kilometers' });
+      const newDistanceKm = currentDistanceKm * adjustmentRatio;
+      
+      const adjustedCandidate = turf.destination(turf.point(start), newDistanceKm, bearing, { units: 'kilometers' });
+      const adjustedCoords = adjustedCandidate.geometry.coordinates as [number, number];
+      
+      console.log(`Adjusted candidate from ${currentDistanceKm.toFixed(3)}km to ${newDistanceKm.toFixed(3)}km`);
+      
+      try {
+        await delay(300);
+        const adjustedUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${start[0]},${start[1]};${adjustedCoords[0]},${adjustedCoords[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
+        const adjustedRes = await fetch(adjustedUrl);
+        
+        if (adjustedRes.ok) {
+          const adjustedData = await adjustedRes.json();
+          if (adjustedData?.routes?.[0]) {
+            const adjustedOutboundDistance = adjustedData.routes[0].distance;
+            let adjustedTotalDistance = adjustedOutboundDistance;
+            let adjustedReturnRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number } | undefined;
+            
+            if (!isOneWay) {
+              await delay(300);
+              try {
+                const adjustedReturnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${adjustedCoords[0]},${adjustedCoords[1]};${start[0]},${start[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
+                const adjustedReturnRes = await fetch(adjustedReturnUrl);
+                
+                if (adjustedReturnRes.ok) {
+                  const adjustedReturnData = await adjustedReturnRes.json();
+                  if (adjustedReturnData?.routes?.[0]) {
+                    const adjustedReturnDistance = adjustedReturnData.routes[0].distance;
+                    adjustedTotalDistance = adjustedOutboundDistance + adjustedReturnDistance;
+                    
+                    adjustedReturnRoute = {
+                      featureCollection: {
+                        type: 'FeatureCollection' as const,
+                        features: [{
+                          type: 'Feature' as const,
+                          geometry: adjustedReturnData.routes[0].geometry,
+                          properties: {}
+                        }]
+                      },
+                      distance: adjustedReturnDistance
+                    };
+                  }
+                }
+              } catch (error) {
+                adjustedTotalDistance = adjustedOutboundDistance * 2;
+              }
+            }
+            
+            console.log(`✓ Successfully adjusted route to ${adjustedTotalDistance}m`);
+            
+            // Afficher la route ajustée
+            setRouteError(null);
+            clearRoute('route-default');
+            clearRoute('route-return');
+            
+            const adjustedOutboundRoute = {
+              featureCollection: {
+                type: 'FeatureCollection' as const,
+                features: [{
+                  type: 'Feature' as const,
+                  geometry: adjustedData.routes[0].geometry,
+                  properties: {}
+                }]
+              },
+              distance: adjustedOutboundDistance
+            };
+            
+            addOrUpdateSourceLayer('route-default', adjustedOutboundRoute.featureCollection, '#2ECC71', 4);
+            
+            if (adjustedReturnRoute) {
+              addOrUpdateSourceLayer('route-return', adjustedReturnRoute.featureCollection, '#3498DB', 4, true);
+            }
+            
+            const estimatedSteps = Math.round(adjustedTotalDistance / stride);
+            const distanceKm = adjustedTotalDistance / 1000;
+            const duration = Math.round(distanceKm / speedKmh * 60);
+            const calories = Math.round(distanceKm * weightKg * calorieCoefficient);
+            const isValid = adjustedTotalDistance >= totalRange.min && adjustedTotalDistance <= totalRange.max;
+            
+            setRouteStats({
+              distance: adjustedTotalDistance,
+              duration,
+              steps: estimatedSteps,
+              calories,
+              isValid
+            });
+            
+            // Marqueur destination
+            if (destinationMarkerRef.current) {
+              destinationMarkerRef.current.remove();
+            }
+            
+            const el = document.createElement('div');
+            el.className = 'destination-marker';
+            el.style.cssText = `
+              width: 20px;
+              height: 20px;
+              background-color: #2ECC71;
+              border: 3px solid white;
+              border-radius: 50%;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            `;
+            
+            destinationMarkerRef.current = new mapboxgl.Marker(el)
+              .setLngLat(adjustedCoords)
+              .addTo(map);
+            
+            defaultRouteRef.current = { 
+              geojson: adjustedOutboundRoute.featureCollection, 
+              color: '#2ECC71' 
+            };
+            
+            const bounds = new mapboxgl.LngLatBounds();
+            bounds.extend([userLocation.lng, userLocation.lat]);
+            bounds.extend(adjustedCoords);
+            map.fitBounds(bounds, { padding: 80, duration: 1000 });
+            
+            console.log('Adjusted route successfully displayed');
+            return;
+          }
+        }
+      } catch (error) {
+        console.warn('Route adjustment failed:', error);
+      }
+      
+      // Phase 3: Fallback final - utiliser meilleure route même si légèrement hors ±5%
+      console.log('Using best available route as final fallback');
+      
       setRouteError(null);
       clearRoute('route-default');
       clearRoute('route-return');
       
-      // Tracer l'itinéraire aller (vert)
-      addOrUpdateSourceLayer('route-default', outboundRoute.featureCollection, '#2ECC71', 4);
+      addOrUpdateSourceLayer('route-default', bestOutboundRoute.featureCollection, '#2ECC71', 4);
       
-      let totalDistance = outboundRoute.distance;
-      
-      // Si aller-retour et qu'on a une route de retour, la tracer (bleu pointillé)
-      if (!isOneWay && returnRoute) {
-        addOrUpdateSourceLayer('route-return', returnRoute.featureCollection, '#3498DB', 4, true);
-        totalDistance = outboundRoute.distance + returnRoute.distance;
-      } else if (!isOneWay) {
-        // Fallback: doubler la distance aller
-        totalDistance = outboundRoute.distance * 2;
+      if (bestReturnRoute) {
+        addOrUpdateSourceLayer('route-return', bestReturnRoute.featureCollection, '#3498DB', 4, true);
       }
-
-      // Calculs selon les spécifications exactes
-      const estimatedSteps = Math.round(totalDistance / stride);
-      const distanceKm = totalDistance / 1000;
-      const duration = Math.round(distanceKm / speedKmh * 60); // durée (minutes) = distance ÷ vitesse
-      const calories = Math.round(distanceKm * weightKg * calorieCoefficient); // calories = distance × poids × coefficient
-      const isValid = totalDistance >= totalRange.min && totalDistance <= totalRange.max;
       
-      console.log('Route stats:', { totalDistance, estimatedSteps, duration, calories, isValid, stepGoal });
+      const estimatedSteps = Math.round(bestDistance / stride);
+      const distanceKm = bestDistance / 1000;
+      const duration = Math.round(distanceKm / speedKmh * 60);
+      const calories = Math.round(distanceKm * weightKg * calorieCoefficient);
+      const isValid = bestDistance >= totalRange.min && bestDistance <= totalRange.max;
       
       setRouteStats({
-        distance: totalDistance,
+        distance: bestDistance,
         duration,
         steps: estimatedSteps,
         calories,
         isValid
       });
-
-      // Marqueur destination (vert)
+      
+      // Marqueur destination
       if (destinationMarkerRef.current) {
         destinationMarkerRef.current.remove();
       }
-
+      
       const el = document.createElement('div');
       el.className = 'destination-marker';
       el.style.cssText = `
@@ -713,30 +1007,28 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
         border-radius: 50%;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
       `;
-
+      
       destinationMarkerRef.current = new mapboxgl.Marker(el)
-        .setLngLat(candidate)
+        .setLngLat(bestCandidate)
         .addTo(map);
-
-      // Mémoriser comme trajet par défaut
+      
       defaultRouteRef.current = { 
-        geojson: outboundRoute.featureCollection, 
+        geojson: bestOutboundRoute.featureCollection, 
         color: '#2ECC71' 
       };
-
-      // Ajuster la vue pour inclure le trajet
+      
       const bounds = new mapboxgl.LngLatBounds();
       bounds.extend([userLocation.lng, userLocation.lat]);
-      bounds.extend(candidate);
+      bounds.extend(bestCandidate);
       map.fitBounds(bounds, { padding: 80, duration: 1000 });
       
-      console.log('Default destination calculation completed successfully');
+      console.log('Fallback route displayed successfully');
     } else {
-      console.error('Comprehensive search failed - no valid route found within ±5% tolerance');
-      setRouteError("Aucun itinéraire valide trouvé dans votre plage d'objectif de pas. Veuillez réessayer.");
+      console.error('No route could be generated at all');
+      setRouteError("Impossible de générer un itinéraire. Veuillez réessayer.");
       setRouteStats(null);
     }
-  }, [userLocation, map, mapboxToken, targetMeters, planningData.tripType, findValidRouteWithExhaustiveSearch, stride, speedKmh, weightKg, calorieCoefficient, totalRange, stepGoal, clearRoute, addOrUpdateSourceLayer]);
+  }, [userLocation, map, mapboxToken, targetMeters, planningData.tripType, generateRingCandidates, stride, speedKmh, weightKg, calorieCoefficient, totalRange, stepGoal, minMeters, maxMeters, clearRoute, addOrUpdateSourceLayer]);
 
   // ========= Limiteur 3 clics =========
   const onValidClick = async (lngLat: {lng:number; lat:number}) => {
