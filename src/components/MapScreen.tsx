@@ -174,13 +174,13 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
                 <div className="text-2xl font-bold text-primary mb-1">
                   {routeData.distance.toFixed(1)} km
                 </div>
-                <p className="text-sm text-muted-foreground">Distance réelle</p>
+                <p className="text-sm text-muted-foreground">Distance estimée</p>
               </div>
               <div className="text-center p-4 bg-gradient-to-br from-secondary/5 to-secondary/10 rounded-lg">
                 <div className="text-2xl font-bold text-secondary mb-1">
                   {routeData.steps.toLocaleString()}
                 </div>
-                <p className="text-sm text-muted-foreground">Pas objectif</p>
+                <p className="text-sm text-muted-foreground">Pas estimés</p>
               </div>
               <div className="text-center p-4 bg-gradient-to-br from-orange-500/5 to-orange-500/10 rounded-lg">
                 <div className="text-2xl font-bold text-orange-600 mb-1">
