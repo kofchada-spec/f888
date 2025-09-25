@@ -259,15 +259,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
       {/* Header */}
       <div className="bg-card shadow-sm">
-        <div className="px-6 py-4 flex items-center justify-between">
-          <button 
-            onClick={onBack}
-            className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors"
-          >
-            <ArrowLeft size={20} />
-            <span>Retour</span>
-          </button>
-          
+        <div className="px-6 py-4 flex items-center justify-end">
           <div className="flex items-center space-x-3 cursor-pointer" onClick={onGoToDashboard}>
             <img 
               src="/lovable-uploads/5216fdd6-d0d7-446b-9260-86d15d06f4ba.png" 
