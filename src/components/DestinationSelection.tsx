@@ -184,12 +184,26 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
     }
   }, []);
 
-  // Auto-compute one-way destination when everything is ready
+  // Immediately compute one-way destination when component loads
   useEffect(() => {
-    if (userLocation && mapboxToken && planningData.tripType === 'one-way' && !currentDestination && !loading && !error) {
+    if (userLocation && mapboxToken && planningData.tripType === 'one-way' && !currentDestination) {
+      console.log('Starting one-way destination computation...', {
+        userLocation,
+        steps: planningData.steps,
+        height: planningData.height,
+        tripType: planningData.tripType
+      });
       findValidOneWayDestination(userLocation);
     }
-  }, [userLocation, mapboxToken, planningData, currentDestination, loading, error]);
+  }, [userLocation, mapboxToken, planningData.tripType]);
+
+  // Clear previous destination if trip type changes
+  useEffect(() => {
+    if (planningData.tripType === 'one-way' && currentDestination) {
+      setCurrentDestination(null);
+      setError(null);
+    }
+  }, [planningData.tripType]);
 
   // For non-one-way trips, use the original logic (commented out for now)
   const { 
