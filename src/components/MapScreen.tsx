@@ -65,11 +65,8 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
   const maxMeters = targetMeters * 1.05;
   const speedKmh = planningData.pace === 'slow' ? 4 : planningData.pace === 'moderate' ? 5 : 6;
 
-  // Plages pour validation (totale vs one-way selon le mode)
+  // Plage de validation pour l'objectif total
   const totalRange = { min: minMeters, max: maxMeters };
-  const oneWayRange = planningData.tripType === 'round-trip' 
-    ? { min: minMeters / 2, max: maxMeters / 2 }
-    : { min: minMeters, max: maxMeters };
 
   // Fetch Mapbox token from Supabase
   useEffect(() => {
@@ -271,10 +268,18 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     return candidates;
   }, []);
 
-  // Validation d'un tronçon aller
-  const isValidOneWay = useCallback((distance: number) => {
-    return distance >= oneWayRange.min && distance <= oneWayRange.max;
-  }, [oneWayRange]);
+  // Validation selon le mode de trajet
+  const isValidRoute = useCallback((allerDistance: number, retourDistance: number = 0) => {
+    const totalDistance = allerDistance + retourDistance;
+    
+    if (planningData.tripType === 'one-way') {
+      // Mode aller simple : l'aller seul doit respecter l'objectif ±5%
+      return allerDistance >= totalRange.min && allerDistance <= totalRange.max;
+    } else {
+      // Mode aller-retour : la somme (aller + retour) doit respecter l'objectif ±5%
+      return totalDistance >= totalRange.min && totalDistance <= totalRange.max;
+    }
+  }, [planningData.tripType, totalRange]);
 
   // Calcul de la destination par défaut
   const calculateDefaultDestination = useCallback(async () => {
@@ -283,11 +288,13 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
       return;
     }
 
-    const oneWayTargetMeters = planningData.tripType === 'round-trip' ? targetMeters / 2 : targetMeters;
-    console.log('Calculating default destination with one-way target:', oneWayTargetMeters, 'meters (total target:', targetMeters, ')');
+    // En mode aller simple : cibler l'objectif complet
+    // En mode aller-retour : cibler environ la moitié pour l'aller (sera ajusté avec le retour)
+    const initialTargetMeters = planningData.tripType === 'round-trip' ? targetMeters / 2 : targetMeters;
+    console.log('Calculating default destination. Mode:', planningData.tripType, 'Total target:', targetMeters, 'Initial aller target:', initialTargetMeters);
     
     const start: [number, number] = [userLocation.lng, userLocation.lat];
-    const candidates = generateCandidateDestinations(start, oneWayTargetMeters);
+    const candidates = generateCandidateDestinations(start, initialTargetMeters);
     
     console.log('Generated candidates:', candidates.length);
     
@@ -300,23 +307,39 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     // Tester chaque candidat
     for (const candidate of candidates) {
       try {
-        const route = await fetchRoute(start, candidate);
-        const distanceDiff = Math.abs(route.distance - oneWayTargetMeters);
+        const allerRoute = await fetchRoute(start, candidate);
+        let totalDistance = allerRoute.distance;
+        let retourDistance = 0;
         
-        console.log(`Candidate distance: ${route.distance}m (one-way target: ${oneWayTargetMeters}m, diff: ${distanceDiff}m)`);
+        // Si aller-retour, calculer aussi le retour pour avoir la distance totale
+        if (planningData.tripType === 'round-trip') {
+          try {
+            const retourRoute = await fetchRoute(candidate, start);
+            retourDistance = retourRoute.distance;
+            totalDistance = allerRoute.distance + retourDistance;
+          } catch (error) {
+            // Fallback : doubler l'aller
+            retourDistance = allerRoute.distance;
+            totalDistance = allerRoute.distance * 2;
+          }
+        }
         
-        // Priorité 1: candidat dans la plage one-way ±5%
-        if (isValidOneWay(route.distance) && distanceDiff < bestDistance) {
-          bestDistance = distanceDiff;
+        console.log(`Candidate: aller=${allerRoute.distance}m, retour=${retourDistance}m, total=${totalDistance}m (target: ${targetMeters}m)`);
+        
+        const totalDiff = Math.abs(totalDistance - targetMeters);
+        
+        // Priorité 1: candidat qui respecte les règles de validation
+        if (isValidRoute(allerRoute.distance, retourDistance) && totalDiff < bestDistance) {
+          bestDistance = totalDiff;
           bestCandidate = candidate;
-          bestRoute = route;
-          console.log('Found valid candidate in one-way range');
+          bestRoute = allerRoute;
+          console.log('Found valid candidate within target range');
         }
         
         // Fallback: garder le plus proche même si hors plage
-        if (!fallbackRoute || distanceDiff < Math.abs(fallbackRoute.distance - oneWayTargetMeters)) {
+        if (!fallbackRoute || totalDiff < Math.abs((fallbackRoute.distance * (planningData.tripType === 'round-trip' ? 2 : 1)) - targetMeters)) {
           fallbackCandidate = candidate;
-          fallbackRoute = route;
+          fallbackRoute = allerRoute;
         }
       } catch (error) {
         console.warn('Route calculation failed for candidate:', candidate, error);
@@ -415,31 +438,42 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     try {
       const { featureCollection, distance } = await fetchRoute(start, end);
       
-      // Vérifier si l'aller est valide selon les plages one-way
-      if (!isValidOneWay(distance)) {
-        console.log(`One-way distance ${distance}m is outside valid range [${oneWayRange.min}, ${oneWayRange.max}]`);
-        // Ne pas tracer si hors plage - l'utilisateur peut essayer un autre point
+      // Calculer d'abord le retour si nécessaire pour valider le total
+      let retourDistance = 0;
+      if (planningData.tripType === 'round-trip') {
+        try {
+          const returnRoute = await fetchRoute(end, start);
+          retourDistance = returnRoute.distance;
+        } catch (error) {
+          // Fallback : doubler l'aller
+          retourDistance = distance;
+        }
+      }
+      
+      // Vérifier si le trajet respecte les règles selon le mode
+      if (!isValidRoute(distance, retourDistance)) {
+        console.log(`Route rejected: aller=${distance}m, retour=${retourDistance}m, total=${distance + retourDistance}m (target range: [${totalRange.min}, ${totalRange.max}])`);
         return;
       }
       
       addOrUpdateSourceLayer('route-click', featureCollection, '#2ECC71', 4);
 
-      let totalDistance = distance;
-      let duration = Math.round((distance / 1000) / speedKmh * 60);
+      let totalDistance = distance + retourDistance;
 
-      // Si aller-retour, calculer le retour
-      if (planningData.tripType === 'round-trip') {
+      // Tracer les routes
+      addOrUpdateSourceLayer('route-click', featureCollection, '#2ECC71', 4);
+      
+      if (planningData.tripType === 'round-trip' && retourDistance > 0) {
         try {
           const returnRoute = await fetchRoute(end, start, [featureCollection]);
+          // Route de retour en bleu pointillé (approximation avec couleur différente)
           addOrUpdateSourceLayer('route-return-click', returnRoute.featureCollection, '#3498DB', 4);
-          totalDistance += returnRoute.distance;
-          duration = Math.round((totalDistance / 1000) / speedKmh * 60);
         } catch (error) {
-          console.warn('Return route failed, doubling outbound distance');
-          totalDistance = distance * 2;
-          duration = Math.round((totalDistance / 1000) / speedKmh * 60);
+          console.warn('Failed to display return route visualization');
         }
       }
+
+      const duration = Math.round((totalDistance / 1000) / speedKmh * 60);
 
       const estimatedSteps = Math.round(totalDistance / stride);
       const isValid = totalDistance >= totalRange.min && totalDistance <= totalRange.max;
