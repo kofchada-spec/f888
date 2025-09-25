@@ -354,22 +354,19 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
           console.log('Found valid candidate within target range');
         }
         
-        // Fallback: garder le plus proche même si hors plage
-        if (!fallbackRoute || totalDiff < Math.abs((fallbackRoute.distance * (planningData.tripType === 'round-trip' ? 2 : 1)) - targetMeters)) {
-          fallbackCandidate = candidate;
-          fallbackRoute = allerRoute;
-        }
+        // Supprimer la logique de fallback qui gardait les routes hors limites
+        // Ne plus garder de candidat de fallback - validation stricte uniquement
       } catch (error) {
         console.warn('Route calculation failed for candidate:', candidate, error);
       }
     }
 
-    // Utiliser le meilleur candidat ou le fallback
-    const finalCandidate = bestCandidate || fallbackCandidate;
-    const finalRoute = bestRoute || fallbackRoute;
+    // Utiliser UNIQUEMENT le meilleur candidat qui respecte les ±5% - PAS de fallback
+    const finalCandidate = bestCandidate; // Suppression du fallback
+    const finalRoute = bestRoute;
 
     if (finalRoute && finalCandidate) {
-      console.log('Using final route with distance:', finalRoute.distance);
+      console.log('Using valid route within ±5% with distance:', finalRoute.distance);
       
       // Nettoyer les erreurs et routes précédentes
       setRouteError(null);
