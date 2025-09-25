@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -56,6 +56,13 @@ export const ProfileEditModal = ({
   const [age, setAge] = useState(currentProfile.age || 30);
   const [selectedAvatar, setSelectedAvatar] = useState(currentProfile.avatar || null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Synchroniser les états avec les props quand elles changent
+  useEffect(() => {
+    setWeight(currentProfile.weight || 70);
+    setAge(currentProfile.age || 30);
+    setSelectedAvatar(currentProfile.avatar || null);
+  }, [currentProfile.weight, currentProfile.age, currentProfile.avatar]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
