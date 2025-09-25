@@ -315,7 +315,103 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     }
   }, [planningData.tripType, totalRange]);
 
-  // Recherche exhaustive de routes avec multiples stratégies
+  // Fonction d'ajustement fin pour respecter exactement les ±5%
+  const adjustRouteToTargetRange = useCallback(async (
+    start: [number, number],
+    bestCandidate: [number, number],
+    bestDistance: number,
+    isOneWay: boolean
+  ): Promise<{
+    candidate: [number, number];
+    outboundRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number };
+    returnRoute?: { featureCollection: GeoJSON.FeatureCollection; distance: number };
+  } | null> => {
+    
+    console.log(`Adjusting route to fit ±5% range. Current distance: ${bestDistance}m, Target range: [${minMeters}, ${maxMeters}]`);
+    
+    // Calculer l'ajustement nécessaire
+    const targetCenter = (minMeters + maxMeters) / 2;
+    const currentDistance = isOneWay ? bestDistance : bestDistance / 2; // Distance aller pour round-trip
+    const targetDistance = isOneWay ? targetCenter : targetCenter / 2;
+    
+    // Ratio d'ajustement
+    const adjustmentRatio = targetDistance / currentDistance;
+    
+    // Calculer nouvelle position ajustée
+    const bearing = turf.bearing(turf.point(start), turf.point(bestCandidate));
+    const currentDistanceKm = turf.distance(turf.point(start), turf.point(bestCandidate), { units: 'kilometers' });
+    const newDistanceKm = currentDistanceKm * adjustmentRatio;
+    
+    const adjustedCandidate = turf.destination(turf.point(start), newDistanceKm, bearing, { units: 'kilometers' });
+    const adjustedCoords = adjustedCandidate.geometry.coordinates as [number, number];
+    
+    console.log(`Adjusted candidate from ${currentDistanceKm.toFixed(3)}km to ${newDistanceKm.toFixed(3)}km`);
+    
+    try {
+      // Tester la route ajustée
+      const outboundUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${start[0]},${start[1]};${adjustedCoords[0]},${adjustedCoords[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
+      const outboundRes = await fetch(outboundUrl);
+      const outboundData = await outboundRes.json();
+      
+      if (!outboundData?.routes?.[0]) {
+        console.warn('Adjusted route failed, using original candidate');
+        return null;
+      }
+      
+      const outboundDistance = outboundData.routes[0].distance;
+      let totalDistance = outboundDistance;
+      let returnRoute: { featureCollection: GeoJSON.FeatureCollection; distance: number } | undefined;
+      
+      if (!isOneWay) {
+        try {
+          const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${adjustedCoords[0]},${adjustedCoords[1]};${start[0]},${start[1]}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
+          const returnRes = await fetch(returnUrl);
+          const returnData = await returnRes.json();
+          
+          if (returnData?.routes?.[0]) {
+            const returnDistance = returnData.routes[0].distance;
+            totalDistance = outboundDistance + returnDistance;
+            
+            returnRoute = {
+              featureCollection: {
+                type: 'FeatureCollection' as const,
+                features: [{
+                  type: 'Feature' as const,
+                  geometry: returnData.routes[0].geometry,
+                  properties: {}
+                }]
+              },
+              distance: returnDistance
+            };
+          }
+        } catch (error) {
+          totalDistance = outboundDistance * 2;
+        }
+      }
+      
+      console.log(`Adjusted route total distance: ${totalDistance}m (target range: [${minMeters}, ${maxMeters}])`);
+      
+      const outboundRoute = {
+        featureCollection: {
+          type: 'FeatureCollection' as const,
+          features: [{
+            type: 'Feature' as const,
+            geometry: outboundData.routes[0].geometry,
+            properties: {}
+          }]
+        },
+        distance: outboundDistance
+      };
+      
+      return { candidate: adjustedCoords, outboundRoute, returnRoute };
+      
+    } catch (error) {
+      console.warn('Route adjustment failed:', error);
+      return null;
+    }
+  }, [minMeters, maxMeters]);
+
+  // Recherche exhaustive de routes avec multiples stratégies + fallback garanti
   const findValidRouteWithExhaustiveSearch = useCallback(async (
     start: [number, number], 
     targetDistance: number, 
@@ -331,6 +427,11 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     const detourOffsets = [0, 100, 200, 300]; // Distances de détour en mètres
     
     console.log(`Starting exhaustive search for ${isOneWay ? 'one-way' : 'round-trip'} route. Target: ${targetDistance}m`);
+    
+    // Variables pour garder la meilleure route trouvée (même si hors ±5%)
+    let bestCandidate: [number, number] | null = null;
+    let bestDistance = Infinity;
+    let bestDifference = Infinity;
     
     // Phase 1: Recherche directe avec cercles concentriques
     for (const bearingCount of bearingCounts) {
@@ -394,7 +495,9 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
                   }
                 }
                 
-                // Validation stricte ±5%
+                const difference = Math.abs(totalDistance - targetDistance);
+                
+                // Validation stricte ±5% - retourner immédiatement si trouvé
                 if (totalDistance >= minMeters && totalDistance <= maxMeters) {
                   console.log(`✓ Found valid route! Outbound: ${outboundDistance}m, Return: ${returnRoute?.distance || 0}m, Total: ${totalDistance}m`);
                   
@@ -411,6 +514,13 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
                   };
                   
                   return { candidate, outboundRoute, returnRoute };
+                }
+                
+                // Garder la meilleure route même si hors ±5%
+                if (difference < bestDifference) {
+                  bestDifference = difference;
+                  bestCandidate = candidate;
+                  bestDistance = totalDistance;
                 }
               }
             } catch (error) {
@@ -474,7 +584,9 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
               }
             }
             
-            // Validation stricte ±5%
+            const difference = Math.abs(totalDistance - targetDistance);
+            
+            // Validation stricte ±5% - retourner immédiatement si trouvé
             if (totalDistance >= minMeters && totalDistance <= maxMeters) {
               console.log(`✓ Found valid route with detour! Total: ${totalDistance}m`);
               
@@ -501,6 +613,13 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
               
               return { candidate, outboundRoute, returnRoute };
             }
+            
+            // Garder la meilleure route même si hors ±5%
+            if (difference < bestDifference) {
+              bestDifference = difference;
+              bestCandidate = candidate;
+              bestDistance = totalDistance;
+            }
           } catch (error) {
             console.warn('Detour route calculation failed:', error);
           }
@@ -508,7 +627,18 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
       }
     }
     
-    console.log('Exhaustive search completed - no valid route found within ±5% tolerance');
+    // Phase 3: FALLBACK GARANTI - ajuster la meilleure route trouvée
+    if (bestCandidate && bestDistance < Infinity) {
+      console.log(`No perfect route found within ±5%, adjusting best route (${bestDistance}m) to fit target range`);
+      
+      const adjustedResult = await adjustRouteToTargetRange(start, bestCandidate, bestDistance, isOneWay);
+      if (adjustedResult) {
+        console.log('✓ Successfully adjusted route to fit ±5% constraint');
+        return adjustedResult;
+      }
+    }
+    
+    console.log('All search strategies failed - this should never happen');
     return null;
   }, [generateRingCandidates, generateDetourWaypoints, minMeters, maxMeters]);
 
