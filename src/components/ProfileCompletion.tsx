@@ -162,18 +162,26 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-white flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-card rounded-3xl shadow-2xl p-8 border border-border/50">
+        <div className="text-center mb-10">
+          <h1 className="font-inter text-3xl font-black text-foreground mb-3 tracking-tight">
             Complète ton profil
           </h1>
+          <div className="flex items-center justify-center space-x-2 mb-4">
+            <div className="h-0.5 w-8 bg-gradient-to-r from-primary to-transparent"></div>
+            <div className="h-1 w-1 rounded-full bg-primary"></div>
+            <div className="h-0.5 w-8 bg-gradient-to-l from-primary to-transparent"></div>
+          </div>
+          <p className="font-inter text-muted-foreground text-sm font-light">
+            Quelques infos pour personnaliser tes objectifs
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
           {/* Genre */}
-          <div className="space-y-2">
-            <Label htmlFor="gender" className="text-sm font-medium text-gray-700">
+          <div className="space-y-3">
+            <Label htmlFor="gender" className="font-inter text-sm font-semibold text-foreground">
               Genre
             </Label>
             <select
@@ -181,8 +189,8 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
               value={selectedGender}
               onChange={handleGenderChange}
               className={cn(
-                "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-                errors.gender && "border-red-500 focus:border-red-500"
+                "font-inter flex h-12 w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-base transition-all duration-200 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50",
+                errors.gender && "border-destructive focus:border-destructive focus:ring-destructive/20"
               )}
             >
               <option value="">Sélectionner</option>
@@ -191,70 +199,70 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
               <option value="Autre">Autre</option>
             </select>
             {errors.gender && (
-              <p className="text-sm text-red-600">{errors.gender.message}</p>
+              <p className="font-inter text-sm text-destructive font-medium">{errors.gender.message}</p>
             )}
           </div>
 
           {/* Taille */}
-          <div className="space-y-2">
-            <Label htmlFor="height" className="text-sm font-medium text-gray-700">
+          <div className="space-y-3">
+            <Label htmlFor="height" className="font-inter text-sm font-semibold text-foreground">
               Taille
             </Label>
             <button
               type="button"
               onClick={() => setModalType('height')}
               className={cn(
-                "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 text-left",
+                "font-inter flex h-12 w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-base transition-all duration-200 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-left hover:border-primary/60",
                 !selectedHeight && "text-muted-foreground",
-                errors.height && "border-red-500 focus:border-red-500"
+                errors.height && "border-destructive focus:border-destructive focus:ring-destructive/20"
               )}
             >
               {formatDisplayValue('height') || 'Sélectionner votre taille'}
             </button>
             {errors.height && (
-              <p className="text-sm text-red-600">{errors.height.message}</p>
+              <p className="font-inter text-sm text-destructive font-medium">{errors.height.message}</p>
             )}
           </div>
 
           {/* Poids */}
-          <div className="space-y-2">
-            <Label htmlFor="weight" className="text-sm font-medium text-gray-700">
+          <div className="space-y-3">
+            <Label htmlFor="weight" className="font-inter text-sm font-semibold text-foreground">
               Poids
             </Label>
             <button
               type="button"
               onClick={() => setModalType('weight')}
               className={cn(
-                "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 text-left",
+                "font-inter flex h-12 w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-base transition-all duration-200 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-left hover:border-primary/60",
                 !selectedWeight && "text-muted-foreground",
-                errors.weight && "border-red-500 focus:border-red-500"
+                errors.weight && "border-destructive focus:border-destructive focus:ring-destructive/20"
               )}
             >
               {formatDisplayValue('weight') || 'Sélectionner votre poids'}
             </button>
             {errors.weight && (
-              <p className="text-sm text-red-600">{errors.weight.message}</p>
+              <p className="font-inter text-sm text-destructive font-medium">{errors.weight.message}</p>
             )}
           </div>
 
           {/* Date de naissance */}
-          <div className="space-y-2">
-            <Label htmlFor="birthDate" className="text-sm font-medium text-gray-700">
+          <div className="space-y-3">
+            <Label htmlFor="birthDate" className="font-inter text-sm font-semibold text-foreground">
               Date de naissance
             </Label>
             <button
               type="button"
               onClick={() => setModalType('birthDate')}
               className={cn(
-                "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 text-left",
+                "font-inter flex h-12 w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-base transition-all duration-200 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-left hover:border-primary/60",
                 !selectedBirthDate && "text-muted-foreground",
-                errors.birthDate && "border-red-500 focus:border-red-500"
+                errors.birthDate && "border-destructive focus:border-destructive focus:ring-destructive/20"
               )}
             >
               {formatDisplayValue('birthDate') || 'Sélectionner votre date de naissance'}
             </button>
             {errors.birthDate && (
-              <p className="text-sm text-red-600">{errors.birthDate.message}</p>
+              <p className="font-inter text-sm text-destructive font-medium">{errors.birthDate.message}</p>
             )}
           </div>
 
@@ -262,9 +270,16 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
           <Button
             type="submit"
             disabled={!isFormValid || isSubmitting}
-            className="w-full h-12 text-base font-semibold rounded-[14px] bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+            className="font-inter w-full h-14 text-lg font-bold rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
           >
-            {isSubmitting ? 'Enregistrement...' : 'Continuer'}
+            {isSubmitting ? (
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin"></div>
+                <span>Enregistrement...</span>
+              </div>
+            ) : (
+              'Continuer'
+            )}
           </Button>
         </form>
 
@@ -284,9 +299,14 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
         )}
 
         {/* Message informatif */}
-        <p className="text-xs text-gray-500 text-center mt-6 leading-relaxed">
-          Ces infos permettent d'estimer précisément distance, temps et calories.
-        </p>
+        <div className="mt-8 p-4 bg-muted/30 rounded-xl border border-border/50">
+          <p className="font-inter text-sm text-muted-foreground text-center leading-relaxed">
+            Ces infos permettent d'estimer précisément{' '}
+            <span className="font-medium text-foreground">distance</span>,{' '}
+            <span className="font-medium text-foreground">temps</span> et{' '}
+            <span className="font-medium text-foreground">calories</span>.
+          </p>
+        </div>
       </div>
     </div>
   );
