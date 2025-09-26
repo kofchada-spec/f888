@@ -162,7 +162,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
       if (!outboundRoute) continue;
       
       // Get return route with alternatives parameter to get different path
-      const returnRoute = await getRouteWithAlternatives(destinationCoords, startCoords);
+      const returnRoute = await getRouteWithAlternatives(destinationCoords, startCoords, outboundRoute);
       if (!returnRoute) continue;
       
       const totalDistanceKm = (outboundRoute.distance + returnRoute.distance) / 1000;
@@ -181,11 +181,101 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     setIsCalculating(false);
   };
 
-  // Get route with alternatives to ensure different return path
-  const getRouteWithAlternatives = async (start: [number, number], end: [number, number]) => {
+  // Calculate path overlap percentage between two routes
+  const calculatePathOverlap = (path1: number[][], path2: number[][]): number => {
+    if (!path1 || !path2 || path1.length === 0 || path2.length === 0) return 1.0;
+    
+    const bufferRadius = 0.00015; // ~15m in degrees
+    let overlappingSegments = 0;
+    const totalSegments = Math.min(path1.length, path2.length) - 1;
+    
+    for (let i = 0; i < totalSegments; i++) {
+      const p1Start = path1[i];
+      const p1End = path1[i + 1];
+      
+      // Check if this segment overlaps with any segment in path2
+      let hasOverlap = false;
+      for (let j = 0; j < path2.length - 1; j++) {
+        const p2Start = path2[j];
+        const p2End = path2[j + 1];
+        
+        // Check if segments are close enough to be considered overlapping
+        if (segmentsWithinBuffer(p1Start, p1End, p2Start, p2End, bufferRadius)) {
+          hasOverlap = true;
+          break;
+        }
+      }
+      
+      if (hasOverlap) overlappingSegments++;
+    }
+    
+    return overlappingSegments / totalSegments;
+  };
+
+  // Check if two line segments are within buffer distance
+  const segmentsWithinBuffer = (
+    seg1Start: number[], seg1End: number[], 
+    seg2Start: number[], seg2End: number[], 
+    buffer: number
+  ): boolean => {
+    // Simplified check: distance between midpoints
+    const mid1 = [(seg1Start[0] + seg1End[0]) / 2, (seg1Start[1] + seg1End[1]) / 2];
+    const mid2 = [(seg2Start[0] + seg2End[0]) / 2, (seg2Start[1] + seg2End[1]) / 2];
+    
+    const distance = Math.sqrt(
+      Math.pow(mid1[0] - mid2[0], 2) + Math.pow(mid1[1] - mid2[1], 2)
+    );
+    
+    return distance <= buffer;
+  };
+
+  // Generate waypoints to avoid outbound path
+  const generateAvoidanceWaypoints = (
+    start: [number, number], 
+    destination: [number, number], 
+    outboundPath: number[][]
+  ): [number, number][] => {
+    const waypoints: [number, number][] = [];
+    
+    // Calculate perpendicular offset from the midpoint of outbound route
+    if (outboundPath.length > 2) {
+      const midIndex = Math.floor(outboundPath.length / 2);
+      const midPoint = outboundPath[midIndex];
+      
+      // Calculate bearing from start to destination
+      const bearing = Math.atan2(
+        destination[1] - start[1], 
+        destination[0] - start[0]
+      );
+      
+      // Create waypoint perpendicular to the route (±90 degrees)
+      const perpBearing1 = bearing + Math.PI / 2;
+      const perpBearing2 = bearing - Math.PI / 2;
+      
+      const offset = 0.003; // ~300m in degrees
+      
+      const waypoint1: [number, number] = [
+        midPoint[0] + Math.cos(perpBearing1) * offset,
+        midPoint[1] + Math.sin(perpBearing1) * offset
+      ];
+      
+      const waypoint2: [number, number] = [
+        midPoint[0] + Math.cos(perpBearing2) * offset,
+        midPoint[1] + Math.sin(perpBearing2) * offset
+      ];
+      
+      waypoints.push(waypoint1, waypoint2);
+    }
+    
+    return waypoints;
+  };
+
+  // Get route with 80% differentiation guarantee for return path
+  const getRouteWithAlternatives = async (start: [number, number], end: [number, number], outboundRoute?: any) => {
     if (!mapboxToken) return null;
     
     try {
+      // First, try getting alternatives directly
       const response = await fetch(
         `https://api.mapbox.com/directions/v5/mapbox/walking/${start[0]},${start[1]};${end[0]},${end[1]}?geometries=geojson&alternatives=true&access_token=${mapboxToken}`
       );
@@ -193,7 +283,81 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
       if (!response.ok) throw new Error('Failed to fetch route');
       
       const data = await response.json();
-      // Return the alternative route if available, otherwise the main route
+      
+      if (!data.routes || data.routes.length === 0) return null;
+      
+      // If we have an outbound route, find the most different alternative
+      if (outboundRoute && outboundRoute.geometry && outboundRoute.geometry.coordinates) {
+        let bestRoute = null;
+        let minOverlap = 1.0;
+        
+        for (const route of data.routes) {
+          const overlap = calculatePathOverlap(
+            outboundRoute.geometry.coordinates,
+            route.geometry.coordinates
+          );
+          
+          console.log(`Route overlap: ${(overlap * 100).toFixed(1)}%`);
+          
+          if (overlap < minOverlap) {
+            minOverlap = overlap;
+            bestRoute = route;
+          }
+          
+          // If we found a route with ≤20% overlap (80% different), use it
+          if (overlap <= 0.20) {
+            console.log(`Found route with ${((1 - overlap) * 100).toFixed(1)}% differentiation`);
+            return route;
+          }
+        }
+        
+        // If no route meets 80% criteria, try waypoint routing
+        if (minOverlap > 0.20) {
+          console.log(`Best direct alternative only ${((1 - minOverlap) * 100).toFixed(1)}% different, trying waypoints...`);
+          
+          const waypoints = generateAvoidanceWaypoints(start, end, outboundRoute.geometry.coordinates);
+          
+          for (const waypoint of waypoints) {
+            try {
+              const waypointResponse = await fetch(
+                `https://api.mapbox.com/directions/v5/mapbox/walking/${start[0]},${start[1]};${waypoint[0]},${waypoint[1]};${end[0]},${end[1]}?geometries=geojson&access_token=${mapboxToken}`
+              );
+              
+              if (waypointResponse.ok) {
+                const waypointData = await waypointResponse.json();
+                if (waypointData.routes && waypointData.routes.length > 0) {
+                  const waypointRoute = waypointData.routes[0];
+                  const waypointOverlap = calculatePathOverlap(
+                    outboundRoute.geometry.coordinates,
+                    waypointRoute.geometry.coordinates
+                  );
+                  
+                  console.log(`Waypoint route overlap: ${(waypointOverlap * 100).toFixed(1)}%`);
+                  
+                  if (waypointOverlap <= 0.20) {
+                    console.log(`Waypoint route achieved ${((1 - waypointOverlap) * 100).toFixed(1)}% differentiation`);
+                    return waypointRoute;
+                  }
+                  
+                  if (waypointOverlap < minOverlap) {
+                    minOverlap = waypointOverlap;
+                    bestRoute = waypointRoute;
+                  }
+                }
+              }
+            } catch (waypointError) {
+              console.log('Waypoint routing failed:', waypointError);
+            }
+          }
+        }
+        
+        if (bestRoute) {
+          console.log(`Using best available route with ${((1 - minOverlap) * 100).toFixed(1)}% differentiation`);
+          return bestRoute;
+        }
+      }
+      
+      // Return the best alternative or main route
       return data.routes[1] || data.routes[0];
     } catch (error) {
       console.error('Route fetch error:', error);
@@ -275,6 +439,15 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
   // Display round-trip route with different outbound and return paths
   const displayRoundTripRoute = async (destinationCoords: [number, number], outboundRoute: any, returnRoute: any, totalDistanceKm: number) => {
     if (!planningData || !userLocation) return;
+
+    // Calculate differentiation percentage for user feedback
+    const overlap = calculatePathOverlap(
+      outboundRoute.geometry.coordinates,
+      returnRoute.geometry.coordinates
+    );
+    const differentiation = ((1 - overlap) * 100).toFixed(0);
+    
+    console.log(`Round-trip routes have ${differentiation}% differentiation`);
 
     // Remove existing markers and routes
     if (destinationMarker.current) {
