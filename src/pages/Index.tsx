@@ -142,8 +142,9 @@ const Index = () => {
     return <Auth onComplete={handleAuthComplete} onSkipAuth={handleSkipAuth} />;
   }
 
-  // Show profile completion if not completed (and user is authenticated)
-  if (!hasCompletedProfile) {
+  // Show profile completion if not completed (and user is authenticated OR auth is skipped)
+  console.log('Profile debug:', { hasCompletedProfile, user: !!user, skipAuth, hasCompletedOnboarding });
+  if (!hasCompletedProfile && (user || skipAuth)) {
     return <ProfileCompletion onComplete={handleProfileComplete} />;
   }
 
