@@ -603,13 +603,13 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
   ) => {
     console.log('Starting guaranteed round-trip search...');
     
-    // Recherche en spirale avec densité croissante
+    // Recherche en spirale avec densité croissante - seuil uniforme à 30%
     const searchConfigs = [
-      { radius: 0.3, angles: 8, differentiationThreshold: 0.40 }, // Proche, exigeant
-      { radius: 0.6, angles: 12, differentiationThreshold: 0.35 }, // Moyen, un peu moins exigeant
-      { radius: 1.0, angles: 16, differentiationThreshold: 0.30 }, // Plus loin, plus souple
-      { radius: 1.5, angles: 20, differentiationThreshold: 0.25 }, // Très loin, souple
-      { radius: 2.0, angles: 24, differentiationThreshold: 0.20 }  // Maximum, très souple
+      { radius: 0.3, angles: 8, differentiationThreshold: 0.30 }, // Proche
+      { radius: 0.6, angles: 12, differentiationThreshold: 0.30 }, // Moyen
+      { radius: 1.0, angles: 16, differentiationThreshold: 0.30 }, // Plus loin
+      { radius: 1.5, angles: 20, differentiationThreshold: 0.30 }, // Très loin
+      { radius: 2.0, angles: 24, differentiationThreshold: 0.30 }  // Maximum
     ];
     
     for (const config of searchConfigs) {
