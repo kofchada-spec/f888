@@ -7,15 +7,19 @@ export const useMapClickLimiter = (maxAttempts: number = 3) => {
   const canClick = attemptCount < maxAttempts && !isLocked;
 
   const incrementAttempts = useCallback(() => {
-    if (attemptCount < maxAttempts) {
-      const newCount = attemptCount + 1;
-      setAttemptCount(newCount);
-      
-      if (newCount >= maxAttempts) {
-        setIsLocked(true);
+    setAttemptCount(prevCount => {
+      if (prevCount < maxAttempts) {
+        const newCount = prevCount + 1;
+        
+        if (newCount >= maxAttempts) {
+          setIsLocked(true);
+        }
+        
+        return newCount;
       }
-    }
-  }, [attemptCount, maxAttempts]);
+      return prevCount;
+    });
+  }, [maxAttempts]);
 
   const reset = useCallback(() => {
     setAttemptCount(0);
