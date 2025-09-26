@@ -331,8 +331,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     return waypoints;
   };
 
-  // Get route with differentiation guarantee for return path
-  const getRouteWithAlternatives = async (start: [number, number], end: [number, number], outboundRoute?: any, differentiationThreshold: number = 0.40) => {
+  // Get route with differentiation guarantee for return path (optimized for speed)
+  const getRouteWithAlternatives = async (start: [number, number], end: [number, number], outboundRoute?: any, differentiationThreshold: number = 0.25) => {
     if (!mapboxToken) return null;
     
     try {
@@ -373,11 +373,11 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
           }
         }
         
-        // If no route meets criteria, try waypoint routing
-        if (minOverlap > maxOverlap) {
-          console.log(`Best direct alternative only ${((1 - minOverlap) * 100).toFixed(1)}% different, trying waypoints...`);
+        // Quick waypoint attempt (limit to 2 waypoints max for speed)
+        if (minOverlap > maxOverlap && minOverlap > 0.8) { // Only try waypoints if routes are very similar
+          console.log(`Routes too similar (${((1 - minOverlap) * 100).toFixed(1)}% different), trying 2 quick waypoints...`);
           
-          const waypoints = generateAvoidanceWaypoints(start, end, outboundRoute.geometry.coordinates);
+          const waypoints = generateAvoidanceWaypoints(start, end, outboundRoute.geometry.coordinates).slice(0, 2); // Limit to 2 waypoints
           
           for (const waypoint of waypoints) {
             try {
@@ -408,12 +408,13 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
                 }
               }
             } catch (waypointError) {
-              console.log('Waypoint routing failed:', waypointError);
+              // Silently continue to next waypoint
             }
           }
         }
         
-        if (bestRoute) {
+        // Accept best available route even if not perfectly differentiated
+        if (bestRoute && minOverlap < 0.95) { // Accept if at least 5% different
           console.log(`Using best available route with ${((1 - minOverlap) * 100).toFixed(1)}% differentiation`);
           return bestRoute;
         }
