@@ -280,8 +280,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     return waypoints;
   };
 
-  // Get route with 80% differentiation guarantee for return path
-  const getRouteWithAlternatives = async (start: [number, number], end: [number, number], outboundRoute?: any) => {
+  // Get route with differentiation guarantee for return path
+  const getRouteWithAlternatives = async (start: [number, number], end: [number, number], outboundRoute?: any, differentiationThreshold: number = 0.40) => {
     if (!mapboxToken) return null;
     
     try {
@@ -300,6 +300,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
       if (outboundRoute && outboundRoute.geometry && outboundRoute.geometry.coordinates) {
         let bestRoute = null;
         let minOverlap = 1.0;
+        const maxOverlap = 1 - differentiationThreshold; // Convert differentiation to overlap threshold
         
         for (const route of data.routes) {
           const overlap = calculatePathOverlap(
@@ -307,22 +308,22 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
             route.geometry.coordinates
           );
           
-          console.log(`Route overlap: ${(overlap * 100).toFixed(1)}%`);
+          console.log(`Route overlap: ${(overlap * 100).toFixed(1)}% (threshold: ${(maxOverlap * 100).toFixed(0)}%)`);
           
           if (overlap < minOverlap) {
             minOverlap = overlap;
             bestRoute = route;
           }
           
-          // If we found a route with ≤60% overlap (40% different), use it
-          if (overlap <= 0.60) {
+          // If we found a route with sufficient differentiation, use it
+          if (overlap <= maxOverlap) {
             console.log(`Found route with ${((1 - overlap) * 100).toFixed(1)}% differentiation`);
             return route;
           }
         }
         
-        // If no route meets 40% criteria, try waypoint routing
-        if (minOverlap > 0.60) {
+        // If no route meets criteria, try waypoint routing
+        if (minOverlap > maxOverlap) {
           console.log(`Best direct alternative only ${((1 - minOverlap) * 100).toFixed(1)}% different, trying waypoints...`);
           
           const waypoints = generateAvoidanceWaypoints(start, end, outboundRoute.geometry.coordinates);
@@ -344,7 +345,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
                   
                   console.log(`Waypoint route overlap: ${(waypointOverlap * 100).toFixed(1)}%`);
                   
-                  if (waypointOverlap <= 0.60) {
+                  if (waypointOverlap <= maxOverlap) {
                     console.log(`Waypoint route achieved ${((1 - waypointOverlap) * 100).toFixed(1)}% differentiation`);
                     return waypointRoute;
                   }
@@ -578,6 +579,63 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     onRouteCalculated?.(routeData);
   };
 
+  // Recherche élargie pour aller-retour
+  const expandedRoundTripSearch = async (
+    startCoords: [number, number],
+    clickCoords: [number, number], 
+    targetDistance: number,
+    minDistance: number,
+    maxDistance: number
+  ) => {
+    // Rayons de recherche plus larges pour aller-retour (plus de flexibilité)
+    const searchRadiuses = [0.5, 1.0, 1.5, 2.0, 2.5];
+    const searchAngles = [0, 45, 90, 135, 180, 225, 270, 315];
+    
+    for (const radius of searchRadiuses) {
+      console.log(`Searching round-trip in ${radius}km radius...`);
+      
+      for (const angle of searchAngles) {
+        const angleRad = (angle * Math.PI) / 180;
+        const latOffset = (radius * Math.sin(angleRad)) / 111.32;
+        const lngOffset = (radius * Math.cos(angleRad)) / (111.32 * Math.cos(clickCoords[1] * Math.PI / 180));
+        
+        const searchCoords: [number, number] = [
+          clickCoords[0] + lngOffset,
+          clickCoords[1] + latOffset
+        ];
+        
+        try {
+          const outboundRoute = await getRoute(startCoords, searchCoords);
+          if (!outboundRoute) continue;
+          
+          // Pour l'aller-retour, tolérance plus souple sur la différenciation (20% au lieu de 40%)
+          const returnRoute = await getRouteWithAlternatives(searchCoords, startCoords, outboundRoute, 0.20);
+          if (!returnRoute) continue;
+          
+          const totalDistanceKm = (outboundRoute.distance + returnRoute.distance) / 1000;
+          
+          // Tolérance élargie pour les aller-retours (±8% au lieu de ±5%)
+          const roundTripMinDistance = targetDistance * 0.92;
+          const roundTripMaxDistance = targetDistance * 1.08;
+          
+          if (totalDistanceKm >= roundTripMinDistance && totalDistanceKm <= roundTripMaxDistance) {
+            console.log(`Found suitable round-trip at ${radius}km radius: ${totalDistanceKm.toFixed(2)}km total`);
+            return {
+              destination: searchCoords,
+              outboundRoute: outboundRoute,
+              returnRoute: returnRoute,
+              totalDistance: totalDistanceKm
+            };
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+    }
+    
+    return null;
+  };
+
   // Smart route search for round-trip with ±5% distance tolerance
   const findSuitableRoundTripRoute = async (clickedCoords: mapboxgl.LngLat) => {
     if (!planningData || !userLocation) return;
@@ -586,7 +644,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     const tolerance = 0.05; // 5%
     const minDistance = targetDistance * (1 - tolerance);
     const maxDistance = targetDistance * (1 + tolerance);
-    const clickTolerance = 0.30; // 300m tolerance for accepting clicks
+    const clickTolerance = 0.50; // Tolérance élargie à 500m pour aller-retour
     
     setIsCalculating(true);
     setRouteError(null);
@@ -602,19 +660,54 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
       return;
     }
     
-    // Get return route with alternatives
-    const returnRoute = await getRouteWithAlternatives(destinationCoords, startCoords, outboundRoute);
+    // Get return route with alternatives - tolérance réduite pour la différenciation (30% au lieu de 40%)
+    const returnRoute = await getRouteWithAlternatives(destinationCoords, startCoords, outboundRoute, 0.30);
     if (!returnRoute) {
-      setRouteError("Impossible de calculer l'itinéraire retour.");
+      // Si pas de retour différent trouvé, essayer la recherche élargie
+      console.log(`No suitable return route found. Starting expanded round-trip search...`);
+      
+      const expandedResult = await expandedRoundTripSearch(
+        startCoords, 
+        destinationCoords, 
+        targetDistance, 
+        minDistance, 
+        maxDistance
+      );
+      
+      if (!expandedResult) {
+        setRouteError("Impossible de trouver un itinéraire aller-retour valide dans la zone élargie. Essayez un autre point.");
+        setIsCalculating(false);
+        return;
+      }
+      
+      await displayRoundTripRoute(expandedResult.destination, expandedResult.outboundRoute, expandedResult.returnRoute, expandedResult.totalDistance);
+      onMapClick?.();
       setIsCalculating(false);
       return;
     }
     
     const initialTotalDistanceKm = (outboundRoute.distance + returnRoute.distance) / 1000;
     
-    // Check if we're within click tolerance (±300m for total distance)
+    // Check if we're within click tolerance (±500m pour aller-retour)
     if (Math.abs(initialTotalDistanceKm - targetDistance) > clickTolerance) {
-      setRouteError(`Destination trop éloignée de l'objectif (${initialTotalDistanceKm.toFixed(2)}km total). Cliquez plus près de la zone cible (~${targetDistance.toFixed(1)}km ±300m).`);
+      console.log(`Initial round-trip click outside tolerance. Starting expanded search...`);
+      
+      const expandedResult = await expandedRoundTripSearch(
+        startCoords, 
+        destinationCoords, 
+        targetDistance, 
+        minDistance, 
+        maxDistance
+      );
+      
+      if (!expandedResult) {
+        setRouteError(`Aucune destination aller-retour trouvée dans la zone élargie (~${targetDistance.toFixed(1)}km ±8%). Essayez un autre point.`);
+        setIsCalculating(false);
+        return;
+      }
+      
+      await displayRoundTripRoute(expandedResult.destination, expandedResult.outboundRoute, expandedResult.returnRoute, expandedResult.totalDistance);
+      onMapClick?.();
       setIsCalculating(false);
       return;
     }
