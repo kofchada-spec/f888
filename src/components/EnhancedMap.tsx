@@ -643,7 +643,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     onRouteCalculated?.(routeData);
   };
 
-  // Recherche systématique garantie pour aller-retour
+  // Recherche systématique garantie pour aller-retour (optimisée pour rapidité)
   const guaranteedRoundTripSearch = async (
     startCoords: [number, number],
     clickCoords: [number, number], 
@@ -651,19 +651,16 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     minDistance: number,
     maxDistance: number
   ) => {
-    console.log('Starting guaranteed round-trip search...');
+    console.log('Starting optimized guaranteed round-trip search...');
     
-    // Recherche en spirale avec densité croissante - seuil uniforme à 30%
+    // Recherche optimisée : seulement 2 niveaux avec moins d'angles
     const searchConfigs = [
-      { radius: 0.3, angles: 8, differentiationThreshold: 0.30 }, // Proche
-      { radius: 0.6, angles: 12, differentiationThreshold: 0.30 }, // Moyen
-      { radius: 1.0, angles: 16, differentiationThreshold: 0.30 }, // Plus loin
-      { radius: 1.5, angles: 20, differentiationThreshold: 0.30 }, // Très loin
-      { radius: 2.0, angles: 24, differentiationThreshold: 0.30 }  // Maximum
+      { radius: 0.5, angles: 6, differentiationThreshold: 0.25 }, // Proche - 6 directions
+      { radius: 1.2, angles: 8, differentiationThreshold: 0.25 }  // Plus loin - 8 directions
     ];
     
     for (const config of searchConfigs) {
-      console.log(`Searching in ${config.radius}km radius with ${config.angles} directions...`);
+      console.log(`Quick search in ${config.radius}km radius with ${config.angles} directions...`);
       
       // Générer les angles uniformément répartis
       const angleStep = 360 / config.angles;
@@ -672,51 +669,48 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
         const angle = i * angleStep;
         const angleRad = (angle * Math.PI) / 180;
         
-        // Points de recherche en spirale (plusieurs distances pour chaque angle)
-        const distances = [config.radius * 0.7, config.radius, config.radius * 1.3];
+        // Une seule distance par angle pour la rapidité
+        const distance = config.radius;
+        const latOffset = (distance * Math.sin(angleRad)) / 111.32;
+        const lngOffset = (distance * Math.cos(angleRad)) / (111.32 * Math.cos(clickCoords[1] * Math.PI / 180));
         
-        for (const distance of distances) {
-          const latOffset = (distance * Math.sin(angleRad)) / 111.32;
-          const lngOffset = (distance * Math.cos(angleRad)) / (111.32 * Math.cos(clickCoords[1] * Math.PI / 180));
+        const searchCoords: [number, number] = [
+          clickCoords[0] + lngOffset,
+          clickCoords[1] + latOffset
+        ];
+        
+        try {
+          const outboundRoute = await getRoute(startCoords, searchCoords);
+          if (!outboundRoute) continue;
           
-          const searchCoords: [number, number] = [
-            clickCoords[0] + lngOffset,
-            clickCoords[1] + latOffset
-          ];
+          // Essayer avec le seuil de différenciation optimisé
+          const returnRoute = await getRouteWithAlternatives(
+            searchCoords, 
+            startCoords, 
+            outboundRoute, 
+            config.differentiationThreshold
+          );
+          if (!returnRoute) continue;
           
-          try {
-            const outboundRoute = await getRoute(startCoords, searchCoords);
-            if (!outboundRoute) continue;
-            
-            // Essayer avec le seuil de différenciation adaptatif
-            const returnRoute = await getRouteWithAlternatives(
-              searchCoords, 
-              startCoords, 
-              outboundRoute, 
-              config.differentiationThreshold
-            );
-            if (!returnRoute) continue;
-            
-            const totalDistanceKm = (outboundRoute.distance + returnRoute.distance) / 1000;
-            
-            // Respect strict ±5% tolerance without adaptive scaling
-            if (totalDistanceKm >= minDistance && totalDistanceKm <= maxDistance) {
-              console.log(`✓ Found guaranteed round-trip: ${totalDistanceKm.toFixed(2)}km (target: ${targetDistance.toFixed(2)}km, differentiation: ${(config.differentiationThreshold*100).toFixed(0)}%)`);
-              return {
-                destination: searchCoords,
-                outboundRoute: outboundRoute,
-                returnRoute: returnRoute,
-                totalDistance: totalDistanceKm
-              };
-            }
-          } catch (error) {
-            continue;
+          const totalDistanceKm = (outboundRoute.distance + returnRoute.distance) / 1000;
+          
+          // Respect strict ±5% tolerance
+          if (totalDistanceKm >= minDistance && totalDistanceKm <= maxDistance) {
+            console.log(`✓ Found guaranteed round-trip: ${totalDistanceKm.toFixed(2)}km (target: ${targetDistance.toFixed(2)}km)`);
+            return {
+              destination: searchCoords,
+              outboundRoute: outboundRoute,
+              returnRoute: returnRoute,
+              totalDistance: totalDistanceKm
+            };
           }
+        } catch (error) {
+          continue;
         }
       }
     }
     
-    console.log('⚠️ Guaranteed search exhausted, no valid round-trip found');
+    console.log('⚠️ Quick search exhausted, no valid round-trip found');
     return null;
   };
 
