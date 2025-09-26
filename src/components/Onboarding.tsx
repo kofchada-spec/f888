@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, User, Target } from 'lucide-react';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from '@/components/ui/carousel';
 import mapDestination from '@/assets/map-destination.png';
 const fitpasLogo = '/lovable-uploads/4c20a048-5819-4d0f-b867-b91d67ca59ee.png';
 
@@ -9,37 +10,69 @@ interface OnboardingProps {
 }
 
 const Onboarding = ({ onComplete }: OnboardingProps) => {
-  const [currentStep, setCurrentStep] = useState(0);
+  const [api, setApi] = useState<CarouselApi>();
+  const [current, setCurrent] = useState(0);
 
-  const steps = [
-    {
-      id: 'welcome',
-      component: <WelcomeScreen 
-        onNext={() => setCurrentStep(1)} 
-        showBack={false}
-      />
-    },
-    {
-      id: 'presentation',
-      component: <PresentationScreen 
-        onNext={() => setCurrentStep(2)} 
-        onBack={() => setCurrentStep(0)}
-        showBack={true}
-      />
-    },
-    {
-      id: 'goals',
-      component: <GoalsScreen 
-        onNext={onComplete} 
-        onBack={() => setCurrentStep(1)}
-        showBack={true}
-      />
+  const nextSlide = () => {
+    if (api) {
+      api.scrollNext();
     }
-  ];
+  };
+
+  const prevSlide = () => {
+    if (api) {
+      api.scrollPrev();
+    }
+  };
+
+  const goToComplete = () => {
+    onComplete();
+  };
+
+  // Effet pour suivre le slide actuel
+  useState(() => {
+    if (!api) return;
+
+    api.on("select", () => {
+      setCurrent(api.selectedScrollSnap());
+    });
+  });
 
   return (
-    <div className="min-h-screen">
-      {steps[currentStep].component}
+    <div className="min-h-screen relative">
+      <Carousel 
+        setApi={setApi} 
+        className="w-full h-screen"
+        opts={{
+          align: "start",
+          loop: false,
+          dragFree: false,
+        }}
+      >
+        <CarouselContent className="h-screen">
+          <CarouselItem className="h-full">
+            <WelcomeScreen onNext={nextSlide} showBack={false} />
+          </CarouselItem>
+          <CarouselItem className="h-full">
+            <PresentationScreen onNext={nextSlide} onBack={prevSlide} showBack={true} />
+          </CarouselItem>
+          <CarouselItem className="h-full">
+            <GoalsScreen onNext={goToComplete} onBack={prevSlide} showBack={true} />
+          </CarouselItem>
+        </CarouselContent>
+      </Carousel>
+      
+      {/* Indicateur de progression en bas */}
+      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex gap-2 z-10">
+        {[0, 1, 2].map((index) => (
+          <div
+            key={index}
+            className={`w-3 h-3 rounded-full transition-all duration-300 ${
+              current === index ? 'bg-white shadow-lg' : 'bg-white/40'
+            }`}
+          />
+        ))}
+      </div>
     </div>
   );
 };
@@ -76,12 +109,6 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
           </div>
         </div>
 
-        {/* Navigation dots */}
-        <div className="flex gap-2 mb-6">
-          <div className="w-3 h-3 rounded-full bg-white"></div>
-          <div className="w-3 h-3 rounded-full bg-white/40"></div>
-          <div className="w-3 h-3 rounded-full bg-white/40"></div>
-        </div>
 
         <Button 
           onClick={onNext}
@@ -142,12 +169,6 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
           </div>
         </div>
 
-        {/* Navigation dots */}
-        <div className="flex gap-2 mb-6">
-          <div className="w-3 h-3 rounded-full bg-gray-300"></div>
-          <div className="w-3 h-3 rounded-full bg-secondary"></div>
-          <div className="w-3 h-3 rounded-full bg-gray-300"></div>
-        </div>
 
         <Button 
           onClick={onNext}
@@ -208,12 +229,6 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
           </div>
         </div>
 
-        {/* Navigation dots */}
-        <div className="flex gap-2 mb-6">
-          <div className="w-3 h-3 rounded-full bg-gray-300"></div>
-          <div className="w-3 h-3 rounded-full bg-gray-300"></div>
-          <div className="w-3 h-3 rounded-full bg-secondary"></div>
-        </div>
 
         <Button 
           onClick={onNext}
