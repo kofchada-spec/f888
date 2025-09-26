@@ -22,12 +22,18 @@ export const useMapClickLimiter = (maxAttempts: number = 3) => {
     setIsLocked(false);
   }, []);
 
+  const resetToDefault = useCallback(() => {
+    // Ne remet PAS le compteur à zéro, garde le lock
+    // Juste pour signaler qu'on veut revenir à l'itinéraire par défaut
+  }, []);
+
   return {
     attemptCount,
     canClick,
     isLocked,
     incrementAttempts,
     reset,
+    resetToDefault,
     remainingAttempts: Math.max(0, maxAttempts - attemptCount)
   };
 };

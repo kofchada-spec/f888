@@ -29,7 +29,8 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
     routeGeoJSON?: any;
   } | null>(null);
   
-  const { attemptCount, canClick, isLocked, incrementAttempts, reset, remainingAttempts } = useMapClickLimiter(3);
+  const [hasReset, setHasReset] = useState(false);
+  const { attemptCount, canClick, isLocked, incrementAttempts, reset, resetToDefault, remainingAttempts } = useMapClickLimiter(3);
 
   const handleRouteCalculated = (data: {
     distance: number;
@@ -42,6 +43,11 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
   }) => {
     setRouteData(data);
     setIsReadyToStart(true);
+  };
+
+  const handleResetToDefault = () => {
+    setHasReset(true);
+    resetToDefault();
   };
 
   const handleStartWalk = () => {
@@ -136,6 +142,10 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
           <EnhancedMap 
             planningData={planningData}
             onRouteCalculated={handleRouteCalculated}
+            canClick={canClick}
+            onMapClick={incrementAttempts}
+            forceReset={hasReset}
+            onResetComplete={() => setHasReset(false)}
           />
           
           {/* Click Counter & Reset */}
@@ -147,7 +157,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
             
             {isLocked && (
               <Button
-                onClick={reset}
+                onClick={handleResetToDefault}
                 size="sm"
                 variant="outline"
                 className="w-full text-xs"
