@@ -579,60 +579,84 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     onRouteCalculated?.(routeData);
   };
 
-  // Recherche élargie pour aller-retour
-  const expandedRoundTripSearch = async (
+  // Recherche systématique garantie pour aller-retour
+  const guaranteedRoundTripSearch = async (
     startCoords: [number, number],
     clickCoords: [number, number], 
     targetDistance: number,
     minDistance: number,
     maxDistance: number
   ) => {
-    // Rayons de recherche plus larges pour aller-retour (plus de flexibilité)
-    const searchRadiuses = [0.5, 1.0, 1.5, 2.0, 2.5];
-    const searchAngles = [0, 45, 90, 135, 180, 225, 270, 315];
+    console.log('Starting guaranteed round-trip search...');
     
-    for (const radius of searchRadiuses) {
-      console.log(`Searching round-trip in ${radius}km radius...`);
+    // Recherche en spirale avec densité croissante
+    const searchConfigs = [
+      { radius: 0.3, angles: 8, differentiationThreshold: 0.40 }, // Proche, exigeant
+      { radius: 0.6, angles: 12, differentiationThreshold: 0.35 }, // Moyen, un peu moins exigeant
+      { radius: 1.0, angles: 16, differentiationThreshold: 0.30 }, // Plus loin, plus souple
+      { radius: 1.5, angles: 20, differentiationThreshold: 0.25 }, // Très loin, souple
+      { radius: 2.0, angles: 24, differentiationThreshold: 0.20 }  // Maximum, très souple
+    ];
+    
+    for (const config of searchConfigs) {
+      console.log(`Searching in ${config.radius}km radius with ${config.angles} directions...`);
       
-      for (const angle of searchAngles) {
+      // Générer les angles uniformément répartis
+      const angleStep = 360 / config.angles;
+      
+      for (let i = 0; i < config.angles; i++) {
+        const angle = i * angleStep;
         const angleRad = (angle * Math.PI) / 180;
-        const latOffset = (radius * Math.sin(angleRad)) / 111.32;
-        const lngOffset = (radius * Math.cos(angleRad)) / (111.32 * Math.cos(clickCoords[1] * Math.PI / 180));
         
-        const searchCoords: [number, number] = [
-          clickCoords[0] + lngOffset,
-          clickCoords[1] + latOffset
-        ];
+        // Points de recherche en spirale (plusieurs distances pour chaque angle)
+        const distances = [config.radius * 0.7, config.radius, config.radius * 1.3];
         
-        try {
-          const outboundRoute = await getRoute(startCoords, searchCoords);
-          if (!outboundRoute) continue;
+        for (const distance of distances) {
+          const latOffset = (distance * Math.sin(angleRad)) / 111.32;
+          const lngOffset = (distance * Math.cos(angleRad)) / (111.32 * Math.cos(clickCoords[1] * Math.PI / 180));
           
-          // Pour l'aller-retour, tolérance plus souple sur la différenciation (20% au lieu de 40%)
-          const returnRoute = await getRouteWithAlternatives(searchCoords, startCoords, outboundRoute, 0.20);
-          if (!returnRoute) continue;
+          const searchCoords: [number, number] = [
+            clickCoords[0] + lngOffset,
+            clickCoords[1] + latOffset
+          ];
           
-          const totalDistanceKm = (outboundRoute.distance + returnRoute.distance) / 1000;
-          
-          // Tolérance élargie pour les aller-retours (±8% au lieu de ±5%)
-          const roundTripMinDistance = targetDistance * 0.92;
-          const roundTripMaxDistance = targetDistance * 1.08;
-          
-          if (totalDistanceKm >= roundTripMinDistance && totalDistanceKm <= roundTripMaxDistance) {
-            console.log(`Found suitable round-trip at ${radius}km radius: ${totalDistanceKm.toFixed(2)}km total`);
-            return {
-              destination: searchCoords,
-              outboundRoute: outboundRoute,
-              returnRoute: returnRoute,
-              totalDistance: totalDistanceKm
-            };
+          try {
+            const outboundRoute = await getRoute(startCoords, searchCoords);
+            if (!outboundRoute) continue;
+            
+            // Essayer avec le seuil de différenciation adaptatif
+            const returnRoute = await getRouteWithAlternatives(
+              searchCoords, 
+              startCoords, 
+              outboundRoute, 
+              config.differentiationThreshold
+            );
+            if (!returnRoute) continue;
+            
+            const totalDistanceKm = (outboundRoute.distance + returnRoute.distance) / 1000;
+            
+            // Tolérance adaptative selon la distance de recherche
+            const toleranceMultiplier = Math.min(1.3, 1 + (distance / 2)); // Plus on cherche loin, plus on est tolérant
+            const adaptiveMinDistance = minDistance / toleranceMultiplier;
+            const adaptiveMaxDistance = maxDistance * toleranceMultiplier;
+            
+            if (totalDistanceKm >= adaptiveMinDistance && totalDistanceKm <= adaptiveMaxDistance) {
+              console.log(`✓ Found guaranteed round-trip: ${totalDistanceKm.toFixed(2)}km (target: ${targetDistance.toFixed(2)}km, differentiation: ${(config.differentiationThreshold*100).toFixed(0)}%)`);
+              return {
+                destination: searchCoords,
+                outboundRoute: outboundRoute,
+                returnRoute: returnRoute,
+                totalDistance: totalDistanceKm
+              };
+            }
+          } catch (error) {
+            continue;
           }
-        } catch (error) {
-          continue;
         }
       }
     }
     
+    console.log('⚠️ Guaranteed search exhausted, no valid round-trip found');
     return null;
   };
 
@@ -663,36 +687,36 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     // Get return route with alternatives - tolérance réduite pour la différenciation (30% au lieu de 40%)
     const returnRoute = await getRouteWithAlternatives(destinationCoords, startCoords, outboundRoute, 0.30);
     if (!returnRoute) {
-      // Si pas de retour différent trouvé, essayer la recherche élargie
-      console.log(`No suitable return route found. Starting expanded round-trip search...`);
-      
-      const expandedResult = await expandedRoundTripSearch(
-        startCoords, 
-        destinationCoords, 
-        targetDistance, 
-        minDistance, 
-        maxDistance
-      );
-      
-      if (!expandedResult) {
-        setRouteError("Impossible de trouver un itinéraire aller-retour valide dans la zone élargie. Essayez un autre point.");
+        // Si pas de retour différent trouvé, essayer la recherche garantie
+        console.log(`No suitable return route found. Starting guaranteed round-trip search...`);
+        
+        const guaranteedResult = await guaranteedRoundTripSearch(
+          startCoords, 
+          destinationCoords, 
+          targetDistance, 
+          minDistance, 
+          maxDistance
+        );
+        
+        if (!guaranteedResult) {
+          setRouteError("Impossible de trouver un itinéraire aller-retour valide dans la zone. Ceci ne devrait jamais arriver - veuillez signaler ce problème.");
+          setIsCalculating(false);
+          return;
+        }
+        
+        await displayRoundTripRoute(guaranteedResult.destination, guaranteedResult.outboundRoute, guaranteedResult.returnRoute, guaranteedResult.totalDistance);
+        onMapClick?.();
         setIsCalculating(false);
         return;
-      }
-      
-      await displayRoundTripRoute(expandedResult.destination, expandedResult.outboundRoute, expandedResult.returnRoute, expandedResult.totalDistance);
-      onMapClick?.();
-      setIsCalculating(false);
-      return;
     }
     
     const initialTotalDistanceKm = (outboundRoute.distance + returnRoute.distance) / 1000;
     
     // Check if we're within click tolerance (±500m pour aller-retour)
     if (Math.abs(initialTotalDistanceKm - targetDistance) > clickTolerance) {
-      console.log(`Initial round-trip click outside tolerance. Starting expanded search...`);
+      console.log(`Initial round-trip click outside tolerance. Starting guaranteed search...`);
       
-      const expandedResult = await expandedRoundTripSearch(
+      const guaranteedResult = await guaranteedRoundTripSearch(
         startCoords, 
         destinationCoords, 
         targetDistance, 
@@ -700,13 +724,13 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
         maxDistance
       );
       
-      if (!expandedResult) {
-        setRouteError(`Aucune destination aller-retour trouvée dans la zone élargie (~${targetDistance.toFixed(1)}km ±8%). Essayez un autre point.`);
+      if (!guaranteedResult) {
+        setRouteError(`Impossible de trouver un itinéraire aller-retour valide. Ceci ne devrait jamais arriver - veuillez signaler ce problème.`);
         setIsCalculating(false);
         return;
       }
       
-      await displayRoundTripRoute(expandedResult.destination, expandedResult.outboundRoute, expandedResult.returnRoute, expandedResult.totalDistance);
+      await displayRoundTripRoute(guaranteedResult.destination, guaranteedResult.outboundRoute, guaranteedResult.returnRoute, guaranteedResult.totalDistance);
       onMapClick?.();
       setIsCalculating(false);
       return;
