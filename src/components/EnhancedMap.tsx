@@ -686,6 +686,59 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     setIsCalculating(false);
   };
 
+  // Recherche élargie de destination
+  const expandedDestinationSearch = async (
+    startCoords: [number, number],
+    clickCoords: [number, number], 
+    targetDistance: number,
+    minDistance: number,
+    maxDistance: number
+  ) => {
+    // Rayons de recherche progressifs (en km)
+    const searchRadiuses = [0.5, 1.0, 1.5, 2.0];
+    const searchAngles = [0, 45, 90, 135, 180, 225, 270, 315]; // Directions en degrés
+    
+    for (const radius of searchRadiuses) {
+      console.log(`Searching in ${radius}km radius around click point...`);
+      
+      for (const angle of searchAngles) {
+        // Convertir l'angle en radians
+        const angleRad = (angle * Math.PI) / 180;
+        
+        // Calculer les coordonnées du point de recherche
+        const latOffset = (radius * Math.sin(angleRad)) / 111.32;
+        const lngOffset = (radius * Math.cos(angleRad)) / (111.32 * Math.cos(clickCoords[1] * Math.PI / 180));
+        
+        const searchCoords: [number, number] = [
+          clickCoords[0] + lngOffset,
+          clickCoords[1] + latOffset
+        ];
+        
+        try {
+          const route = await getRoute(startCoords, searchCoords);
+          if (!route) continue;
+          
+          const distanceKm = route.distance / 1000;
+          
+          // Vérifier si la distance respecte la tolérance souhaitée (±5%)
+          if (distanceKm >= minDistance && distanceKm <= maxDistance) {
+            console.log(`Found suitable destination at ${radius}km radius: ${distanceKm.toFixed(2)}km`);
+            return {
+              destination: searchCoords,
+              route: route,
+              distance: distanceKm
+            };
+          }
+        } catch (error) {
+          console.log(`Failed to get route for search point at angle ${angle}`);
+          continue;
+        }
+      }
+    }
+    
+    return null;
+  };
+
   // Handle map click for destination selection
   const handleMapClick = async (e: mapboxgl.MapMouseEvent) => {
     if (!planningData || !userLocation || isCalculating || !canClick) return;
@@ -718,7 +771,25 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
       
       // Check if we're within click tolerance (±300m)
       if (Math.abs(initialDistanceKm - targetDistance) > clickTolerance) {
-        setRouteError(`Destination trop éloignée de l'objectif (${initialDistanceKm.toFixed(2)}km). Cliquez plus près de la zone cible (~${targetDistance.toFixed(1)}km ±300m).`);
+        console.log(`Initial click outside tolerance. Starting expanded search...`);
+        
+        // Mode "recherche élargie" - chercher automatiquement dans un rayon plus large
+        const expandedSearchResult = await expandedDestinationSearch(
+          startCoords, 
+          destinationCoords, 
+          targetDistance, 
+          minDistance, 
+          maxDistance
+        );
+        
+        if (!expandedSearchResult) {
+          setRouteError(`Aucune destination trouvée dans la zone élargie (~${targetDistance.toFixed(1)}km ±5%). Essayez un autre point.`);
+          setIsCalculating(false);
+          return;
+        }
+        
+        await displayRoute(expandedSearchResult.destination, expandedSearchResult.route, expandedSearchResult.distance);
+        onMapClick?.();
         setIsCalculating(false);
         return;
       }
