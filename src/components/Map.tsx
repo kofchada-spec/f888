@@ -363,18 +363,30 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
       // Add route immediately - stable rendering for navigation screen
       if (map.current?.isStyleLoaded()) {
         if (destination.route) {
-          console.log('Rendering preconfigured route from previous screen');
+          console.log('🗺️ Rendu route préconfigurée:', {
+            destinationId: destination.id,
+            routeType: destination.route.outboundCoordinates ? 'aller-retour' : 'simple',
+            hasOutbound: !!destination.route.outboundCoordinates,
+            hasReturn: !!destination.route.returnCoordinates,
+            outboundLength: destination.route.outboundCoordinates?.length,
+            returnLength: destination.route.returnCoordinates?.length
+          });
           addRouteFromGeometry(destination.id, destination.route, isSelected);
         } else {
+          console.log('🗺️ Génération route simple (pas de route préconfigurée)');
           addRouteLine(destination.id, userLocation, { lat: destLat, lng: destLng }, isRoundTrip, isSelected);
         }
       } else {
         map.current?.on('styledata', () => {
           if (map.current?.isStyleLoaded()) {
             if (destination.route) {
-              console.log('Rendering preconfigured route from previous screen (delayed)');
+              console.log('🗺️ Rendu route préconfigurée (différé):', {
+                destinationId: destination.id,
+                routeType: destination.route.outboundCoordinates ? 'aller-retour' : 'simple'
+              });
               addRouteFromGeometry(destination.id, destination.route, isSelected);
             } else {
+              console.log('🗺️ Génération route simple (différé)');
               addRouteLine(destination.id, userLocation, { lat: destLat, lng: destLng }, isRoundTrip, isSelected);
             }
           }
@@ -415,7 +427,18 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
     if (!map.current) return;
 
     // Check if this is a round-trip route with separate outbound/return paths
+    console.log('🗺️ addRouteFromGeometry appelée:', {
+      destId,
+      routeGeometry,
+      hasOutbound: !!routeGeometry?.outboundCoordinates,
+      hasReturn: !!routeGeometry?.returnCoordinates,
+      isSelected,
+      outboundLength: routeGeometry?.outboundCoordinates?.length,
+      returnLength: routeGeometry?.returnCoordinates?.length
+    });
+
     if (routeGeometry.outboundCoordinates && routeGeometry.returnCoordinates) {
+      console.log('✅ Affichage route aller-retour avec coordonnées séparées');
       // Remove existing routes
       const outboundLayerId = `outbound-route-${destId}`;
       const returnLayerId = `return-route-${destId}`;
@@ -434,6 +457,7 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
       });
 
       if (isSelected) {
+        console.log('🎯 Ajout des couches aller et retour sur la carte');
         // Add outbound route (green solid)
         map.current.addSource(outboundSourceId, {
           type: 'geojson',
@@ -456,7 +480,7 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
             'line-cap': 'round'
           },
           paint: {
-            'line-color': '#10b981', // Green - STATIC, no animation
+            'line-color': '#10b981', // Green - Aller
             'line-width': 5,
             'line-opacity': 0.9
           }
@@ -484,12 +508,16 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
             'line-cap': 'round'
           },
           paint: {
-            'line-color': '#3b82f6', // Blue - STATIC, no animation
+            'line-color': '#3b82f6', // Blue - Retour
             'line-width': 4,
             'line-opacity': 0.8,
-            'line-dasharray': [2, 3] // Static dashed line
+            'line-dasharray': [2, 3] // Ligne pointillée pour le retour
           }
         });
+        
+        console.log('✅ Routes aller-retour ajoutées avec succès');
+      } else {
+        console.log('⏸️ Route non sélectionnée, pas d\'affichage');
       }
     } else {
       // Legacy single route format

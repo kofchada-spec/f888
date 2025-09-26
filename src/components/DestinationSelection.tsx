@@ -446,6 +446,21 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
                   onDestinationSelect={() => {}} // Pas de sélection nécessaire avec une seule destination
                   planningData={planningData}
                 />
+                {/* Logs de debug pour les routes aller-retour */}
+                {console.log('🗺️ Données route passées au Map:', {
+                  tripType: planningData.tripType,
+                  hasRouteGeoJSON: !!activeDestination.routeGeoJSON,
+                  routeGeoJSON: activeDestination.routeGeoJSON,
+                  destinationId: activeDestination.id,
+                  coordinates: activeDestination.coordinates
+                })}
+                {activeDestination.routeGeoJSON && activeDestination.routeGeoJSON.outboundCoordinates && (
+                  console.log('✅ Route aller-retour détectée:', {
+                    outboundLength: activeDestination.routeGeoJSON.outboundCoordinates?.length,
+                    returnLength: activeDestination.routeGeoJSON.returnCoordinates?.length,
+                    samePathReturn: activeDestination.routeGeoJSON.samePathReturn
+                  })
+                )}
               </>
             ) : (
               <div className="h-full flex items-center justify-center bg-gradient-to-br from-muted/10 to-secondary/10 rounded-2xl">
