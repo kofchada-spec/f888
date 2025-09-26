@@ -38,9 +38,9 @@ serve(async (req) => {
     const targetOutKm = (planningData.tripType === 'round-trip') ? totalDistanceKm / 2 : totalDistanceKm;
     
     // Calcul durée et calories
-    const speedKmh = { slow: 4, moderate: 5, fast: 6 }[planningData.pace];
+    const speedKmh = { slow: 4, moderate: 5, fast: 6 }[planningData.pace as 'slow' | 'moderate' | 'fast'];
     const durationMin = (totalDistanceKm / speedKmh) * 60;
-    const calorieCoeff = { slow: 0.35, moderate: 0.50, fast: 0.70 }[planningData.pace];
+    const calorieCoeff = { slow: 0.35, moderate: 0.50, fast: 0.70 }[planningData.pace as 'slow' | 'moderate' | 'fast'];
     const calories = Math.round(totalDistanceKm * weightKg * calorieCoeff);
 
     // Anneau de distance pour filtrage (85% à 115% du targetOutKm, min +0.2km)
@@ -60,7 +60,7 @@ serve(async (req) => {
         const data = await response.json();
         
         if (data.features) {
-          poiCandidates.push(...data.features.map(poi => ({
+          poiCandidates.push(...data.features.map((poi: any) => ({
             ...poi,
             category: category,
             distance: calculateDistance(userLocation, { lat: poi.center[1], lng: poi.center[0] })
@@ -303,7 +303,9 @@ serve(async (req) => {
       }
     }
 
-    console.log('Generated single destination:', bestDestination.name);
+    if (bestDestination) {
+      console.log('Generated single destination:', bestDestination.name);
+    }
 
     return new Response(
       JSON.stringify({ destination: bestDestination }),
@@ -315,7 +317,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in mapbox-destinations:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: (error as Error).message }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
@@ -356,10 +358,10 @@ async function calculateRoundTripRoute(
   samePathReturn?: boolean;
 } | null> {
   const startTime = Date.now();
-  const MAX_ROUTING_TIME = 5000; // 5 seconds max
+  const MAX_ROUTING_TIME = 8000; // 8 seconds max
   
   try {
-    console.log('Starting round-trip route calculation...');
+    console.log('Starting enhanced round-trip route calculation...');
     
     // Calculate outbound route
     const outboundUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${start.lng},${start.lat};${destination.lng},${destination.lat}?geometries=geojson&steps=true&access_token=${mapboxToken}`;
@@ -373,22 +375,18 @@ async function calculateRoundTripRoute(
     const outboundRoute = outboundData.routes[0];
     console.log(`Outbound route calculated: ${(outboundRoute.distance / 1000).toFixed(2)}km`);
     
-    // Try to find alternative return routes with progressively relaxed constraints
-    const bufferSizes = [40, 30, 20]; // meters, gradually relaxed
-    const maxAttempts = 10;
     let bestReturnRoute = null;
     let minOverlap = 1.0;
     let samePathReturn = false;
     
-    // First, try basic alternatives without penalty
+    // Strategy 1: Try basic alternatives with relaxed thresholds
     try {
       const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${destination.lng},${destination.lat};${start.lng},${start.lat}?geometries=geojson&steps=true&alternatives=true&access_token=${mapboxToken}`;
       const returnResponse = await fetch(returnUrl);
       const returnData = await returnResponse.json();
       
       if (returnData.routes && returnData.routes.length > 0) {
-        // Check all alternative routes
-        for (const route of returnData.routes.slice(0, maxAttempts)) {
+        for (const route of returnData.routes.slice(0, 5)) {
           if (Date.now() - startTime > MAX_ROUTING_TIME) break;
           
           const overlap = calculatePathOverlap(
@@ -396,16 +394,18 @@ async function calculateRoundTripRoute(
             route.geometry.coordinates
           );
           
-          console.log(`Alternative route overlap: ${(overlap * 100).toFixed(1)}%`);
+          // More flexible thresholds based on route quality
+          const acceptableThreshold = overlap > 0.80 ? 0.75 : 0.60;
+          console.log(`Route overlap: ${(overlap * 100).toFixed(1)}% (threshold: ${(acceptableThreshold * 100).toFixed(0)}%)`);
           
           if (overlap < minOverlap) {
             minOverlap = overlap;
             bestReturnRoute = route;
           }
           
-          // If we found a route with ≤30% overlap, use it
-          if (overlap <= 0.30) {
-            console.log(`Found suitable alternative with ${(overlap * 100).toFixed(1)}% overlap`);
+          // Accept routes with reasonable differentiation
+          if (overlap <= acceptableThreshold) {
+            console.log(`✓ Found good alternative with ${((1-overlap) * 100).toFixed(1)}% differentiation`);
             break;
           }
         }
@@ -414,48 +414,60 @@ async function calculateRoundTripRoute(
       console.log('Error fetching basic alternatives:', error);
     }
     
-    // If no good alternative found, try waypoint-based routing
-    if ((!bestReturnRoute || minOverlap > 0.30) && Date.now() - startTime < MAX_ROUTING_TIME) {
-      console.log('Trying waypoint-based routing to avoid outbound path...');
+    // Strategy 2: Smart waypoint routing if needed
+    if ((!bestReturnRoute || minOverlap > 0.65) && Date.now() - startTime < MAX_ROUTING_TIME) {
+      console.log(`Need better route differentiation (current: ${((1-minOverlap) * 100).toFixed(1)}%), trying smart waypoints...`);
       
-      for (const bufferSize of bufferSizes) {
-        if (Date.now() - startTime > MAX_ROUTING_TIME) break;
-        
-        const waypointRoute = await calculateWaypointReturn(
-          start, 
-          destination, 
-          outboundRoute.geometry.coordinates, 
-          mapboxToken,
-          bufferSize
+      const enhancedRoutes = await calculateEnhancedWaypointRoutes(
+        start, 
+        destination, 
+        outboundRoute, 
+        mapboxToken,
+        MAX_ROUTING_TIME - (Date.now() - startTime)
+      );
+      
+      for (const route of enhancedRoutes) {
+        const overlap = calculatePathOverlap(
+          outboundRoute.geometry.coordinates,
+          route.geometry.coordinates
         );
         
-        if (waypointRoute) {
-          const waypointOverlap = calculatePathOverlap(
-            outboundRoute.geometry.coordinates,
-            waypointRoute.geometry.coordinates
-          );
-          
-          console.log(`Waypoint route (${bufferSize}m buffer) overlap: ${(waypointOverlap * 100).toFixed(1)}%`);
-          
-          if (waypointOverlap < minOverlap) {
-            minOverlap = waypointOverlap;
-            bestReturnRoute = waypointRoute;
-          }
-          
-          // If we found a route with ≤30% overlap, use it
-          if (waypointOverlap <= 0.30) {
-            console.log(`Found suitable waypoint route with ${(waypointOverlap * 100).toFixed(1)}% overlap`);
-            break;
-          }
+        console.log(`Enhanced waypoint overlap: ${(overlap * 100).toFixed(1)}%`);
+        
+        if (overlap < minOverlap) {
+          minOverlap = overlap;
+          bestReturnRoute = route;
+        }
+        
+        if (overlap <= 0.65) {
+          console.log(`✓ Enhanced route achieved ${((1-overlap) * 100).toFixed(1)}% differentiation`);
+          break;
         }
       }
     }
     
-    // Fallback: if still no good alternative, use reverse of outbound route
-    if (!bestReturnRoute || minOverlap > 0.30) {
-      console.log(`No alternative found with ≤30% overlap (best: ${(minOverlap * 100).toFixed(1)}%). Using same path return.`);
+    // Strategy 3: Create intelligent return route with strategic variation
+    if (!bestReturnRoute || minOverlap > 0.70) {
+      console.log(`Creating strategic return route (current best: ${((1-minOverlap) * 100).toFixed(1)}% different)`);
       
-      // Create reverse route from outbound route
+      const strategicRoute = await createStrategicReturnRoute(start, destination, outboundRoute, mapboxToken);
+      if (strategicRoute) {
+        const strategicOverlap = calculatePathOverlap(
+          outboundRoute.geometry.coordinates,
+          strategicRoute.geometry.coordinates
+        );
+        
+        if (strategicOverlap < minOverlap) {
+          minOverlap = strategicOverlap;
+          bestReturnRoute = strategicRoute;
+          console.log(`Strategic route improved differentiation to ${((1-strategicOverlap) * 100).toFixed(1)}%`);
+        }
+      }
+    }
+    
+    // Final fallback: enhanced reverse route
+    if (!bestReturnRoute) {
+      console.log('Using enhanced reverse route as final fallback');
       bestReturnRoute = {
         ...outboundRoute,
         geometry: {
@@ -467,7 +479,8 @@ async function calculateRoundTripRoute(
     }
     
     const totalTime = Date.now() - startTime;
-    console.log(`Round-trip calculation completed in ${totalTime}ms. Final overlap: ${(minOverlap * 100).toFixed(1)}%`);
+    const finalDifferentiation = ((1 - minOverlap) * 100).toFixed(1);
+    console.log(`✓ Round-trip completed in ${totalTime}ms with ${finalDifferentiation}% route differentiation`);
     
     return {
       outboundRoute,
@@ -566,6 +579,114 @@ function pointToSegmentDistance(point: number[], segStart: number[], segEnd: num
   const dx = point[0] - xx;
   const dy = point[1] - yy;
   return Math.sqrt(dx * dx + dy * dy);
+}
+
+// Try to calculate return route with enhanced waypoint strategies
+async function calculateEnhancedWaypointRoutes(
+  start: { lat: number; lng: number },
+  destination: { lat: number; lng: number },
+  outboundRoute: any,
+  mapboxToken: string,
+  remainingTime: number
+): Promise<any[]> {
+  const routes: any[] = [];
+  const startTime = Date.now();
+  
+  try {
+    // Strategy 1: Multiple perpendicular waypoints
+    const outboundCoords = outboundRoute.geometry.coordinates;
+    const midPoint = outboundCoords[Math.floor(outboundCoords.length / 2)];
+    
+    const bearing = Math.atan2(
+      destination.lat - start.lat,
+      destination.lng - start.lng
+    );
+    
+    // Create waypoints at different distances and angles
+    const waypointConfigs = [
+      { distance: 0.003, angle: Math.PI / 2 },     // 90° right, ~300m
+      { distance: 0.003, angle: -Math.PI / 2 },    // 90° left, ~300m
+      { distance: 0.002, angle: Math.PI / 3 },     // 60° right, ~200m
+      { distance: 0.002, angle: -Math.PI / 3 },    // 60° left, ~200m
+    ];
+    
+    for (const config of waypointConfigs) {
+      if (Date.now() - startTime > remainingTime) break;
+      
+      const waypointLat = midPoint[1] + Math.sin(bearing + config.angle) * config.distance;
+      const waypointLng = midPoint[0] + Math.cos(bearing + config.angle) * config.distance;
+      
+      try {
+        const waypointUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${destination.lng},${destination.lat};${waypointLng},${waypointLat};${start.lng},${start.lat}?geometries=geojson&steps=true&access_token=${mapboxToken}`;
+        
+        const response = await fetch(waypointUrl);
+        const data = await response.json();
+        
+        if (data.routes && data.routes.length > 0) {
+          routes.push(data.routes[0]);
+        }
+      } catch (error) {
+        console.log('Waypoint route error:', error);
+      }
+    }
+    
+    return routes;
+  } catch (error) {
+    console.log('Error in enhanced waypoint calculation:', error);
+    return routes;
+  }
+}
+
+// Create a strategic return route using intelligent routing
+async function createStrategicReturnRoute(
+  start: { lat: number; lng: number },
+  destination: { lat: number; lng: number },
+  outboundRoute: any,
+  mapboxToken: string
+): Promise<any | null> {
+  try {
+    const outboundCoords = outboundRoute.geometry.coordinates;
+    
+    // Find the quarter and three-quarter points of the outbound route
+    const quarterIndex = Math.floor(outboundCoords.length * 0.25);
+    const threeQuarterIndex = Math.floor(outboundCoords.length * 0.75);
+    
+    const quarterPoint = outboundCoords[quarterIndex];
+    const threeQuarterPoint = outboundCoords[threeQuarterIndex];
+    
+    // Create strategic waypoints that avoid the middle section of outbound route
+    const strategicWaypoints = [];
+    
+    // Calculate perpendicular offset from quarter point
+    const bearing = Math.atan2(
+      threeQuarterPoint[1] - quarterPoint[1],
+      threeQuarterPoint[0] - quarterPoint[0]
+    );
+    
+    const offsetDistance = 0.002; // ~200m
+    const perpBearing = bearing + Math.PI / 2;
+    
+    strategicWaypoints.push({
+      lat: quarterPoint[1] + Math.sin(perpBearing) * offsetDistance,
+      lng: quarterPoint[0] + Math.cos(perpBearing) * offsetDistance
+    });
+    
+    // Try routing through strategic waypoint
+    const waypoint = strategicWaypoints[0];
+    const strategicUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${destination.lng},${destination.lat};${waypoint.lng},${waypoint.lat};${start.lng},${start.lat}?geometries=geojson&steps=true&access_token=${mapboxToken}`;
+    
+    const response = await fetch(strategicUrl);
+    const data = await response.json();
+    
+    if (data.routes && data.routes.length > 0) {
+      return data.routes[0];
+    }
+    
+    return null;
+  } catch (error) {
+    console.log('Error creating strategic return route:', error);
+    return null;
+  }
 }
 
 // Try to calculate return route with waypoints to avoid the outbound path
@@ -773,12 +894,12 @@ async function generateThreeDestinations(
   
   // Fallback si moins de 3 destinations trouvées
   while (destinations.length < 3) {
-    const angle = (destinations.length * 120) * (Math.PI / 180);
-    const distance = targetOutKm * (1 + destinations.length * 0.1);
-    const distanceInDegrees = distance / 111.32;
+    const angle: number = (destinations.length * 120) * (Math.PI / 180);
+    const distance: number = targetOutKm * (1 + destinations.length * 0.1);
+    const distanceInDegrees: number = distance / 111.32;
     
-    const destLat = userLocation.lat + Math.sin(angle) * distanceInDegrees;
-    const destLng = userLocation.lng + Math.cos(angle) * distanceInDegrees;
+    const destLat: number = userLocation.lat + Math.sin(angle) * distanceInDegrees;
+    const destLng: number = userLocation.lng + Math.cos(angle) * distanceInDegrees;
     
     // Calculer la route réelle même pour les destinations fallback
     try {
