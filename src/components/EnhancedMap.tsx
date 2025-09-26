@@ -430,7 +430,11 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     // Calculate route data
     const calories = calculateCalories(routeDistanceKm, planningData.weight, planningData.pace);
     const durationMin = Math.round(route.duration / 60);
-    const steps = parseInt(planningData.steps);
+    
+    // Calculate steps based on actual route distance instead of target steps
+    const heightInMeters = parseFloat(planningData.height);
+    const strideLength = 0.415 * heightInMeters;
+    const steps = Math.round((routeDistanceKm * 1000) / strideLength);
 
     const routeData = {
       distance: routeDistanceKm,
