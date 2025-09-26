@@ -698,12 +698,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
             
             const totalDistanceKm = (outboundRoute.distance + returnRoute.distance) / 1000;
             
-            // Tolérance adaptative selon la distance de recherche
-            const toleranceMultiplier = Math.min(1.3, 1 + (distance / 2)); // Plus on cherche loin, plus on est tolérant
-            const adaptiveMinDistance = minDistance / toleranceMultiplier;
-            const adaptiveMaxDistance = maxDistance * toleranceMultiplier;
-            
-            if (totalDistanceKm >= adaptiveMinDistance && totalDistanceKm <= adaptiveMaxDistance) {
+            // Respect strict ±5% tolerance without adaptive scaling
+            if (totalDistanceKm >= minDistance && totalDistanceKm <= maxDistance) {
               console.log(`✓ Found guaranteed round-trip: ${totalDistanceKm.toFixed(2)}km (target: ${targetDistance.toFixed(2)}km, differentiation: ${(config.differentiationThreshold*100).toFixed(0)}%)`);
               return {
                 destination: searchCoords,
