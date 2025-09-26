@@ -714,7 +714,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     return null;
   };
 
-  // Smart route search for round-trip with ±5% distance tolerance
+  // Smart route search for round-trip with ±5% distance tolerance (completely refactored for speed)
   const findSuitableRoundTripRoute = async (clickedCoords: mapboxgl.LngLat) => {
     if (!planningData || !userLocation) return;
     
@@ -722,7 +722,6 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     const tolerance = 0.05; // 5%
     const minDistance = targetDistance * (1 - tolerance);
     const maxDistance = targetDistance * (1 + tolerance);
-    const clickTolerance = 0.50; // Tolérance élargie à 500m pour aller-retour
     
     setIsCalculating(true);
     setRouteError(null);
@@ -730,46 +729,20 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     const destinationCoords: [number, number] = [clickedCoords.lng, clickedCoords.lat];
     const startCoords: [number, number] = [userLocation.lng, userLocation.lat];
     
-    // Get initial outbound route
-    const outboundRoute = await getRoute(startCoords, destinationCoords);
-    if (!outboundRoute) {
-      setRouteError("Impossible de calculer l'itinéraire aller.");
-      setIsCalculating(false);
-      return;
-    }
+    console.log(`Looking for round-trip route: ${minDistance.toFixed(2)}-${maxDistance.toFixed(2)}km`);
     
-    // Get return route with alternatives - tolérance réduite pour la différenciation (30% au lieu de 40%)
-    const returnRoute = await getRouteWithAlternatives(destinationCoords, startCoords, outboundRoute, 0.30);
-    if (!returnRoute) {
-        // Si pas de retour différent trouvé, essayer la recherche garantie
-        console.log(`No suitable return route found. Starting guaranteed round-trip search...`);
-        
-        const guaranteedResult = await guaranteedRoundTripSearch(
-          startCoords, 
-          destinationCoords, 
-          targetDistance, 
-          minDistance, 
-          maxDistance
-        );
-        
-        if (!guaranteedResult) {
-          setRouteError("Impossible de trouver un itinéraire aller-retour valide dans la zone. Ceci ne devrait jamais arriver - veuillez signaler ce problème.");
-          setIsCalculating(false);
-          return;
-        }
-        
-        await displayRoundTripRoute(guaranteedResult.destination, guaranteedResult.outboundRoute, guaranteedResult.returnRoute, guaranteedResult.totalDistance);
+    try {
+      // Stratégie 1: Essayer directement le point cliqué
+      const directResult = await tryDirectRoundTrip(startCoords, destinationCoords, minDistance, maxDistance);
+      if (directResult) {
+        await displayRoundTripRoute(directResult.destination, directResult.outboundRoute, directResult.returnRoute, directResult.totalDistance);
         onMapClick?.();
         setIsCalculating(false);
         return;
-    }
-    
-    const initialTotalDistanceKm = (outboundRoute.distance + returnRoute.distance) / 1000;
-    
-    // Check if we're within click tolerance (±500m pour aller-retour)
-    if (Math.abs(initialTotalDistanceKm - targetDistance) > clickTolerance) {
-      console.log(`Initial round-trip click outside tolerance. Starting guaranteed search...`);
+      }
       
+      // Stratégie 2: Si échec, recherche optimisée autour du point cliqué
+      console.log('Direct click failed, trying optimized search...');
       const guaranteedResult = await guaranteedRoundTripSearch(
         startCoords, 
         destinationCoords, 
@@ -778,83 +751,81 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
         maxDistance
       );
       
-      if (!guaranteedResult) {
-        setRouteError(`Impossible de trouver un itinéraire aller-retour valide. Ceci ne devrait jamais arriver - veuillez signaler ce problème.`);
+      if (guaranteedResult) {
+        await displayRoundTripRoute(guaranteedResult.destination, guaranteedResult.outboundRoute, guaranteedResult.returnRoute, guaranteedResult.totalDistance);
+        onMapClick?.();
         setIsCalculating(false);
         return;
       }
       
-      await displayRoundTripRoute(guaranteedResult.destination, guaranteedResult.outboundRoute, guaranteedResult.returnRoute, guaranteedResult.totalDistance);
-      onMapClick?.();
+      // Si tout échoue
+      setRouteError("Impossible de trouver un itinéraire aller-retour valide. Essayez un autre point sur la carte.");
       setIsCalculating(false);
-      return;
-    }
-    
-    // If already within ±5% tolerance, use as-is
-    if (initialTotalDistanceKm >= minDistance && initialTotalDistanceKm <= maxDistance) {
-      await displayRoundTripRoute(destinationCoords, outboundRoute, returnRoute, initialTotalDistanceKm);
-      onMapClick?.();
+      
+    } catch (error) {
+      console.error('Round-trip route error:', error);
+      setRouteError("Erreur lors du calcul de l'itinéraire aller-retour.");
       setIsCalculating(false);
-      return;
     }
-    
-    // Need to adjust: calculate direction and adjust distance to fit within ±5% range
-    console.log(`Initial round-trip distance ${initialTotalDistanceKm.toFixed(2)}km outside ±5% range. Adjusting...`);
-    
-    // Calculate direction from user to clicked point
-    const bearing = Math.atan2(
-      destinationCoords[1] - startCoords[1], 
-      destinationCoords[0] - startCoords[0]
-    );
-    
-    // For round-trip, we need to adjust so that total distance is within range
-    // Since it's round-trip, the route distance should be roughly half the target
-    let adjustedTargetDistance;
-    if (initialTotalDistanceKm < minDistance) {
-      // Too short, aim for minimum acceptable total distance
-      adjustedTargetDistance = minDistance / 2; // Half for outbound route
-    } else {
-      // Too long, aim for maximum acceptable total distance
-      adjustedTargetDistance = maxDistance / 2; // Half for outbound route
+  };
+  
+  // Fonction optimisée pour tenter un aller-retour direct
+  const tryDirectRoundTrip = async (
+    startCoords: [number, number], 
+    destinationCoords: [number, number], 
+    minDistance: number, 
+    maxDistance: number
+  ) => {
+    try {
+      // Calculer l'itinéraire aller
+      const outboundRoute = await getRoute(startCoords, destinationCoords);
+      if (!outboundRoute) return null;
+      
+      // Essayer directement un retour simple
+      const simpleReturnRoute = await getRoute(destinationCoords, startCoords);
+      if (simpleReturnRoute) {
+        const totalDistanceKm = (outboundRoute.distance + simpleReturnRoute.distance) / 1000;
+        
+        // Vérifier si c'est dans la tolérance ET si les routes sont suffisamment différentes
+        if (totalDistanceKm >= minDistance && totalDistanceKm <= maxDistance) {
+          const overlap = calculatePathOverlap(
+            outboundRoute.geometry.coordinates,
+            simpleReturnRoute.geometry.coordinates
+          );
+          
+          // Accepter si au moins 20% de différence (plus tolérant pour la vitesse)
+          if (overlap < 0.80) {
+            console.log(`✓ Direct round-trip found: ${totalDistanceKm.toFixed(2)}km, ${((1-overlap)*100).toFixed(0)}% different`);
+            return {
+              destination: destinationCoords,
+              outboundRoute: outboundRoute,
+              returnRoute: simpleReturnRoute,
+              totalDistance: totalDistanceKm
+            };
+          }
+        }
+      }
+      
+      // Si le retour simple ne marche pas, essayer avec alternatives rapides
+      const alternativeReturn = await getRouteWithAlternatives(destinationCoords, startCoords, outboundRoute, 0.20);
+      if (alternativeReturn) {
+        const totalDistanceKm = (outboundRoute.distance + alternativeReturn.distance) / 1000;
+        
+        if (totalDistanceKm >= minDistance && totalDistanceKm <= maxDistance) {
+          console.log(`✓ Alternative round-trip found: ${totalDistanceKm.toFixed(2)}km`);
+          return {
+            destination: destinationCoords,
+            outboundRoute: outboundRoute,
+            returnRoute: alternativeReturn,
+            totalDistance: totalDistanceKm
+          };
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      return null;
     }
-    
-    // Calculate adjusted destination coordinates
-    const latOffset = (adjustedTargetDistance * Math.sin(bearing)) / 111.32;
-    const lngOffset = (adjustedTargetDistance * Math.cos(bearing)) / (111.32 * Math.cos(userLocation.lat * Math.PI / 180));
-    
-    const adjustedDestination: [number, number] = [
-      startCoords[0] + lngOffset,
-      startCoords[1] + latOffset
-    ];
-    
-    // Calculate adjusted routes
-    const adjustedOutboundRoute = await getRoute(startCoords, adjustedDestination);
-    if (!adjustedOutboundRoute) {
-      setRouteError("Impossible de calculer l'itinéraire aller ajusté.");
-      setIsCalculating(false);
-      return;
-    }
-    
-    const adjustedReturnRoute = await getRouteWithAlternatives(adjustedDestination, startCoords, adjustedOutboundRoute);
-    if (!adjustedReturnRoute) {
-      setRouteError("Impossible de calculer l'itinéraire retour ajusté.");
-      setIsCalculating(false);
-      return;
-    }
-    
-    const finalTotalDistanceKm = (adjustedOutboundRoute.distance + adjustedReturnRoute.distance) / 1000;
-    console.log(`Adjusted round-trip to ${finalTotalDistanceKm.toFixed(2)}km (target range: ${minDistance.toFixed(2)}-${maxDistance.toFixed(2)}km)`);
-    
-    // Verify that the final route distance is still within ±5% tolerance
-    if (finalTotalDistanceKm < minDistance || finalTotalDistanceKm > maxDistance) {
-      setRouteError(`Impossible d'ajuster l'itinéraire aller-retour dans la tolérance ±5% (${finalTotalDistanceKm.toFixed(2)}km). Essayez un autre point.`);
-      setIsCalculating(false);
-      return;
-    }
-    
-    await displayRoundTripRoute(adjustedDestination, adjustedOutboundRoute, adjustedReturnRoute, finalTotalDistanceKm);
-    onMapClick?.();
-    setIsCalculating(false);
   };
 
   // Recherche élargie de destination
