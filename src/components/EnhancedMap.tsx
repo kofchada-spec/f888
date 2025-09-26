@@ -585,6 +585,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     const tolerance = 0.05; // 5%
     const minDistance = targetDistance * (1 - tolerance);
     const maxDistance = targetDistance * (1 + tolerance);
+    const clickTolerance = 0.30; // 300m tolerance for accepting clicks
 
     setIsCalculating(true);
     setRouteError(null);
@@ -600,15 +601,64 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
       return;
     }
 
-    const routeDistanceKm = route.distance / 1000;
+    const initialDistanceKm = route.distance / 1000;
     
-    if (routeDistanceKm < minDistance || routeDistanceKm > maxDistance) {
-      setRouteError(`Itinéraire hors de portée (${routeDistanceKm.toFixed(2)}km). Distance cible: ${targetDistance.toFixed(2)}km (±5%).`);
+    // Check if we're within click tolerance (±300m)
+    if (Math.abs(initialDistanceKm - targetDistance) > clickTolerance) {
+      setRouteError(`Destination trop éloignée de l'objectif (${initialDistanceKm.toFixed(2)}km). Cliquez plus près de la zone cible (~${targetDistance.toFixed(1)}km ±300m).`);
       setIsCalculating(false);
       return;
     }
 
-    await displayRoute(destinationCoords, route, routeDistanceKm);
+    // If already within ±5% tolerance, use as-is
+    if (initialDistanceKm >= minDistance && initialDistanceKm <= maxDistance) {
+      await displayRoute(destinationCoords, route, initialDistanceKm);
+      setIsCalculating(false);
+      return;
+    }
+
+    // Need to adjust: calculate direction and adjust distance to fit within ±5% range
+    console.log(`Initial distance ${initialDistanceKm.toFixed(2)}km outside ±5% range. Adjusting...`);
+    
+    // Calculate direction from user to clicked point
+    const bearing = Math.atan2(
+      destinationCoords[1] - startCoords[1], 
+      destinationCoords[0] - startCoords[0]
+    );
+
+    // Determine target distance within acceptable range
+    let adjustedTargetDistance;
+    if (initialDistanceKm < minDistance) {
+      // Too short, aim for minimum acceptable distance
+      adjustedTargetDistance = minDistance;
+    } else {
+      // Too long, aim for maximum acceptable distance
+      adjustedTargetDistance = maxDistance;
+    }
+
+    // Calculate adjusted destination coordinates
+    // Convert km to approximate degrees (rough approximation)
+    const latOffset = (adjustedTargetDistance * Math.sin(bearing)) / 111.32; // 1 degree lat ≈ 111.32 km
+    const lngOffset = (adjustedTargetDistance * Math.cos(bearing)) / (111.32 * Math.cos(userLocation.lat * Math.PI / 180));
+    
+    const adjustedDestination: [number, number] = [
+      startCoords[0] + lngOffset,
+      startCoords[1] + latOffset
+    ];
+
+    // Calculate route to adjusted destination
+    const adjustedRoute = await getRoute(startCoords, adjustedDestination);
+    
+    if (!adjustedRoute) {
+      setRouteError("Impossible de calculer l'itinéraire ajusté.");
+      setIsCalculating(false);
+      return;
+    }
+
+    const finalDistanceKm = adjustedRoute.distance / 1000;
+    console.log(`Adjusted to ${finalDistanceKm.toFixed(2)}km (target range: ${minDistance.toFixed(2)}-${maxDistance.toFixed(2)}km)`);
+
+    await displayRoute(adjustedDestination, adjustedRoute, finalDistanceKm);
     setIsCalculating(false);
   };
 
