@@ -580,9 +580,6 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
   // Handle map click for destination selection
   const handleMapClick = async (e: mapboxgl.MapMouseEvent) => {
     if (!planningData || !userLocation || isCalculating || !canClick) return;
-
-    // Increment attempts when clicking
-    onMapClick?.();
     
     setIsManualSelection(true);
     const targetDistance = calculateTargetDistance(planningData.steps, planningData.height);
@@ -617,6 +614,10 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     // If already within ±5% tolerance, use as-is
     if (initialDistanceKm >= minDistance && initialDistanceKm <= maxDistance) {
       await displayRoute(destinationCoords, route, initialDistanceKm);
+      
+      // Increment attempts only when a valid route is found
+      onMapClick?.();
+      
       setIsCalculating(false);
       return;
     }
@@ -663,6 +664,10 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     console.log(`Adjusted to ${finalDistanceKm.toFixed(2)}km (target range: ${minDistance.toFixed(2)}-${maxDistance.toFixed(2)}km)`);
 
     await displayRoute(adjustedDestination, adjustedRoute, finalDistanceKm);
+    
+    // Increment attempts only when a valid route is found
+    onMapClick?.();
+    
     setIsCalculating(false);
   };
 
