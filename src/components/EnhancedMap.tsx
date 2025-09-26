@@ -663,6 +663,13 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     const finalDistanceKm = adjustedRoute.distance / 1000;
     console.log(`Adjusted to ${finalDistanceKm.toFixed(2)}km (target range: ${minDistance.toFixed(2)}-${maxDistance.toFixed(2)}km)`);
 
+    // Verify that the final route distance is still within ±5% tolerance
+    if (finalDistanceKm < minDistance || finalDistanceKm > maxDistance) {
+      setRouteError(`Impossible d'ajuster l'itinéraire dans la tolérance ±5% (${finalDistanceKm.toFixed(2)}km). Essayez un autre point.`);
+      setIsCalculating(false);
+      return;
+    }
+
     await displayRoute(adjustedDestination, adjustedRoute, finalDistanceKm);
     
     // Increment attempts only when a valid route is found
