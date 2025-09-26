@@ -314,15 +314,15 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
             bestRoute = route;
           }
           
-          // If we found a route with ≤30% overlap (70% different), use it
-          if (overlap <= 0.30) {
+          // If we found a route with ≤40% overlap (60% different), use it
+          if (overlap <= 0.40) {
             console.log(`Found route with ${((1 - overlap) * 100).toFixed(1)}% differentiation`);
             return route;
           }
         }
         
-        // If no route meets 70% criteria, try waypoint routing
-        if (minOverlap > 0.30) {
+        // If no route meets 60% criteria, try waypoint routing
+        if (minOverlap > 0.40) {
           console.log(`Best direct alternative only ${((1 - minOverlap) * 100).toFixed(1)}% different, trying waypoints...`);
           
           const waypoints = generateAvoidanceWaypoints(start, end, outboundRoute.geometry.coordinates);
@@ -344,7 +344,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
                   
                   console.log(`Waypoint route overlap: ${(waypointOverlap * 100).toFixed(1)}%`);
                   
-                  if (waypointOverlap <= 0.30) {
+                  if (waypointOverlap <= 0.40) {
                     console.log(`Waypoint route achieved ${((1 - waypointOverlap) * 100).toFixed(1)}% differentiation`);
                     return waypointRoute;
                   }
