@@ -578,105 +578,220 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     onRouteCalculated?.(routeData);
   };
 
-  // Handle map click for destination selection
-  const handleMapClick = async (e: mapboxgl.MapMouseEvent) => {
-    if (!planningData || !userLocation || isCalculating || !canClick) return;
+  // Smart route search for round-trip with ±5% distance tolerance
+  const findSuitableRoundTripRoute = async (clickedCoords: mapboxgl.LngLat) => {
+    if (!planningData || !userLocation) return;
     
-    setIsManualSelection(true);
     const targetDistance = calculateTargetDistance(planningData.steps, planningData.height);
     const tolerance = 0.05; // 5%
     const minDistance = targetDistance * (1 - tolerance);
     const maxDistance = targetDistance * (1 + tolerance);
     const clickTolerance = 0.30; // 300m tolerance for accepting clicks
-
+    
     setIsCalculating(true);
     setRouteError(null);
-
-    const destinationCoords: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+    
+    const destinationCoords: [number, number] = [clickedCoords.lng, clickedCoords.lat];
     const startCoords: [number, number] = [userLocation.lng, userLocation.lat];
-
-    const route = await getRoute(startCoords, destinationCoords);
     
-    if (!route) {
-      setRouteError("Impossible de calculer l'itinéraire.");
+    // Get initial outbound route
+    const outboundRoute = await getRoute(startCoords, destinationCoords);
+    if (!outboundRoute) {
+      setRouteError("Impossible de calculer l'itinéraire aller.");
       setIsCalculating(false);
       return;
     }
-
-    const initialDistanceKm = route.distance / 1000;
     
-    // Check if we're within click tolerance (±300m)
-    if (Math.abs(initialDistanceKm - targetDistance) > clickTolerance) {
-      setRouteError(`Destination trop éloignée de l'objectif (${initialDistanceKm.toFixed(2)}km). Cliquez plus près de la zone cible (~${targetDistance.toFixed(1)}km ±300m).`);
+    // Get return route with alternatives
+    const returnRoute = await getRouteWithAlternatives(destinationCoords, startCoords, outboundRoute);
+    if (!returnRoute) {
+      setRouteError("Impossible de calculer l'itinéraire retour.");
       setIsCalculating(false);
       return;
     }
-
+    
+    const initialTotalDistanceKm = (outboundRoute.distance + returnRoute.distance) / 1000;
+    
+    // Check if we're within click tolerance (±300m for total distance)
+    if (Math.abs(initialTotalDistanceKm - targetDistance) > clickTolerance) {
+      setRouteError(`Destination trop éloignée de l'objectif (${initialTotalDistanceKm.toFixed(2)}km total). Cliquez plus près de la zone cible (~${targetDistance.toFixed(1)}km ±300m).`);
+      setIsCalculating(false);
+      return;
+    }
+    
     // If already within ±5% tolerance, use as-is
-    if (initialDistanceKm >= minDistance && initialDistanceKm <= maxDistance) {
-      await displayRoute(destinationCoords, route, initialDistanceKm);
-      
-      // Increment attempts only when a valid route is found
+    if (initialTotalDistanceKm >= minDistance && initialTotalDistanceKm <= maxDistance) {
+      await displayRoundTripRoute(destinationCoords, outboundRoute, returnRoute, initialTotalDistanceKm);
       onMapClick?.();
-      
       setIsCalculating(false);
       return;
     }
-
+    
     // Need to adjust: calculate direction and adjust distance to fit within ±5% range
-    console.log(`Initial distance ${initialDistanceKm.toFixed(2)}km outside ±5% range. Adjusting...`);
+    console.log(`Initial round-trip distance ${initialTotalDistanceKm.toFixed(2)}km outside ±5% range. Adjusting...`);
     
     // Calculate direction from user to clicked point
     const bearing = Math.atan2(
       destinationCoords[1] - startCoords[1], 
       destinationCoords[0] - startCoords[0]
     );
-
-    // Determine target distance within acceptable range
+    
+    // For round-trip, we need to adjust so that total distance is within range
+    // Since it's round-trip, the route distance should be roughly half the target
     let adjustedTargetDistance;
-    if (initialDistanceKm < minDistance) {
-      // Too short, aim for minimum acceptable distance
-      adjustedTargetDistance = minDistance;
+    if (initialTotalDistanceKm < minDistance) {
+      // Too short, aim for minimum acceptable total distance
+      adjustedTargetDistance = minDistance / 2; // Half for outbound route
     } else {
-      // Too long, aim for maximum acceptable distance
-      adjustedTargetDistance = maxDistance;
+      // Too long, aim for maximum acceptable total distance
+      adjustedTargetDistance = maxDistance / 2; // Half for outbound route
     }
-
+    
     // Calculate adjusted destination coordinates
-    // Convert km to approximate degrees (rough approximation)
-    const latOffset = (adjustedTargetDistance * Math.sin(bearing)) / 111.32; // 1 degree lat ≈ 111.32 km
+    const latOffset = (adjustedTargetDistance * Math.sin(bearing)) / 111.32;
     const lngOffset = (adjustedTargetDistance * Math.cos(bearing)) / (111.32 * Math.cos(userLocation.lat * Math.PI / 180));
     
     const adjustedDestination: [number, number] = [
       startCoords[0] + lngOffset,
       startCoords[1] + latOffset
     ];
-
-    // Calculate route to adjusted destination
-    const adjustedRoute = await getRoute(startCoords, adjustedDestination);
     
-    if (!adjustedRoute) {
-      setRouteError("Impossible de calculer l'itinéraire ajusté.");
+    // Calculate adjusted routes
+    const adjustedOutboundRoute = await getRoute(startCoords, adjustedDestination);
+    if (!adjustedOutboundRoute) {
+      setRouteError("Impossible de calculer l'itinéraire aller ajusté.");
       setIsCalculating(false);
       return;
     }
-
-    const finalDistanceKm = adjustedRoute.distance / 1000;
-    console.log(`Adjusted to ${finalDistanceKm.toFixed(2)}km (target range: ${minDistance.toFixed(2)}-${maxDistance.toFixed(2)}km)`);
-
+    
+    const adjustedReturnRoute = await getRouteWithAlternatives(adjustedDestination, startCoords, adjustedOutboundRoute);
+    if (!adjustedReturnRoute) {
+      setRouteError("Impossible de calculer l'itinéraire retour ajusté.");
+      setIsCalculating(false);
+      return;
+    }
+    
+    const finalTotalDistanceKm = (adjustedOutboundRoute.distance + adjustedReturnRoute.distance) / 1000;
+    console.log(`Adjusted round-trip to ${finalTotalDistanceKm.toFixed(2)}km (target range: ${minDistance.toFixed(2)}-${maxDistance.toFixed(2)}km)`);
+    
     // Verify that the final route distance is still within ±5% tolerance
-    if (finalDistanceKm < minDistance || finalDistanceKm > maxDistance) {
-      setRouteError(`Impossible d'ajuster l'itinéraire dans la tolérance ±5% (${finalDistanceKm.toFixed(2)}km). Essayez un autre point.`);
+    if (finalTotalDistanceKm < minDistance || finalTotalDistanceKm > maxDistance) {
+      setRouteError(`Impossible d'ajuster l'itinéraire aller-retour dans la tolérance ±5% (${finalTotalDistanceKm.toFixed(2)}km). Essayez un autre point.`);
       setIsCalculating(false);
       return;
     }
-
-    await displayRoute(adjustedDestination, adjustedRoute, finalDistanceKm);
     
-    // Increment attempts only when a valid route is found
+    await displayRoundTripRoute(adjustedDestination, adjustedOutboundRoute, adjustedReturnRoute, finalTotalDistanceKm);
     onMapClick?.();
-    
     setIsCalculating(false);
+  };
+
+  // Handle map click for destination selection
+  const handleMapClick = async (e: mapboxgl.MapMouseEvent) => {
+    if (!planningData || !userLocation || isCalculating || !canClick) return;
+    
+    setIsManualSelection(true);
+    
+    if (planningData.tripType === 'one-way') {
+      // Handle one-way route with smart search
+      const targetDistance = calculateTargetDistance(planningData.steps, planningData.height);
+      const tolerance = 0.05; // 5%
+      const minDistance = targetDistance * (1 - tolerance);
+      const maxDistance = targetDistance * (1 + tolerance);
+      const clickTolerance = 0.30; // 300m tolerance for accepting clicks
+
+      setIsCalculating(true);
+      setRouteError(null);
+
+      const destinationCoords: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+      const startCoords: [number, number] = [userLocation.lng, userLocation.lat];
+
+      const route = await getRoute(startCoords, destinationCoords);
+      
+      if (!route) {
+        setRouteError("Impossible de calculer l'itinéraire.");
+        setIsCalculating(false);
+        return;
+      }
+
+      const initialDistanceKm = route.distance / 1000;
+      
+      // Check if we're within click tolerance (±300m)
+      if (Math.abs(initialDistanceKm - targetDistance) > clickTolerance) {
+        setRouteError(`Destination trop éloignée de l'objectif (${initialDistanceKm.toFixed(2)}km). Cliquez plus près de la zone cible (~${targetDistance.toFixed(1)}km ±300m).`);
+        setIsCalculating(false);
+        return;
+      }
+
+      // If already within ±5% tolerance, use as-is
+      if (initialDistanceKm >= minDistance && initialDistanceKm <= maxDistance) {
+        await displayRoute(destinationCoords, route, initialDistanceKm);
+        
+        // Increment attempts only when a valid route is found
+        onMapClick?.();
+        
+        setIsCalculating(false);
+        return;
+      }
+
+      // Need to adjust: calculate direction and adjust distance to fit within ±5% range
+      console.log(`Initial distance ${initialDistanceKm.toFixed(2)}km outside ±5% range. Adjusting...`);
+      
+      // Calculate direction from user to clicked point
+      const bearing = Math.atan2(
+        destinationCoords[1] - startCoords[1], 
+        destinationCoords[0] - startCoords[0]
+      );
+
+      // Determine target distance within acceptable range
+      let adjustedTargetDistance;
+      if (initialDistanceKm < minDistance) {
+        // Too short, aim for minimum acceptable distance
+        adjustedTargetDistance = minDistance;
+      } else {
+        // Too long, aim for maximum acceptable distance
+        adjustedTargetDistance = maxDistance;
+      }
+
+      // Calculate adjusted destination coordinates
+      // Convert km to approximate degrees (rough approximation)
+      const latOffset = (adjustedTargetDistance * Math.sin(bearing)) / 111.32; // 1 degree lat ≈ 111.32 km
+      const lngOffset = (adjustedTargetDistance * Math.cos(bearing)) / (111.32 * Math.cos(userLocation.lat * Math.PI / 180));
+      
+      const adjustedDestination: [number, number] = [
+        startCoords[0] + lngOffset,
+        startCoords[1] + latOffset
+      ];
+
+      // Calculate route to adjusted destination
+      const adjustedRoute = await getRoute(startCoords, adjustedDestination);
+      
+      if (!adjustedRoute) {
+        setRouteError("Impossible de calculer l'itinéraire ajusté.");
+        setIsCalculating(false);
+        return;
+      }
+
+      const finalDistanceKm = adjustedRoute.distance / 1000;
+      console.log(`Adjusted to ${finalDistanceKm.toFixed(2)}km (target range: ${minDistance.toFixed(2)}-${maxDistance.toFixed(2)}km)`);
+
+      // Verify that the final route distance is still within ±5% tolerance
+      if (finalDistanceKm < minDistance || finalDistanceKm > maxDistance) {
+        setRouteError(`Impossible d'ajuster l'itinéraire dans la tolérance ±5% (${finalDistanceKm.toFixed(2)}km). Essayez un autre point.`);
+        setIsCalculating(false);
+        return;
+      }
+
+      await displayRoute(adjustedDestination, adjustedRoute, finalDistanceKm);
+      
+      // Increment attempts only when a valid route is found
+      onMapClick?.();
+      
+      setIsCalculating(false);
+    } else if (planningData.tripType === 'round-trip') {
+      // Handle round-trip route with smart search
+      await findSuitableRoundTripRoute(e.lngLat);
+    }
   };
 
   // Get Mapbox token
@@ -753,8 +868,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
         .addTo(map.current);
     }
 
-    // Add click handler for one-way routes only (if clicks are allowed)
-    if (planningData && planningData.tripType === 'one-way' && canClick) {
+    // Add click handler for both one-way and round-trip routes (if clicks are allowed)
+    if (planningData && canClick) {
       map.current.on('click', handleMapClick);
     }
 
