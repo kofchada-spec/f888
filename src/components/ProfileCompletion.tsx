@@ -12,6 +12,13 @@ interface ProfileCompletionProps {
   onComplete: () => void;
 }
 
+interface ProfileData {
+  gender: string;
+  height: number;
+  weight: number;
+  birthDate: Date;
+}
+
 const profileSchema = z.object({
   gender: z.string().min(1, "Veuillez sélectionner votre genre"),
   height: z.number()
