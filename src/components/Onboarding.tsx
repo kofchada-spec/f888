@@ -61,18 +61,6 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
           </CarouselItem>
         </CarouselContent>
       </Carousel>
-      
-      {/* Indicateur de progression en bas */}
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex gap-2 z-10">
-        {[0, 1, 2].map((index) => (
-          <div
-            key={index}
-            className={`w-3 h-3 rounded-full transition-all duration-300 ${
-              current === index ? 'bg-white shadow-lg' : 'bg-white/40'
-            }`}
-          />
-        ))}
-      </div>
     </div>
   );
 };
