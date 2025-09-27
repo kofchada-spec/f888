@@ -3,8 +3,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useAuth } from '@/hooks/useAuth';
 import { User, Scale, Ruler, Calendar } from 'lucide-react';
@@ -21,25 +21,9 @@ const profileSchema = z.object({
   weight: z.number()
     .min(30, "Entrez un poids entre 30 et 250 kg")
     .max(250, "Entrez un poids entre 30 et 250 kg"),
-  birthDate: z.string()
-    .min(1, "Veuillez entrer votre date de naissance")
-    .regex(/^\d{2}\/\d{2}\/\d{4}$/, "Format requis : JJ/MM/AAAA")
-    .refine((dateStr) => {
-      const [day, month, year] = dateStr.split('/').map(Number);
-      const date = new Date(year, month - 1, day);
-      
-      // Vérifier que la date est valide
-      if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
-        return false;
-      }
-      
-      // Vérifier l'âge minimum
-      const today = new Date();
-      const age = today.getFullYear() - year;
-      const monthDiff = today.getMonth() - (month - 1);
-      const finalAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < day) ? age - 1 : age;
-      return finalAge >= 13;
-    }, "Date invalide ou âge minimum requis : 13 ans")
+  day: z.number().min(1).max(31),
+  month: z.number().min(1).max(12),
+  year: z.number().min(1950).max(new Date().getFullYear() - 13)
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -54,7 +38,9 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
       gender: '',
       height: 1.7,
       weight: 70,
-      birthDate: ''
+      day: 15,
+      month: 6,
+      year: 1990
     }
   });
 
@@ -62,9 +48,8 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
     setIsSubmitting(true);
     
     try {
-      // Parse birth date from DD/MM/YYYY format
-      const [day, month, year] = data.birthDate.split('/').map(Number);
-      const birthDate = new Date(year, month - 1, day);
+      // Create birth date from day, month, year
+      const birthDate = new Date(data.year, data.month - 1, data.day);
       
       // Calculate age
       const today = new Date();
@@ -111,6 +96,21 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
     }
   };
 
+  // Generate day options
+  const getDaysInMonth = (month: number, year: number) => {
+    return new Date(year, month, 0).getDate();
+  };
+
+  const watchedMonth = form.watch('month');
+  const watchedYear = form.watch('year');
+  const maxDay = getDaysInMonth(watchedMonth, watchedYear);
+
+  // Months array
+  const months = [
+    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-card rounded-3xl shadow-2xl p-8 border border-border/50">
@@ -145,6 +145,7 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
                     <SelectContent>
                       <SelectItem value="homme">Homme</SelectItem>
                       <SelectItem value="femme">Femme</SelectItem>
+                      <SelectItem value="autre">Autre</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -160,18 +161,23 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
                 <FormItem>
                   <FormLabel className="flex items-center gap-2">
                     <Ruler className="w-4 h-4" />
-                    Taille (en mètres)
+                    Taille : {field.value.toFixed(2)}m
                   </FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="1.00"
-                      max="2.30"
-                      placeholder="1.70"
-                      {...field}
-                      onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                    />
+                    <div className="px-3">
+                      <Slider
+                        min={1.0}
+                        max={2.3}
+                        step={0.01}
+                        value={[field.value]}
+                        onValueChange={(value) => field.onChange(value[0])}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                        <span>1.00m</span>
+                        <span>2.30m</span>
+                      </div>
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -186,17 +192,23 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
                 <FormItem>
                   <FormLabel className="flex items-center gap-2">
                     <Scale className="w-4 h-4" />
-                    Poids (en kg)
+                    Poids : {field.value}kg
                   </FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
-                      min="30"
-                      max="250"
-                      placeholder="70"
-                      {...field}
-                      onChange={(e) => field.onChange(parseInt(e.target.value))}
-                    />
+                    <div className="px-3">
+                      <Slider
+                        min={30}
+                        max={250}
+                        step={1}
+                        value={[field.value]}
+                        onValueChange={(value) => field.onChange(value[0])}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                        <span>30kg</span>
+                        <span>250kg</span>
+                      </div>
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -204,36 +216,89 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
             />
 
             {/* Date de naissance */}
-            <FormField
-              control={form.control}
-              name="birthDate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    Date de naissance
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="JJ/MM/AAAA"
-                      {...field}
-                      onChange={(e) => {
-                        let value = e.target.value.replace(/\D/g, '');
-                        if (value.length >= 2) {
-                          value = value.substring(0, 2) + '/' + value.substring(2);
-                        }
-                        if (value.length >= 5) {
-                          value = value.substring(0, 5) + '/' + value.substring(5, 9);
-                        }
-                        field.onChange(value);
-                      }}
-                      maxLength={10}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="space-y-4">
+              <FormLabel className="flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                Date de naissance
+              </FormLabel>
+              
+              <div className="grid grid-cols-3 gap-3">
+                {/* Jour */}
+                <FormField
+                  control={form.control}
+                  name="day"
+                  render={({ field }) => (
+                    <FormItem>
+                      <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Jour" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="max-h-60">
+                          {Array.from({ length: maxDay }, (_, i) => i + 1).map((day) => (
+                            <SelectItem key={day} value={day.toString()}>
+                              {day.toString().padStart(2, '0')}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Mois */}
+                <FormField
+                  control={form.control}
+                  name="month"
+                  render={({ field }) => (
+                    <FormItem>
+                      <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Mois" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="max-h-60">
+                          {months.map((month, index) => (
+                            <SelectItem key={index + 1} value={(index + 1).toString()}>
+                              {month}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Année */}
+                <FormField
+                  control={form.control}
+                  name="year"
+                  render={({ field }) => (
+                    <FormItem>
+                      <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Année" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="max-h-60">
+                          {Array.from({ length: new Date().getFullYear() - 1950 - 13 + 1 }, (_, i) => new Date().getFullYear() - 13 - i).map((year) => (
+                            <SelectItem key={year} value={year.toString()}>
+                              {year}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
 
             <Button 
               type="submit" 
