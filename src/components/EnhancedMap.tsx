@@ -153,23 +153,29 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
 
     console.log(`🎯 Génération itinéraire aller-retour - cible: ${targetDistance.toFixed(2)}km (±5% = ${minDistance.toFixed(2)}-${maxDistance.toFixed(2)}km)`);
 
-    const maxAttempts = 10;
+    const maxAttempts = 20; // Augmentation des tentatives
     let attempt = 0;
+    let bestRoute = null;
+    let bestDifference = Infinity;
 
     while (attempt < maxAttempts) {
       attempt++;
       console.log(`Tentative ${attempt}/${maxAttempts}...`);
 
       try {
-        // Générer une destination aléatoire
-        const targetOutboundDistance = targetDistance / 2;
-        const angle = Math.random() * 2 * Math.PI;
-        const radiusVariation = 0.8 + (Math.random() * 0.4); // Variation 0.8x à 1.2x
-        const adjustedDistance = targetOutboundDistance * radiusVariation;
-        const distanceInDegrees = adjustedDistance / 111.32;
+        // Générer une destination avec une approche plus intelligente
+        // Commencer proche de la distance cible et ajuster progressivement
+        const baseAngle = Math.random() * 2 * Math.PI;
         
-        const destLat = userLocation.lat + Math.sin(angle) * distanceInDegrees;
-        const destLng = userLocation.lng + Math.cos(angle) * distanceInDegrees / Math.cos(userLocation.lat * Math.PI / 180);
+        // Viser directement la distance cible avec une petite variation
+        const targetOutboundKm = targetDistance * 0.4; // 40% pour l'aller
+        const targetReturnKm = targetDistance * 0.6; // 60% pour le retour (avec détour)
+        
+        // Convertir en degrés approximatifs
+        const outboundDistanceDegrees = targetOutboundKm / 111.32;
+        
+        const destLat = userLocation.lat + Math.sin(baseAngle) * outboundDistanceDegrees;
+        const destLng = userLocation.lng + Math.cos(baseAngle) * outboundDistanceDegrees / Math.cos(userLocation.lat * Math.PI / 180);
         
         // Créer l'itinéraire aller (ligne droite)
         const outboundCoordinates: [number, number][] = [
@@ -177,15 +183,16 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
           [destLng, destLat]
         ];
         
-        // Créer l'itinéraire retour (avec waypoint pour différencier)
-        const returnAngleOffset = 0.2 + (Math.random() * 0.4); // Variation 0.2 à 0.6 radians
-        const waypointDistance = distanceInDegrees * (0.2 + Math.random() * 0.3); // 20-50% de la distance
-        const returnWaypoint1Lat = destLat + Math.sin(angle + returnAngleOffset) * waypointDistance;
-        const returnWaypoint1Lng = destLng + Math.cos(angle + returnAngleOffset) * waypointDistance / Math.cos(destLat * Math.PI / 180);
+        // Créer l'itinéraire retour avec un détour calculé pour atteindre la distance cible
+        const returnAngle = baseAngle + Math.PI + (Math.random() - 0.5) * 0.8; // Angle opposé avec variation
+        const detourDistanceDegrees = (targetReturnKm - targetOutboundKm) / 111.32;
+        
+        const waypointLat = destLat + Math.sin(returnAngle) * detourDistanceDegrees * 0.3;
+        const waypointLng = destLng + Math.cos(returnAngle) * detourDistanceDegrees * 0.3 / Math.cos(destLat * Math.PI / 180);
         
         const returnCoordinates: [number, number][] = [
           [destLng, destLat],
-          [returnWaypoint1Lng, returnWaypoint1Lat],
+          [waypointLng, waypointLat],
           [userLocation.lng, userLocation.lat]
         ];
 
@@ -197,71 +204,41 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
         
         const returnSegment1Km = calculateDistance(
           destLat, destLng,
-          returnWaypoint1Lat, returnWaypoint1Lng
+          waypointLat, waypointLng
         );
         
         const returnSegment2Km = calculateDistance(
-          returnWaypoint1Lat, returnWaypoint1Lng,
+          waypointLat, waypointLng,
           userLocation.lat, userLocation.lng
         );
         
         const totalCalculatedDistance = outboundDistanceKm + returnSegment1Km + returnSegment2Km;
+        const difference = Math.abs(totalCalculatedDistance - targetDistance);
         
-        console.log(`Tentative ${attempt}: Distance calculée = ${totalCalculatedDistance.toFixed(2)}km`);
+        console.log(`Tentative ${attempt}: Distance = ${totalCalculatedDistance.toFixed(2)}km (diff: ${difference.toFixed(2)}km)`);
+
+        // Sauvegarder la meilleure option
+        if (difference < bestDifference) {
+          bestDifference = difference;
+          bestRoute = {
+            outboundCoordinates,
+            returnCoordinates,
+            totalDistance: totalCalculatedDistance,
+            destLat,
+            destLng,
+            outboundDistanceKm,
+            returnDistanceKm: returnSegment1Km + returnSegment2Km
+          };
+        }
 
         // Vérifier si la distance respecte la tolérance ±5%
         if (totalCalculatedDistance >= minDistance && totalCalculatedDistance <= maxDistance) {
           console.log(`✅ Itinéraire valide trouvé à la tentative ${attempt} (${totalCalculatedDistance.toFixed(2)}km)`);
           
-          // Calculer les métriques
-          const calories = calculateCalories(totalCalculatedDistance, planningData.weight, planningData.pace);
-          const speed = planningData.pace === 'slow' ? 4 : planningData.pace === 'moderate' ? 5 : 6;
-          const durationMin = Math.round((totalCalculatedDistance / speed) * 60);
-          const steps = Math.round((totalCalculatedDistance * 1000) / (0.415 * parseFloat(planningData.height)));
-
-          // Envoyer les données de route
-          if (onRouteCalculated) {
-            onRouteCalculated({
-              distance: totalCalculatedDistance,
-              duration: durationMin,
-              calories,
-              steps,
-              startCoordinates: { lat: userLocation.lat, lng: userLocation.lng },
-              endCoordinates: { lat: destLat, lng: destLng },
-              routeGeoJSON: {
-                outboundCoordinates,
-                returnCoordinates,
-                samePathReturn: false
-              }
-            });
-          }
-
-          // Afficher la route sur la carte
-          const destCoords: [number, number] = [destLng, destLat];
-          
-          // Créer des objets route compatibles avec displayRoundTripRoute
-          const outboundRoute = {
-            geometry: {
-              coordinates: outboundCoordinates
-            },
-            distance: outboundDistanceKm * 1000 // en mètres
-          };
-          
-          const returnRoute = {
-            geometry: {
-              coordinates: returnCoordinates
-            },
-            distance: (returnSegment1Km + returnSegment2Km) * 1000 // en mètres
-          };
-          
-          await displayRoundTripRoute(destCoords, outboundRoute, returnRoute, totalCalculatedDistance);
-
+          await createAndDisplayRoute(bestRoute);
           setHasAutoGenerated(true);
           setIsCalculating(false);
-          console.log(`✅ Itinéraire aller-retour par défaut généré: ${totalCalculatedDistance.toFixed(2)}km (±5% respecté)`);
           return;
-        } else {
-          console.log(`❌ Tentative ${attempt}: Distance ${totalCalculatedDistance.toFixed(2)}km hors tolérance`);
         }
 
       } catch (error) {
@@ -269,10 +246,64 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
       }
     }
 
-    // Aucun itinéraire valide trouvé après toutes les tentatives
-    console.log(`❌ Aucun itinéraire trouvé dans la tolérance ±5% après ${maxAttempts} tentatives`);
-    setRouteError(`Aucun itinéraire trouvé dans la plage ±5% (${minDistance.toFixed(1)}-${maxDistance.toFixed(1)}km). Essayez de modifier vos paramètres.`);
+    // Si aucun itinéraire parfait, utiliser le meilleur trouvé si la différence est raisonnable (±10%)
+    if (bestRoute && bestDifference <= targetDistance * 0.10) {
+      console.log(`⚠️ Utilisation du meilleur itinéraire trouvé (différence: ${bestDifference.toFixed(2)}km)`);
+      await createAndDisplayRoute(bestRoute);
+      setHasAutoGenerated(true);
+      setIsCalculating(false);
+      return;
+    }
+
+    // Aucun itinéraire valide trouvé
+    console.log(`❌ Aucun itinéraire acceptable après ${maxAttempts} tentatives (meilleure diff: ${bestDifference.toFixed(2)}km)`);
+    setRouteError(`Aucun itinéraire trouvé dans la plage ±5% (${minDistance.toFixed(1)}-${maxDistance.toFixed(1)}km). Essayez de modifier vos paramètres de pas ou de taille.`);
     setIsCalculating(false);
+  };
+
+  // Fonction helper pour créer et afficher une route
+  const createAndDisplayRoute = async (routeData: any) => {
+    const { outboundCoordinates, returnCoordinates, totalDistance, destLat, destLng, outboundDistanceKm, returnDistanceKm } = routeData;
+    
+    // Calculer les métriques
+    const calories = calculateCalories(totalDistance, planningData!.weight, planningData!.pace);
+    const speed = planningData!.pace === 'slow' ? 4 : planningData!.pace === 'moderate' ? 5 : 6;
+    const durationMin = Math.round((totalDistance / speed) * 60);
+    const steps = Math.round((totalDistance * 1000) / (0.415 * parseFloat(planningData!.height)));
+
+    // Envoyer les données de route
+    if (onRouteCalculated) {
+      onRouteCalculated({
+        distance: totalDistance,
+        duration: durationMin,
+        calories,
+        steps,
+        startCoordinates: { lat: userLocation!.lat, lng: userLocation!.lng },
+        endCoordinates: { lat: destLat, lng: destLng },
+        routeGeoJSON: {
+          outboundCoordinates,
+          returnCoordinates,
+          samePathReturn: false
+        }
+      });
+    }
+
+    // Afficher la route sur la carte
+    const destCoords: [number, number] = [destLng, destLat];
+    
+    const outboundRoute = {
+      geometry: { coordinates: outboundCoordinates },
+      distance: outboundDistanceKm * 1000
+    };
+    
+    const returnRoute = {
+      geometry: { coordinates: returnCoordinates },
+      distance: returnDistanceKm * 1000
+    };
+    
+    await displayRoundTripRoute(destCoords, outboundRoute, returnRoute, totalDistance);
+    
+    console.log(`✅ Route affichée: ${totalDistance.toFixed(2)}km (${steps} pas)`);
   };
 
   // Calculate path overlap percentage between two routes
