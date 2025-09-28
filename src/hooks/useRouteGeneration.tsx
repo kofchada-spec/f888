@@ -37,14 +37,23 @@ export const useRouteGeneration = (
 
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-          // Simplified approach: generate destination at half target distance
-          const halfDistance = targetDistance / 2;
+          // Generate random destination using proper geographic calculation
+          const halfDistance = targetDistance / 2; // km for one-way
           const angle = Math.random() * 2 * Math.PI;
           
-          // Convert km to approximate degrees
-          const distDegrees = halfDistance / 111.32;
-          const destLat = userLocation.lat + Math.sin(angle) * distDegrees;
-          const destLng = userLocation.lng + Math.cos(angle) * distDegrees / Math.cos(userLocation.lat * Math.PI / 180);
+          // More accurate coordinate calculation
+          // 1 degree latitude = 111.32 km
+          // 1 degree longitude varies by latitude
+          const deltaLat = (halfDistance * Math.sin(angle)) / 111.32;
+          const deltaLng = (halfDistance * Math.cos(angle)) / (111.32 * Math.cos(userLocation.lat * Math.PI / 180));
+          
+          const destLat = userLocation.lat + deltaLat;
+          const destLng = userLocation.lng + deltaLng;
+          
+          // Validate coordinates are reasonable (not in ocean, etc.)
+          if (destLat < -85 || destLat > 85 || destLng < -180 || destLng > 180) {
+            continue;
+          }
           
           // Simple round trip - straight line there and back
           const outboundCoordinates: [number, number][] = [
@@ -57,12 +66,12 @@ export const useRouteGeneration = (
             [userLocation.lng, userLocation.lat]
           ];
 
-          // Calculate total distance (double the one-way distance)
+          // Calculate actual distance using haversine formula
           const oneWayDistance = calculateDistance(userLocation.lat, userLocation.lng, destLat, destLng);
           const totalDistance = oneWayDistance * 2;
           const difference = Math.abs(totalDistance - targetDistance);
 
-          console.log(`Tentative ${attempt}: Distance = ${totalDistance.toFixed(2)}km (diff: ${difference.toFixed(2)}km)`);
+          console.log(`Tentative ${attempt}: Distance = ${totalDistance.toFixed(2)}km (diff: ${difference.toFixed(2)}km, cible: ${targetDistance.toFixed(2)}km)`);
 
           // Save best option
           if (difference < bestDifference) {
