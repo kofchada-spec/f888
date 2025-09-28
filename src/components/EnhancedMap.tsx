@@ -69,23 +69,11 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     return Math.round(met * weightKg * timeHours);
   };
 
-  // Get route from Mapbox Directions API
+  // Get route from Mapbox Directions API (DISABLED - using default routes)
   const getRoute = async (start: [number, number], end: [number, number]) => {
-    if (!mapboxToken) return null;
-    
-    try {
-      const response = await fetch(
-        `https://api.mapbox.com/directions/v5/mapbox/walking/${start[0]},${start[1]};${end[0]},${end[1]}?geometries=geojson&access_token=${mapboxToken}`
-      );
-      
-      if (!response.ok) throw new Error('Failed to fetch route');
-      
-      const data = await response.json();
-      return data.routes[0];
-    } catch (error) {
-      console.error('Route fetch error:', error);
-      return null;
-    }
+    // Désactivé pour éviter les erreurs de rate limiting
+    console.log('🚫 Requête API Mapbox désactivée, utilisation d\'itinéraires par défaut');
+    return null;
   };
 
   // Generate automatic random destination for one-way routes
@@ -138,105 +126,92 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     setIsCalculating(false);
   };
 
-  // Generate automatic round-trip route with optimized loop patterns
+  // Generate automatic round-trip route with default pattern (NO API CALLS)
   const generateRoundTripDestination = async () => {
     if (!planningData || !userLocation || planningData.tripType !== 'round-trip') return;
 
     const targetDistance = calculateTargetDistance(planningData.steps, planningData.height);
-    const tolerance = 0.05; // 5%
-    const minDistance = targetDistance * (1 - tolerance);
-    const maxDistance = targetDistance * (1 + tolerance);
-
+    
     setIsCalculating(true);
     setRouteError(null);
 
-    console.log(`Génération d'itinéraire aller-retour optimisé - cible: ${targetDistance.toFixed(2)}km`);
+    console.log(`Génération d'itinéraire aller-retour par défaut - cible: ${targetDistance.toFixed(2)}km`);
 
-    // Stratégie améliorée : générer des destinations qui favorisent les belles boucles
-    const searchConfigs = [
-      // Destinations avec angles privilégiés pour créer des circuits intéressants
-      { baseAngles: [30, 60, 120, 150, 210, 240, 300, 330], radiusMultiplier: 0.6, priority: 'high' },
-      { baseAngles: [45, 90, 135, 180, 225, 270, 315], radiusMultiplier: 0.7, priority: 'medium' },
-      // Fallback avec plus d'angles possibles
-      { baseAngles: Array.from({length: 16}, (_, i) => i * 22.5), radiusMultiplier: 0.5, priority: 'low' }
-    ];
+    try {
+      // Générer une destination par défaut
+      const targetOutboundDistance = targetDistance / 2;
+      const angle = Math.random() * 2 * Math.PI;
+      const distanceInDegrees = targetOutboundDistance / 111.32;
+      
+      const destLat = userLocation.lat + Math.sin(angle) * distanceInDegrees;
+      const destLng = userLocation.lng + Math.cos(angle) * distanceInDegrees / Math.cos(userLocation.lat * Math.PI / 180);
+      
+      // Créer l'itinéraire aller (ligne droite)
+      const outboundCoordinates: [number, number][] = [
+        [userLocation.lng, userLocation.lat],
+        [destLng, destLat]
+      ];
+      
+      // Créer l'itinéraire retour (avec waypoint pour différencier)
+      const returnAngleOffset = 0.3;
+      const returnWaypoint1Lat = destLat + Math.sin(angle + returnAngleOffset) * (distanceInDegrees * 0.3);
+      const returnWaypoint1Lng = destLng + Math.cos(angle + returnAngleOffset) * (distanceInDegrees * 0.3) / Math.cos(destLat * Math.PI / 180);
+      
+      const returnCoordinates: [number, number][] = [
+        [destLng, destLat],
+        [returnWaypoint1Lng, returnWaypoint1Lat],
+        [userLocation.lng, userLocation.lat]
+      ];
 
-    for (const config of searchConfigs) {
-      console.log(`Essai avec stratégie ${config.priority} (${config.baseAngles.length} directions)`);
-      
-      // Mélanger les angles pour éviter les patterns prévisibles
-      const shuffledAngles = [...config.baseAngles].sort(() => Math.random() - 0.5);
-      
-      for (const baseAngle of shuffledAngles) {
-        // Variation d'angle pour plus de naturel (±15°)
-        const angleVariation = (Math.random() - 0.5) * 30;
-        const angle = baseAngle + angleVariation;
-        const angleRad = (angle * Math.PI) / 180;
-        
-        // Distance optimisée pour créer de beaux circuits
-        const targetRadius = targetDistance * config.radiusMultiplier;
-        const radiusVariation = targetRadius * 0.3 * (Math.random() - 0.5);
-        const radius = targetRadius + radiusVariation;
-        
-        // Conversion en coordonnées
-        const latOffset = (radius * Math.cos(angleRad)) / 111.32;
-        const lngOffset = (radius * Math.sin(angleRad)) / (111.32 * Math.cos(userLocation.lat * Math.PI / 180));
-        
-        const destinationCoords: [number, number] = [
-          userLocation.lng + lngOffset,
-          userLocation.lat + latOffset
-        ];
-        
-        const startCoords: [number, number] = [userLocation.lng, userLocation.lat];
-        
-        try {
-          // Obtenir l'itinéraire aller
-          const outboundRoute = await getRoute(startCoords, destinationCoords);
-          if (!outboundRoute) continue;
-          
-          // Obtenir l'itinéraire retour avec différenciation à 30% (comme configuré)
-          const returnRoute = await getRouteWithAlternatives(destinationCoords, startCoords, outboundRoute, 0.30);
-          if (!returnRoute) continue;
-          
-          const totalDistanceKm = (outboundRoute.distance + returnRoute.distance) / 1000;
-          
-          // Vérifier la tolérance de distance
-          if (totalDistanceKm >= minDistance && totalDistanceKm <= maxDistance) {
-            // Vérifier la qualité du circuit (éviter les chemins trop similaires)
-            const pathOverlap = calculatePathOverlap(outboundRoute.geometry.coordinates, returnRoute.geometry.coordinates);
-            
-            if (pathOverlap <= 0.70) { // Maximum 70% de superposition (30% de différenciation)
-              console.log(`Circuit de qualité trouvé ! Distance: ${totalDistanceKm.toFixed(2)}km, Différenciation: ${((1-pathOverlap)*100).toFixed(1)}%`);
-              await displayRoundTripRoute(destinationCoords, outboundRoute, returnRoute, totalDistanceKm);
-              setHasAutoGenerated(true);
-              setIsCalculating(false);
-              return;
-            } else {
-              console.log(`Circuit trouvé mais trop de superposition (${(pathOverlap*100).toFixed(1)}%)`);
-            }
+      // Calculer les métriques
+      const calories = calculateCalories(targetDistance, planningData.weight, planningData.pace);
+      const speed = planningData.pace === 'slow' ? 4 : planningData.pace === 'moderate' ? 5 : 6;
+      const durationMin = Math.round((targetDistance / speed) * 60);
+      const steps = Math.round((targetDistance * 1000) / (0.415 * parseFloat(planningData.height)));
+
+      // Envoyer les données de route
+      if (onRouteCalculated) {
+        onRouteCalculated({
+          distance: targetDistance,
+          duration: durationMin,
+          calories,
+          steps,
+          startCoordinates: { lat: userLocation.lat, lng: userLocation.lng },
+          endCoordinates: { lat: destLat, lng: destLng },
+          routeGeoJSON: {
+            outboundCoordinates,
+            returnCoordinates,
+            samePathReturn: false
           }
-        } catch (error) {
-          console.log(`Erreur lors du calcul pour angle ${angle.toFixed(1)}°:`, error);
-          continue;
-        }
+        });
       }
-    }
 
-    // Si aucun circuit de qualité trouvé, utiliser la recherche garantie
-    console.log('Aucun circuit de qualité trouvé, utilisation de la recherche garantie...');
-    const startCoords: [number, number] = [userLocation.lng, userLocation.lat];
-    const clickCoords = startCoords; // Simule un clic au centre
-    
-    const guaranteedResult = await guaranteedRoundTripSearch(
-      startCoords, 
-      clickCoords, 
-      targetDistance, 
-      minDistance, 
-      maxDistance
-    );
-    
-    if (!guaranteedResult) {
-      setRouteError(`Impossible de générer un itinéraire aller-retour de qualité (cible: ${targetDistance.toFixed(2)}km).`);
+      // Afficher la route sur la carte
+      const destCoords: [number, number] = [destLng, destLat];
+      
+      // Créer des objets route compatibles avec displayRoundTripRoute
+      const outboundRoute = {
+        geometry: {
+          coordinates: outboundCoordinates
+        },
+        distance: targetOutboundDistance * 1000 // en mètres
+      };
+      
+      const returnRoute = {
+        geometry: {
+          coordinates: returnCoordinates
+        },
+        distance: targetOutboundDistance * 1000 // en mètres
+      };
+      
+      displayRoundTripRoute(destCoords, outboundRoute, returnRoute, targetDistance);
+
+      setHasAutoGenerated(true);
+      console.log(`✅ Itinéraire aller-retour par défaut généré: ${targetDistance.toFixed(2)}km`);
+
+    } catch (error) {
+      console.error('Erreur génération route par défaut:', error);
+      setRouteError('Erreur lors de la génération de l\'itinéraire par défaut.');
     }
     
     setIsCalculating(false);

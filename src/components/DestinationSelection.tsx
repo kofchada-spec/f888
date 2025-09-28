@@ -275,38 +275,38 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
     }
   }, [planningData.steps, planningData.height, planningData.weight, planningData.pace]);
 
-  // For backup fallback (not used by default anymore)
-  const { 
-    currentDestination: fallbackDestination, 
-    refreshRemaining, 
-    loading: fallbackLoading, 
-    error: fallbackError, 
-    fetchDestinations, 
-    refreshDestination, 
-    resetSession,
-    canRefresh 
-  } = useSingleDestination();
+      // For backup fallback (not used by default anymore) 
+      const { 
+        currentDestination: fallbackDestination, 
+        refreshRemaining, 
+        loading: fallbackLoading, 
+        error: fallbackError, 
+        fetchDestinations, 
+        refreshDestination, 
+        resetSession,
+        canRefresh 
+      } = useSingleDestination();
 
-  // Use appropriate destination and state based on trip type
-  const activeDestination = planningData.tripType === 'one-way' ? currentDestination : defaultRoundTrip;
-  const activeLoading = planningData.tripType === 'one-way' ? loading : false; // Pas de loading pour le circuit par défaut
-  const activeError = planningData.tripType === 'one-way' ? error : null; // Pas d'erreur pour le circuit par défaut
+      // Use appropriate destination and state based on trip type
+      const activeDestination = planningData.tripType === 'one-way' ? currentDestination : defaultRoundTrip;
+      const activeLoading = planningData.tripType === 'one-way' ? loading : false; // Pas de loading pour le circuit par défaut
+      const activeError = planningData.tripType === 'one-way' ? error : null; // Pas d'erreur pour le circuit par défaut
 
-  const handleRefresh = () => {
-    if (planningData.tripType === 'one-way') {
-      if (userLocation) {
-        setCurrentDestination(null);
-        setError(null);
-        findValidOneWayDestination(userLocation);
-      }
-    } else {
-      // Pour l'aller-retour, générer un nouveau circuit par défaut avec une légère variation
-      if (userLocation) {
-        const newRoute = generateDefaultRoundTrip(userLocation);
-        setDefaultRoundTrip(newRoute);
-      }
-    }
-  };
+      const handleRefresh = () => {
+        if (planningData.tripType === 'one-way') {
+          if (userLocation) {
+            setCurrentDestination(null);
+            setError(null);
+            findValidOneWayDestination(userLocation);
+          }
+        } else {
+          // Pour l'aller-retour, générer un nouveau circuit par défaut avec une légère variation
+          if (userLocation) {
+            const newRoute = generateDefaultRoundTrip(userLocation);
+            setDefaultRoundTrip(newRoute);
+          }
+        }
+      };
 
   const handleStartWalk = () => {
     if (!activeDestination) return;
