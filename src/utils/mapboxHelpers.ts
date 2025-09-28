@@ -26,17 +26,24 @@ export const initializeMap = (
     'top-right'
   );
 
-  // Add geolocate control
-  map.addControl(
-    new mapboxgl.GeolocateControl({
-      positionOptions: {
-        enableHighAccuracy: true
-      },
-      trackUserLocation: true,
-      showUserLocation: true
-    }),
-    'top-right'
-  );
+  // Add geolocate control and trigger it automatically
+  const geolocateControl = new mapboxgl.GeolocateControl({
+    positionOptions: {
+      enableHighAccuracy: true
+    },
+    trackUserLocation: true,
+    showUserLocation: true,
+    showAccuracyCircle: false
+  });
+  
+  map.addControl(geolocateControl, 'top-right');
+  
+  // Auto-trigger geolocation on map load
+  map.on('load', () => {
+    setTimeout(() => {
+      geolocateControl.trigger();
+    }, 1000);
+  });
 
   // Error handling
   map.on('error', (e) => {

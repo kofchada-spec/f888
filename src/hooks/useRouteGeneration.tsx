@@ -17,7 +17,7 @@ export const useRouteGeneration = (
   const [routeError, setRouteError] = useState<string | null>(null);
 
   /**
-   * Generate round-trip route with ±5% tolerance validation
+   * Generate round-trip route with ±5% tolerance validation - SIMPLIFIED VERSION
    */
   const generateRoundTripRoute = useCallback(async () => {
     if (!planningData || !userLocation || planningData.tripType !== 'round-trip') return null;
@@ -28,89 +28,86 @@ export const useRouteGeneration = (
     setIsCalculating(true);
     setRouteError(null);
 
-    console.log(`🎯 Génération itinéraire aller-retour - cible: ${targetDistance.toFixed(2)}km (±5% = ${min.toFixed(2)}-${max.toFixed(2)}km)`);
+    try {
+      console.log(`🎯 Génération itinéraire aller-retour - cible: ${targetDistance.toFixed(2)}km (±5% = ${min.toFixed(2)}-${max.toFixed(2)}km)`);
 
-    const maxAttempts = 20;
-    let bestRoute = null;
-    let bestDifference = Infinity;
+      const maxAttempts = 15;
+      let bestRoute = null;
+      let bestDifference = Infinity;
 
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        // Generate destination with smart approach
-        const baseAngle = Math.random() * 2 * Math.PI;
-        const targetOutboundKm = targetDistance * 0.4; // 40% for outbound
-        const outboundDistanceDegrees = targetOutboundKm / 111.32;
-        
-        const destLat = userLocation.lat + Math.sin(baseAngle) * outboundDistanceDegrees;
-        const destLng = userLocation.lng + Math.cos(baseAngle) * outboundDistanceDegrees / Math.cos(userLocation.lat * Math.PI / 180);
-        
-        // Create outbound coordinates (straight line)
-        const outboundCoordinates: [number, number][] = [
-          [userLocation.lng, userLocation.lat],
-          [destLng, destLat]
-        ];
-        
-        // Create return route with detour
-        const returnAngle = baseAngle + Math.PI + (Math.random() - 0.5) * 0.8;
-        const detourDistanceDegrees = (targetDistance * 0.6 - targetOutboundKm) / 111.32;
-        
-        const waypointLat = destLat + Math.sin(returnAngle) * detourDistanceDegrees * 0.3;
-        const waypointLng = destLng + Math.cos(returnAngle) * detourDistanceDegrees * 0.3 / Math.cos(destLat * Math.PI / 180);
-        
-        const returnCoordinates: [number, number][] = [
-          [destLng, destLat],
-          [waypointLng, waypointLat],
-          [userLocation.lng, userLocation.lat]
-        ];
-
-        // Calculate actual distances
-        const outboundDistanceKm = calculateDistance(userLocation.lat, userLocation.lng, destLat, destLng);
-        const returnSegment1Km = calculateDistance(destLat, destLng, waypointLat, waypointLng);
-        const returnSegment2Km = calculateDistance(waypointLat, waypointLng, userLocation.lat, userLocation.lng);
-        const totalDistance = outboundDistanceKm + returnSegment1Km + returnSegment2Km;
-        const difference = Math.abs(totalDistance - targetDistance);
-
-        console.log(`Tentative ${attempt}: Distance = ${totalDistance.toFixed(2)}km (diff: ${difference.toFixed(2)}km)`);
-
-        // Save best option
-        if (difference < bestDifference) {
-          bestDifference = difference;
-          bestRoute = {
-            outboundCoordinates,
-            returnCoordinates,
-            totalDistance,
-            destLat,
-            destLng,
-            outboundDistanceKm,
-            returnDistanceKm: returnSegment1Km + returnSegment2Km
-          };
-        }
-
-        // Check if within ±5% tolerance
-        if (totalDistance >= min && totalDistance <= max) {
-          console.log(`✅ Itinéraire valide trouvé à la tentative ${attempt} (${totalDistance.toFixed(2)}km)`);
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          // Simplified approach: generate destination at half target distance
+          const halfDistance = targetDistance / 2;
+          const angle = Math.random() * 2 * Math.PI;
           
-          const routeData = createRouteData(bestRoute, planningData, userLocation);
-          setIsCalculating(false);
-          return routeData;
+          // Convert km to approximate degrees
+          const distDegrees = halfDistance / 111.32;
+          const destLat = userLocation.lat + Math.sin(angle) * distDegrees;
+          const destLng = userLocation.lng + Math.cos(angle) * distDegrees / Math.cos(userLocation.lat * Math.PI / 180);
+          
+          // Simple round trip - straight line there and back
+          const outboundCoordinates: [number, number][] = [
+            [userLocation.lng, userLocation.lat],
+            [destLng, destLat]
+          ];
+          
+          const returnCoordinates: [number, number][] = [
+            [destLng, destLat],
+            [userLocation.lng, userLocation.lat]
+          ];
+
+          // Calculate total distance (double the one-way distance)
+          const oneWayDistance = calculateDistance(userLocation.lat, userLocation.lng, destLat, destLng);
+          const totalDistance = oneWayDistance * 2;
+          const difference = Math.abs(totalDistance - targetDistance);
+
+          console.log(`Tentative ${attempt}: Distance = ${totalDistance.toFixed(2)}km (diff: ${difference.toFixed(2)}km)`);
+
+          // Save best option
+          if (difference < bestDifference) {
+            bestDifference = difference;
+            bestRoute = {
+              outboundCoordinates,
+              returnCoordinates,
+              totalDistance,
+              destLat,
+              destLng
+            };
+          }
+
+          // Check if within ±5% tolerance
+          if (totalDistance >= min && totalDistance <= max) {
+            console.log(`✅ Itinéraire valide trouvé à la tentative ${attempt} (${totalDistance.toFixed(2)}km)`);
+            
+            const routeData = createRouteData(bestRoute, planningData, userLocation);
+            setIsCalculating(false);
+            return routeData;
+          }
+        } catch (error) {
+          console.error(`Erreur tentative ${attempt}:`, error);
         }
-      } catch (error) {
-        console.error(`Erreur tentative ${attempt}:`, error);
       }
-    }
 
-    // Use best route if difference is reasonable (±10%)
-    if (bestRoute && bestDifference <= targetDistance * 0.10) {
-      console.log(`⚠️ Utilisation du meilleur itinéraire trouvé (différence: ${bestDifference.toFixed(2)}km)`);
-      const routeData = createRouteData(bestRoute, planningData, userLocation);
+      // Use best route if close enough (within ±8%)
+      if (bestRoute && bestDifference <= targetDistance * 0.08) {
+        console.log(`⚠️ Utilisation du meilleur itinéraire trouvé (différence: ${bestDifference.toFixed(2)}km)`);
+        const routeData = createRouteData(bestRoute, planningData, userLocation);
+        setIsCalculating(false);
+        return routeData;
+      }
+
+      // No valid route found
+      console.log(`❌ Aucun itinéraire acceptable après ${maxAttempts} tentatives`);
+      setRouteError(`Aucun itinéraire trouvé respectant exactement l'objectif de ${targetDistance.toFixed(1)}km (±5%). Essayez un nombre de pas différent.`);
+      
+    } catch (error) {
+      console.error('Erreur lors de la génération:', error);
+      setRouteError('Erreur lors de la génération de l\'itinéraire. Veuillez réessayer.');
+    } finally {
       setIsCalculating(false);
-      return routeData;
     }
 
-    // No valid route found
-    console.log(`❌ Aucun itinéraire acceptable après ${maxAttempts} tentatives`);
-    setRouteError(`Aucun itinéraire trouvé dans la plage ±5% (${min.toFixed(1)}-${max.toFixed(1)}km). Essayez de modifier vos paramètres.`);
-    setIsCalculating(false);
     return null;
   }, [planningData, userLocation]);
 

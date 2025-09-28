@@ -4,7 +4,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { useRouteGeneration } from '@/hooks/useRouteGeneration';
 import { useMapDisplay } from '@/hooks/useMapDisplay';
 import { initializeMap, getMapboxToken, setupMapInteractions } from '@/utils/mapboxHelpers';
-import { calculateTargetDistance, getToleranceRange } from '@/utils/routeCalculations';
+import { calculateTargetDistance, getToleranceRange, calculateDistance, calculateRouteMetrics } from '@/utils/routeCalculations';
 import { PlanningData, RouteData, Coordinates } from '@/types/route';
 import { useMapClickLimiter } from '@/hooks/useMapClickLimiter';
 
@@ -176,41 +176,95 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
       const targetDistance = calculateTargetDistance(planningData.steps, planningData.height);
       const { min, max } = getToleranceRange(targetDistance);
 
-      // For round-trip, generate route with clicked destination
-      if (planningData.tripType === 'round-trip') {
-        // Simplified click handling - just display a route to the clicked point
-        const destCoords: [number, number] = [clickedCoords.lng, clickedCoords.lat];
+        // Calculate actual distance to clicked point
+        const oneWayDistance = calculateDistance(
+          userLocation.lat, userLocation.lng,
+          clickedCoords.lat, clickedCoords.lng
+        );
+        const totalDistance = planningData.tripType === 'round-trip' ? oneWayDistance * 2 : oneWayDistance;
         
-        // Create simple round-trip coordinates
-        const outboundCoordinates: [number, number][] = [
-          [userLocation.lng, userLocation.lat],
-          [clickedCoords.lng, clickedCoords.lat]
-        ];
-        
-        const returnCoordinates: [number, number][] = [
-          [clickedCoords.lng, clickedCoords.lat],
-          [userLocation.lng, userLocation.lat]
-        ];
-
-        const routeGeoJSON = { outboundCoordinates, returnCoordinates, samePathReturn: true };
-        
-        displayRoundTripRoute(destCoords, routeGeoJSON, userLocation);
-        
-        // Calculate approximate distance for clicked route
-        const distance = targetDistance; // Use target for simplicity
-        const calories = planningData.pace === 'slow' ? distance * 50 : planningData.pace === 'moderate' ? distance * 60 : distance * 70;
-        const duration = Math.round((distance / (planningData.pace === 'slow' ? 4 : planningData.pace === 'moderate' ? 5 : 6)) * 60);
-        
-        onRouteCalculated?.({
-          distance,
-          duration,
-          calories: Math.round(calories),
-          steps: parseInt(planningData.steps),
-          startCoordinates: userLocation,
-          endCoordinates: { lat: clickedCoords.lat, lng: clickedCoords.lng },
-          routeGeoJSON
-        });
-      }
+        // Check if within ±5% tolerance
+        if (totalDistance >= min && totalDistance <= max) {
+          // Valid click - within tolerance
+          if (planningData.tripType === 'round-trip') {
+            const destCoords: [number, number] = [clickedCoords.lng, clickedCoords.lat];
+            const outboundCoordinates: [number, number][] = [
+              [userLocation.lng, userLocation.lat],
+              [clickedCoords.lng, clickedCoords.lat]
+            ];
+            const returnCoordinates: [number, number][] = [
+              [clickedCoords.lng, clickedCoords.lat],
+              [userLocation.lng, userLocation.lat]
+            ];
+            const routeGeoJSON = { outboundCoordinates, returnCoordinates, samePathReturn: true };
+            
+            displayRoundTripRoute(destCoords, routeGeoJSON, userLocation);
+            
+            const metrics = calculateRouteMetrics(totalDistance, planningData);
+            onRouteCalculated?.({
+              distance: totalDistance,
+              duration: metrics.durationMin,
+              calories: metrics.calories,
+              steps: metrics.steps,
+              startCoordinates: userLocation,
+              endCoordinates: { lat: clickedCoords.lat, lng: clickedCoords.lng },
+              routeGeoJSON
+            });
+          } else {
+            displayOneWayRoute(userLocation, { lat: clickedCoords.lat, lng: clickedCoords.lng });
+            const metrics = calculateRouteMetrics(totalDistance, planningData);
+            onRouteCalculated?.({
+              distance: totalDistance,
+              duration: metrics.durationMin,
+              calories: metrics.calories,
+              steps: metrics.steps,
+              startCoordinates: userLocation,
+              endCoordinates: { lat: clickedCoords.lat, lng: clickedCoords.lng }
+            });
+          }
+        } else {
+          // Check if within ±1000 steps tolerance (approximately ±0.7km)
+          const stepsDistance = 1000 * 0.415 * parseFloat(planningData.height) / 1000; // ~0.7km for average person
+          if (Math.abs(totalDistance - targetDistance) <= stepsDistance) {
+            // Propose alternative route
+            console.log(`Proposing alternative route - clicked: ${totalDistance.toFixed(2)}km, target: ${targetDistance.toFixed(2)}km`);
+            // Use the clicked destination but inform user it's close to objective
+            if (planningData.tripType === 'round-trip') {
+              const destCoords: [number, number] = [clickedCoords.lng, clickedCoords.lat];
+              const outboundCoordinates: [number, number][] = [
+                [userLocation.lng, userLocation.lat],
+                [clickedCoords.lng, clickedCoords.lat]
+              ];
+              const returnCoordinates: [number, number][] = [
+                [clickedCoords.lng, clickedCoords.lat],
+                [userLocation.lng, userLocation.lat]
+              ];
+              const routeGeoJSON = { outboundCoordinates, returnCoordinates, samePathReturn: true };
+              
+              displayRoundTripRoute(destCoords, routeGeoJSON, userLocation);
+              
+              const metrics = calculateRouteMetrics(totalDistance, planningData);
+              onRouteCalculated?.({
+                distance: totalDistance,
+                duration: metrics.durationMin,
+                calories: metrics.calories,
+                steps: metrics.steps,
+                startCoordinates: userLocation,
+                endCoordinates: { lat: clickedCoords.lat, lng: clickedCoords.lng },
+                routeGeoJSON
+              });
+            }
+          } else {
+            // Clicked location is too far from objective
+            const diff = totalDistance - targetDistance;
+            const message = diff > 0 
+              ? `L'endroit sélectionné est trop éloigné de votre objectif (${totalDistance.toFixed(1)}km vs ${targetDistance.toFixed(1)}km ciblé)`
+              : `L'endroit sélectionné est trop proche de votre objectif (${totalDistance.toFixed(1)}km vs ${targetDistance.toFixed(1)}km ciblé)`;
+            
+            setRouteError(message);
+            setTimeout(() => setRouteError(null), 4000);
+          }
+        }
     };
 
     map.current.on('click', handleMapClick);
