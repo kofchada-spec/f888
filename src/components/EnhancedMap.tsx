@@ -486,7 +486,32 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
 
   // Display round-trip route with different outbound and return paths
   const displayRoundTripRoute = async (destinationCoords: [number, number], outboundRoute: any, returnRoute: any, totalDistanceKm: number) => {
-    if (!planningData || !userLocation) return;
+    if (!planningData || !userLocation) {
+      console.log('❌ displayRoundTripRoute: Missing planningData or userLocation');
+      return;
+    }
+
+    if (!map.current) {
+      console.log('❌ displayRoundTripRoute: Map not available');
+      return;
+    }
+
+    if (!map.current.isStyleLoaded()) {
+      console.log('⏳ displayRoundTripRoute: Map style not loaded, waiting...');
+      map.current.once('styledata', () => {
+        if (map.current?.isStyleLoaded()) {
+          displayRoundTripRoute(destinationCoords, outboundRoute, returnRoute, totalDistanceKm);
+        }
+      });
+      return;
+    }
+
+    console.log('🗺️ displayRoundTripRoute appelée:', {
+      destinationCoords,
+      outboundCoordinates: outboundRoute?.geometry?.coordinates?.length,
+      returnCoordinates: returnRoute?.geometry?.coordinates?.length,
+      totalDistanceKm
+    });
 
     // Calculate differentiation percentage for user feedback
     const overlap = calculatePathOverlap(
