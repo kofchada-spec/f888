@@ -205,56 +205,50 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
     }
   }, [planningData.tripType]);
 
-  // Generate default round-trip route
+  // Generate default round-trip destination (real round-trip to a destination)
   const generateDefaultRoundTrip = (userLoc: { lat: number; lng: number }) => {
-    const targetDistance = calculateTargetDistance(planningData.steps, planningData.height);
+    const totalDistance = calculateTargetDistance(planningData.steps, planningData.height);
+    const targetOutboundDistance = totalDistance / 2; // Distance à la destination
     
-    // Créer un parcours naturel en forme de boucle
-    const baseRadius = targetDistance / (2 * Math.PI * 1.2); // Plus petit pour compenser les détours
-    const points = 12; // Plus de points pour un parcours plus fluide
-    const coordinates: [number, number][] = [];
+    // Générer une destination à la bonne distance
+    const angle = Math.random() * 2 * Math.PI;
+    const distanceInDegrees = targetOutboundDistance / 111.32; // Conversion approximative km vers degrés
     
-    // Point de départ (position utilisateur)
-    coordinates.push([userLoc.lng, userLoc.lat]);
+    const destLat = userLoc.lat + Math.sin(angle) * distanceInDegrees;
+    const destLng = userLoc.lng + Math.cos(angle) * distanceInDegrees / Math.cos(userLoc.lat * Math.PI / 180);
     
-    // Générer les points du parcours avec variations pour un aspect naturel
-    for (let i = 0; i <= points; i++) {
-      const angle = (2 * Math.PI * i) / points;
-      
-      // Ajouter des variations pour un parcours moins géométrique
-      const radiusVariation = 1 + (Math.sin(angle * 3) * 0.3); // Variation de ±30%
-      const radius = baseRadius * radiusVariation;
-      
-      // Ajouter un léger décalage angulaire pour éviter un cercle parfait
-      const angleOffset = Math.sin(angle * 2) * 0.2;
-      const adjustedAngle = angle + angleOffset;
-      
-      const latOffset = (radius * Math.cos(adjustedAngle)) / 111.32; // 1 degree lat ≈ 111.32 km
-      const lngOffset = (radius * Math.sin(adjustedAngle)) / (111.32 * Math.cos(userLoc.lat * Math.PI / 180));
-      
-      coordinates.push([
-        userLoc.lng + lngOffset,
-        userLoc.lat + latOffset
-      ]);
-    }
+    // Créer l'itinéraire aller (ligne droite pour la version par défaut)
+    const outboundCoordinates: [number, number][] = [
+      [userLoc.lng, userLoc.lat],
+      [destLng, destLat]
+    ];
     
-    // Retour au point de départ
-    coordinates.push([userLoc.lng, userLoc.lat]);
+    // Créer l'itinéraire retour (légèrement différent pour éviter le même chemin)
+    const returnAngleOffset = 0.3; // Petit décalage pour un chemin de retour différent
+    const returnWaypoint1Lat = destLat + Math.sin(angle + returnAngleOffset) * (distanceInDegrees * 0.3);
+    const returnWaypoint1Lng = destLng + Math.cos(angle + returnAngleOffset) * (distanceInDegrees * 0.3) / Math.cos(destLat * Math.PI / 180);
+    
+    const returnCoordinates: [number, number][] = [
+      [destLng, destLat],
+      [returnWaypoint1Lng, returnWaypoint1Lat],
+      [userLoc.lng, userLoc.lat]
+    ];
     
     // Calculer les métriques
-    const calories = calculateCalories(targetDistance, planningData.weight, planningData.pace);
+    const calories = calculateCalories(totalDistance, planningData.weight, planningData.pace);
     const speed = planningData.pace === 'slow' ? 4 : planningData.pace === 'moderate' ? 5 : 6;
-    const durationMin = Math.round((targetDistance / speed) * 60);
+    const durationMin = Math.round((totalDistance / speed) * 60);
     
     const defaultDestination: Destination = {
       id: 'default-round-trip',
-      name: 'Circuit par défaut',
-      coordinates: { lat: userLoc.lat, lng: userLoc.lng },
+      name: 'Destination par défaut',
+      coordinates: { lat: destLat, lng: destLng },
       routeGeoJSON: {
-        type: 'LineString',
-        coordinates: coordinates
+        outboundCoordinates,
+        returnCoordinates,
+        samePathReturn: false
       },
-      distanceKm: targetDistance,
+      distanceKm: totalDistance,
       durationMin,
       calories
     };
