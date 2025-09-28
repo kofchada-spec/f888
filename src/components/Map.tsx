@@ -456,7 +456,11 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
         }
       });
 
-      if (isSelected) {
+      // TOUJOURS afficher les routes aller-retour (même si pas officiellement "sélectionnée")
+      // Car dans DestinationSelection il n'y a qu'une seule destination
+      const shouldDisplay = isSelected || destinations.length === 1;
+      
+      if (shouldDisplay) {
         console.log('🎯 Ajout des couches aller et retour sur la carte');
         // Add outbound route (green solid)
         map.current.addSource(outboundSourceId, {
