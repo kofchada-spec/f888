@@ -218,18 +218,28 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
 
   // Initialize markers and routes ONLY when destinations actually change - prevent route flicker
   useEffect(() => {
-    if (!map.current || !userLocation || destinations.length === 0) return;
+    console.log('🔍 Map useEffect triggered:', {
+      hasMap: !!map.current,
+      hasUserLocation: !!userLocation,
+      destinationsLength: destinations.length,
+      destinations: destinations.map(d => ({ id: d.id, name: d.name, hasRoute: !!d.route, hasCoordinates: !!d.coordinates }))
+    });
+
+    if (!map.current || !userLocation || destinations.length === 0) {
+      console.log('❌ Early return from map useEffect:', { hasMap: !!map.current, hasUserLocation: !!userLocation, destinationsLength: destinations.length });
+      return;
+    }
 
     // Only update if destinations array actually changed, not user location updates
     const destinationKey = destinations.map(d => `${d.id}-${d.name}-${!!d.route}`).join('|');
     
     if (lastDestinationKey.current === destinationKey) {
-      console.log('Destinations unchanged, keeping stable routes');
+      console.log('⏸️ Destinations unchanged, keeping stable routes');
       return; // Skip re-render if destinations haven't actually changed
     }
     
     lastDestinationKey.current = destinationKey;
-    console.log('Rendering routes for destinations:', destinationKey);
+    console.log('🗺️ Rendering routes for destinations:', destinationKey);
 
     // Clear existing markers only when destinations actually change
     markers.current.forEach(marker => marker.remove());
@@ -361,32 +371,39 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
       markers.current.push(marker);
 
       // Add route immediately - stable rendering for navigation screen
-      if (map.current?.isStyleLoaded()) {
+      const mapStyleLoaded = map.current?.isStyleLoaded();
+      console.log(`🎯 Tentative ajout route pour ${destination.name}:`, {
+        destinationId: destination.id,
+        isStyleLoaded: mapStyleLoaded,
+        hasRoute: !!destination.route,
+        isSelected,
+        isRoundTrip,
+        routeStructure: destination.route ? {
+          hasOutbound: !!destination.route.outboundCoordinates,
+          hasReturn: !!destination.route.returnCoordinates,
+          outboundLength: destination.route.outboundCoordinates?.length,
+          returnLength: destination.route.returnCoordinates?.length
+        } : 'no route'
+      });
+
+      if (mapStyleLoaded) {
         if (destination.route) {
-          console.log('🗺️ Rendu route préconfigurée:', {
-            destinationId: destination.id,
-            routeType: destination.route.outboundCoordinates ? 'aller-retour' : 'simple',
-            hasOutbound: !!destination.route.outboundCoordinates,
-            hasReturn: !!destination.route.returnCoordinates,
-            outboundLength: destination.route.outboundCoordinates?.length,
-            returnLength: destination.route.returnCoordinates?.length
-          });
+          console.log('✅ Style loaded - Adding preconfigured route immediately');
           addRouteFromGeometry(destination.id, destination.route, isSelected);
         } else {
-          console.log('🗺️ Génération route simple (pas de route préconfigurée)');
+          console.log('✅ Style loaded - Adding simple route immediately');
           addRouteLine(destination.id, userLocation, { lat: destLat, lng: destLng }, isRoundTrip, isSelected);
         }
       } else {
+        console.log('⏳ Style not loaded - Setting up deferred route rendering');
         map.current?.on('styledata', () => {
           if (map.current?.isStyleLoaded()) {
+            console.log('🎯 Deferred route rendering triggered');
             if (destination.route) {
-              console.log('🗺️ Rendu route préconfigurée (différé):', {
-                destinationId: destination.id,
-                routeType: destination.route.outboundCoordinates ? 'aller-retour' : 'simple'
-              });
+              console.log('✅ Adding preconfigured route (deferred)');
               addRouteFromGeometry(destination.id, destination.route, isSelected);
             } else {
-              console.log('🗺️ Génération route simple (différé)');
+              console.log('✅ Adding simple route (deferred)');
               addRouteLine(destination.id, userLocation, { lat: destLat, lng: destLng }, isRoundTrip, isSelected);
             }
           }
