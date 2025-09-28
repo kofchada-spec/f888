@@ -127,7 +127,7 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
             id: 'auto-generated-one-way',
             name: `Destination à ${routeDistanceKm.toFixed(1)} km`,
             coordinates: { lat: destinationCoords[1], lng: destinationCoords[0] },
-            routeGeoJSON: route.geometry,
+            routeGeoJSON: route.geometry, // GeoJSON de l'itinéraire
             distanceKm: routeDistanceKm,
             durationMin,
             calories

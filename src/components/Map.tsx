@@ -14,6 +14,7 @@ interface Destination {
     lng: number;
   };
   route?: any;
+  routeGeoJSON?: any; // Ajout pour compatibilité avec DestinationSelection
 }
 
 interface MapProps {
@@ -222,7 +223,7 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
       hasMap: !!map.current,
       hasUserLocation: !!userLocation,
       destinationsLength: destinations.length,
-      destinations: destinations.map(d => ({ id: d.id, name: d.name, hasRoute: !!d.route, hasCoordinates: !!d.coordinates }))
+      destinations: destinations.map(d => ({ id: d.id, name: d.name, hasRoute: !!d.routeGeoJSON, hasCoordinates: !!d.coordinates }))
     });
 
     if (!map.current || !userLocation || destinations.length === 0) {
@@ -231,7 +232,7 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
     }
 
     // Only update if destinations array actually changed, not user location updates
-    const destinationKey = destinations.map(d => `${d.id}-${d.name}-${!!d.route}`).join('|');
+    const destinationKey = destinations.map(d => `${d.id}-${d.name}-${!!d.routeGeoJSON}`).join('|');
     
     if (lastDestinationKey.current === destinationKey) {
       console.log('⏸️ Destinations unchanged, keeping stable routes');
@@ -375,21 +376,21 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
       console.log(`🎯 Tentative ajout route pour ${destination.name}:`, {
         destinationId: destination.id,
         isStyleLoaded: mapStyleLoaded,
-        hasRoute: !!destination.route,
+        hasRoute: !!destination.routeGeoJSON,
         isSelected,
         isRoundTrip,
-        routeStructure: destination.route ? {
-          hasOutbound: !!destination.route.outboundCoordinates,
-          hasReturn: !!destination.route.returnCoordinates,
-          outboundLength: destination.route.outboundCoordinates?.length,
-          returnLength: destination.route.returnCoordinates?.length
+        routeStructure: destination.routeGeoJSON ? {
+          hasOutbound: !!destination.routeGeoJSON.outboundCoordinates,
+          hasReturn: !!destination.routeGeoJSON.returnCoordinates,
+          outboundLength: destination.routeGeoJSON.outboundCoordinates?.length,
+          returnLength: destination.routeGeoJSON.returnCoordinates?.length
         } : 'no route'
       });
 
       if (mapStyleLoaded) {
-        if (destination.route) {
+        if (destination.routeGeoJSON) {
           console.log('✅ Style loaded - Adding preconfigured route immediately');
-          addRouteFromGeometry(destination.id, destination.route, isSelected);
+          addRouteFromGeometry(destination.id, destination.routeGeoJSON, isSelected);
         } else {
           console.log('✅ Style loaded - Adding simple route immediately');
           addRouteLine(destination.id, userLocation, { lat: destLat, lng: destLng }, isRoundTrip, isSelected);
@@ -399,9 +400,9 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
         map.current?.on('styledata', () => {
           if (map.current?.isStyleLoaded()) {
             console.log('🎯 Deferred route rendering triggered');
-            if (destination.route) {
+            if (destination.routeGeoJSON) {
               console.log('✅ Adding preconfigured route (deferred)');
-              addRouteFromGeometry(destination.id, destination.route, isSelected);
+              addRouteFromGeometry(destination.id, destination.routeGeoJSON, isSelected);
             } else {
               console.log('✅ Adding simple route (deferred)');
               addRouteLine(destination.id, userLocation, { lat: destLat, lng: destLng }, isRoundTrip, isSelected);
