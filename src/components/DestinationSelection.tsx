@@ -205,7 +205,83 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
     }
   }, [planningData.tripType]);
 
-  // For non-one-way trips, use the original logic (commented out for now)
+  // Generate default round-trip route
+  const generateDefaultRoundTrip = (userLoc: { lat: number; lng: number }) => {
+    const targetDistance = calculateTargetDistance(planningData.steps, planningData.height);
+    
+    // Créer un parcours naturel en forme de boucle
+    const baseRadius = targetDistance / (2 * Math.PI * 1.2); // Plus petit pour compenser les détours
+    const points = 12; // Plus de points pour un parcours plus fluide
+    const coordinates: [number, number][] = [];
+    
+    // Point de départ (position utilisateur)
+    coordinates.push([userLoc.lng, userLoc.lat]);
+    
+    // Générer les points du parcours avec variations pour un aspect naturel
+    for (let i = 0; i <= points; i++) {
+      const angle = (2 * Math.PI * i) / points;
+      
+      // Ajouter des variations pour un parcours moins géométrique
+      const radiusVariation = 1 + (Math.sin(angle * 3) * 0.3); // Variation de ±30%
+      const radius = baseRadius * radiusVariation;
+      
+      // Ajouter un léger décalage angulaire pour éviter un cercle parfait
+      const angleOffset = Math.sin(angle * 2) * 0.2;
+      const adjustedAngle = angle + angleOffset;
+      
+      const latOffset = (radius * Math.cos(adjustedAngle)) / 111.32; // 1 degree lat ≈ 111.32 km
+      const lngOffset = (radius * Math.sin(adjustedAngle)) / (111.32 * Math.cos(userLoc.lat * Math.PI / 180));
+      
+      coordinates.push([
+        userLoc.lng + lngOffset,
+        userLoc.lat + latOffset
+      ]);
+    }
+    
+    // Retour au point de départ
+    coordinates.push([userLoc.lng, userLoc.lat]);
+    
+    // Calculer les métriques
+    const calories = calculateCalories(targetDistance, planningData.weight, planningData.pace);
+    const speed = planningData.pace === 'slow' ? 4 : planningData.pace === 'moderate' ? 5 : 6;
+    const durationMin = Math.round((targetDistance / speed) * 60);
+    
+    const defaultDestination: Destination = {
+      id: 'default-round-trip',
+      name: 'Circuit par défaut',
+      coordinates: { lat: userLoc.lat, lng: userLoc.lng },
+      routeGeoJSON: {
+        type: 'LineString',
+        coordinates: coordinates
+      },
+      distanceKm: targetDistance,
+      durationMin,
+      calories
+    };
+    
+    return defaultDestination;
+  };
+
+  // État pour la destination aller-retour par défaut
+  const [defaultRoundTrip, setDefaultRoundTrip] = useState<Destination | null>(null);
+
+  // Générer l'itinéraire par défaut pour les aller-retours
+  useEffect(() => {
+    if (planningData.tripType === 'round-trip' && userLocation && !defaultRoundTrip) {
+      const defaultRoute = generateDefaultRoundTrip(userLocation);
+      setDefaultRoundTrip(defaultRoute);
+    }
+  }, [planningData.tripType, userLocation, planningData.steps, planningData.height, planningData.weight, planningData.pace]);
+
+  // Réinitialiser la destination par défaut si les paramètres changent
+  useEffect(() => {
+    if (planningData.tripType === 'round-trip' && userLocation) {
+      const defaultRoute = generateDefaultRoundTrip(userLocation);
+      setDefaultRoundTrip(defaultRoute);
+    }
+  }, [planningData.steps, planningData.height, planningData.weight, planningData.pace]);
+
+  // For backup fallback (not used by default anymore)
   const { 
     currentDestination: fallbackDestination, 
     refreshRemaining, 
@@ -217,20 +293,10 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
     canRefresh 
   } = useSingleDestination();
 
-  // Use fallback for round-trip
-  useEffect(() => {
-    if (planningData.tripType === 'round-trip' && userLocation && !fallbackDestination && !fallbackLoading) {
-      fetchDestinations(userLocation, planningData, {
-        heightM: parseFloat(planningData.height),
-        weightKg: parseFloat(planningData.weight)
-      });
-    }
-  }, [planningData.tripType, userLocation, fallbackDestination, fallbackLoading, fetchDestinations]);
-
   // Use appropriate destination and state based on trip type
-  const activeDestination = planningData.tripType === 'one-way' ? currentDestination : fallbackDestination;
-  const activeLoading = planningData.tripType === 'one-way' ? loading : fallbackLoading;
-  const activeError = planningData.tripType === 'one-way' ? error : fallbackError;
+  const activeDestination = planningData.tripType === 'one-way' ? currentDestination : defaultRoundTrip;
+  const activeLoading = planningData.tripType === 'one-way' ? loading : false; // Pas de loading pour le circuit par défaut
+  const activeError = planningData.tripType === 'one-way' ? error : null; // Pas d'erreur pour le circuit par défaut
 
   const handleRefresh = () => {
     if (planningData.tripType === 'one-way') {
@@ -240,8 +306,10 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
         findValidOneWayDestination(userLocation);
       }
     } else {
-      if (canRefresh) {
-        refreshDestination();
+      // Pour l'aller-retour, générer un nouveau circuit par défaut avec une légère variation
+      if (userLocation) {
+        const newRoute = generateDefaultRoundTrip(userLocation);
+        setDefaultRoundTrip(newRoute);
       }
     }
   };
@@ -369,11 +437,11 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
                 variant="outline"
                 size="sm"
                 className="flex items-center space-x-2"
-                title={planningData.tripType === 'one-way' ? 'Rechercher une nouvelle destination' : `Réactualiser (${refreshRemaining} restant${refreshRemaining > 1 ? 's' : ''})`}
+                title={planningData.tripType === 'one-way' ? 'Rechercher une nouvelle destination' : 'Générer un nouveau circuit par défaut'}
               >
                 <RefreshCw size={16} className={activeLoading ? 'animate-spin' : ''} />
                 <span>
-                  {planningData.tripType === 'one-way' ? 'Nouvelle destination' : `Réactualiser (${refreshRemaining})`}
+                  {planningData.tripType === 'one-way' ? 'Nouvelle destination' : 'Nouveau circuit'}
                 </span>
               </Button>
             )}
