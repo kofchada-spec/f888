@@ -387,7 +387,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
                 calories: destination.calories,
                 description: `Destination à ${destination.distanceKm.toFixed(1)} km - ${getEstimatedSteps()} pas estimés`,
                 coordinates: destination.coordinates,
-                route: destination.routeGeoJSON // Pass the exact route from planning
+                routeGeoJSON: destination.routeGeoJSON // Correction : utiliser routeGeoJSON au lieu de route
               }]}
               selectedDestination={destination.id}
               onDestinationSelect={() => {}}
