@@ -35,7 +35,7 @@ export const useRouteGeneration = (
   const [routeError, setRouteError] = useState<string | null>(null);
 
   /**
-   * Generate round-trip route with ±5% tolerance validation - SIMPLIFIED VERSION
+   * Generate round-trip route with real Mapbox routes and ±5% tolerance validation
    */
   const generateRoundTripRoute = useCallback(async () => {
     if (!planningData || !userLocation || planningData.tripType !== 'round-trip') return null;
@@ -47,100 +47,94 @@ export const useRouteGeneration = (
     setRouteError(null);
 
     try {
-      console.log(`🎯 Génération itinéraire aller-retour - cible: ${targetDistance.toFixed(2)}km (±5% = ${min.toFixed(2)}-${max.toFixed(2)}km)`);
+      console.log(`🎯 Génération itinéraire aller-retour avec routes réelles - cible: ${targetDistance.toFixed(2)}km (±5% = ${min.toFixed(2)}-${max.toFixed(2)}km)`);
 
-      const maxAttempts = 15;
+      const mapboxToken = await getMapboxToken();
+      if (!mapboxToken) {
+        throw new Error('No Mapbox token available');
+      }
+
+      const maxAttempts = 10;
       let bestRoute = null;
       let bestDifference = Infinity;
 
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-          // Generate random destination using proper geographic calculation
-          const halfDistance = targetDistance / 2; // km for one-way
-          const angle = Math.random() * 2 * Math.PI;
+          // Generate random destination around user location
+          const approximateOneWayDistance = targetDistance / 2;
+          const destination = generateRandomCoordinates(userLocation, approximateOneWayDistance * 1.5);
           
-          // More accurate coordinate calculation using haversine formula
-          // 1 degree latitude ≈ 111.32 km
-          // 1 degree longitude varies by latitude: 111.32 * cos(latitude)
-          const latScale = 111.32; // km per degree latitude
-          const lngScale = 111.32 * Math.cos(userLocation.lat * Math.PI / 180); // km per degree longitude
+          // Get real outbound route from user location to destination
+          const outboundUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${userLocation.lng},${userLocation.lat};${destination.lng},${destination.lat}?geometries=geojson&access_token=${mapboxToken}`;
+          const outboundResponse = await fetch(outboundUrl);
           
-          const deltaLat = (halfDistance * Math.sin(angle)) / latScale;
-          const deltaLng = (halfDistance * Math.cos(angle)) / lngScale;
+          if (!outboundResponse.ok) continue;
           
-          const destLat = userLocation.lat + deltaLat;
-          const destLng = userLocation.lng + deltaLng;
+          const outboundData = await outboundResponse.json();
+          if (!outboundData.routes || outboundData.routes.length === 0) continue;
           
-          // Validate coordinates are reasonable and within bounds
-          if (Math.abs(destLat) > 85 || Math.abs(destLng) > 180 || 
-              Math.abs(destLat - userLocation.lat) > 1 || Math.abs(destLng - userLocation.lng) > 1) {
-            continue;
-          }
+          // Get real return route from destination back to user location
+          const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${destination.lng},${destination.lat};${userLocation.lng},${userLocation.lat}?geometries=geojson&access_token=${mapboxToken}`;
+          const returnResponse = await fetch(returnUrl);
           
-          // Simple round trip - straight line there and back
-          const outboundCoordinates: [number, number][] = [
-            [userLocation.lng, userLocation.lat],
-            [destLng, destLat]
-          ];
+          if (!returnResponse.ok) continue;
           
-          const returnCoordinates: [number, number][] = [
-            [destLng, destLat],
-            [userLocation.lng, userLocation.lat]
-          ];
+          const returnData = await returnResponse.json();
+          if (!returnData.routes || returnData.routes.length === 0) continue;
 
-          // Calculate actual distance using haversine formula
-          const oneWayDistance = calculateDistance(userLocation.lat, userLocation.lng, destLat, destLng);
-          const totalDistance = oneWayDistance * 2;
+          const outboundRoute = outboundData.routes[0];
+          const returnRoute = returnData.routes[0];
+          
+          const outboundDistanceKm = outboundRoute.distance / 1000;
+          const returnDistanceKm = returnRoute.distance / 1000;
+          const totalDistance = outboundDistanceKm + returnDistanceKm;
           const difference = Math.abs(totalDistance - targetDistance);
 
-          console.log(`Tentative ${attempt}: Distance = ${totalDistance.toFixed(2)}km (diff: ${difference.toFixed(2)}km, cible: ${targetDistance.toFixed(2)}km)`);
+          console.log(`Tentative ${attempt}: Aller ${outboundDistanceKm.toFixed(2)}km + Retour ${returnDistanceKm.toFixed(2)}km = Total ${totalDistance.toFixed(2)}km (diff: ${difference.toFixed(2)}km)`);
 
           // Save best option
           if (difference < bestDifference) {
             bestDifference = difference;
             bestRoute = {
-              outboundCoordinates,
-              returnCoordinates,
+              outboundCoordinates: outboundRoute.geometry.coordinates,
+              returnCoordinates: returnRoute.geometry.coordinates,
               totalDistance,
-              destLat,
-              destLng
+              destLat: destination.lat,
+              destLng: destination.lng
             };
           }
 
           // Check if within ±5% tolerance
           if (totalDistance >= min && totalDistance <= max) {
-            console.log(`✅ Itinéraire valide trouvé à la tentative ${attempt} (${totalDistance.toFixed(2)}km)`);
+            console.log(`✅ Itinéraire aller-retour réel trouvé à la tentative ${attempt} (${totalDistance.toFixed(2)}km)`);
             
             const routeData = createRouteData(bestRoute, planningData, userLocation);
             setIsCalculating(false);
             return routeData;
           }
         } catch (error) {
-          console.error(`Erreur tentative ${attempt}:`, error);
+          console.warn(`Round-trip attempt ${attempt} failed:`, error);
         }
       }
 
       // Use best route if close enough (within ±8%)
       if (bestRoute && bestDifference <= targetDistance * 0.08) {
-        console.log(`⚠️ Utilisation du meilleur itinéraire trouvé (différence: ${bestDifference.toFixed(2)}km)`);
+        console.log(`⚠️ Utilisation du meilleur itinéraire aller-retour réel (différence: ${bestDifference.toFixed(2)}km)`);
         const routeData = createRouteData(bestRoute, planningData, userLocation);
         setIsCalculating(false);
         return routeData;
       }
 
-      // No valid route found
-      console.log(`❌ Aucun itinéraire acceptable après ${maxAttempts} tentatives`);
-      setRouteError(`Aucun itinéraire trouvé respectant exactement l'objectif de ${targetDistance.toFixed(1)}km (±5%). Essayez un nombre de pas différent.`);
-      
-    } catch (error) {
-      console.error('Erreur lors de la génération:', error);
-      setRouteError('Erreur lors de la génération de l\'itinéraire. Veuillez réessayer.');
-    } finally {
+      setRouteError(`Aucun itinéraire aller-retour trouvé dans la tolérance ±5%.`);
       setIsCalculating(false);
+      return null;
+    } catch (error) {
+      console.error('Erreur génération aller-retour:', error);
+      setRouteError('Erreur lors de la génération de l\'itinéraire');
+      setIsCalculating(false);
+      return null;
     }
-
-    return null;
-  }, [planningData, userLocation]);
+  }, [planningData, userLocation, onRouteCalculated]);
 
   /**
    * Generate one-way route with ±5% tolerance using real Mapbox routes
