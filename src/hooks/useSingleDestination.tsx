@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { PlanningData } from '@/types/route';
 
 interface Destination {
   id: string;
@@ -12,14 +13,6 @@ interface Destination {
   distanceKm: number;
   durationMin: number;
   calories: number;
-}
-
-interface PlanningData {
-  steps: string;
-  pace: 'slow' | 'moderate' | 'fast';
-  tripType: 'one-way' | 'round-trip';
-  height: string;
-  weight: string;
 }
 
 interface UserLocation {

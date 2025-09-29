@@ -1,12 +1,5 @@
 import { useState, useEffect } from 'react';
-
-interface PlanningData {
-  steps: string;
-  pace: 'slow' | 'moderate' | 'fast';
-  tripType: 'one-way' | 'round-trip';
-  height: string;
-  weight: string;
-}
+import { PlanningData } from '@/types/route';
 
 interface UserLocation {
   lat: number;
@@ -72,9 +65,9 @@ export const useDestinationVariants = () => {
 
   const generateFallbackDestinations = (planningData: PlanningData): Destination[] => {
     const calculateMetrics = (targetDistanceKm: number) => {
-      const steps = parseInt(planningData.steps);
-      const heightInM = parseFloat(planningData.height);
-      const weightInKg = parseFloat(planningData.weight) || 70;
+      const steps = planningData.steps;
+      const heightInM = planningData.height;
+      const weightInKg = planningData.weight || 70;
       
       // Formule de foulée : 0.415 × taille (m) ou défaut 0.72m
       const strideLength = heightInM > 0 ? 0.415 * heightInM : 0.72;

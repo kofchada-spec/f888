@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { PlanningData } from '@/types/route';
 
 interface Destination {
   id: string;
@@ -22,13 +23,7 @@ interface MapProps {
   destinations: Destination[];
   selectedDestination: string | null;
   onDestinationSelect: (destination: Destination) => void;
-  planningData: {
-    tripType: 'one-way' | 'round-trip';
-    steps: string;
-    pace: 'slow' | 'moderate' | 'fast';
-    height: string;
-    weight: string;
-  };
+  planningData: PlanningData;
 }
 
 export interface MapRef {

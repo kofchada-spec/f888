@@ -9,6 +9,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { calculateTargetDistance, calculateCalories } from '@/utils/routeCalculations';
 
 interface DestinationSelectionProps {
   onComplete: (destination: Destination) => void;
@@ -47,22 +48,6 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
   const { subscriptionData } = useSubscription();
   const navigate = useNavigate();
   const { toast } = useToast();
-
-  // Calculate target distance from steps and height
-  const calculateTargetDistance = (steps: string, height: string) => {
-    const stepCount = parseInt(steps);
-    const heightInMeters = parseFloat(height);
-    const strideLength = 0.415 * heightInMeters;
-    return (stepCount * strideLength) / 1000; // km
-  };
-
-  // Calculate calories based on distance, weight, and pace
-  const calculateCalories = (distanceKm: number, weight: string, pace: string) => {
-    const weightKg = parseFloat(weight);
-    const met = pace === 'slow' ? 3.0 : pace === 'moderate' ? 4.0 : 5.0;
-    const timeHours = distanceKm / (pace === 'slow' ? 4 : pace === 'moderate' ? 5 : 6);
-    return Math.round(met * weightKg * timeHours);
-  };
 
   // Get route from Mapbox Directions API
   const getRoute = async (start: [number, number], end: [number, number]) => {
@@ -324,8 +309,8 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
 
   // Calculer l'écart avec la distance cible
   const getTargetDistance = () => {
-    const steps = parseInt(planningData.steps);
-    const heightM = parseFloat(planningData.height);
+    const steps = planningData.steps;
+    const heightM = planningData.height;
     const strideM = 0.415 * heightM;
     const totalKm = (steps * strideM) / 1000;
     // Return full target distance - route calculation handles round-trip logic internally
