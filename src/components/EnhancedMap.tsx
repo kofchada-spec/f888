@@ -490,75 +490,75 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
 
   return (
     <div className={`relative ${className}`} style={{ height: '400px' }}>
-      {isLoading ? (
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl flex items-center justify-center">
+      {/* Map container - always present */}
+      <div 
+        ref={mapContainer} 
+        style={{ width: '100%', height: '100%' }}
+        className="absolute inset-0 rounded-lg" 
+      />
+      
+      {/* Loading overlay - shows over the map */}
+      {isLoading && (
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl flex items-center justify-center z-20">
           <div className="text-center max-w-md p-6">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-sm text-muted-foreground mb-2">Initialisation de la carte...</p>
             <p className="text-xs text-muted-foreground">Configuration en cours...</p>
           </div>
         </div>
-      ) : (
-        <>
-          <div 
-            ref={mapContainer} 
-            style={{ width: '100%', height: '100%' }}
-            className="absolute inset-0 rounded-lg" 
-          />
-          
-          {/* Loading overlay - waiting for location */}
-          {!state.userLocation && (
-            <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center rounded-lg z-10">
-              <div className="bg-card/90 backdrop-blur-sm p-4 rounded-lg shadow-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="animate-pulse rounded-full h-5 w-5 bg-primary/50"></div>
-                  <span className="text-sm font-medium">Localisation en cours...</span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2 text-center">Veuillez autoriser l'accès à votre position</p>
-              </div>
+      )}
+      
+      {/* Loading overlay - waiting for location */}
+      {!state.userLocation && !isLoading && (
+        <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center rounded-lg z-10">
+          <div className="bg-card/90 backdrop-blur-sm p-4 rounded-lg shadow-lg">
+            <div className="flex items-center space-x-3">
+              <div className="animate-pulse rounded-full h-5 w-5 bg-primary/50"></div>
+              <span className="text-sm font-medium">Localisation en cours...</span>
             </div>
-          )}
-          
-          {/* Loading overlay - route calculation */}
-          {state.userLocation && state.isCalculating && (
-            <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center rounded-lg z-10">
-              <div className="bg-card/90 backdrop-blur-sm p-4 rounded-lg shadow-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                  <span className="text-sm font-medium">Génération de l'itinéraire...</span>
-                </div>
-              </div>
+            <p className="text-xs text-muted-foreground mt-2 text-center">Veuillez autoriser l'accès à votre position</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Loading overlay - route calculation */}
+      {state.userLocation && state.isCalculating && (
+        <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center rounded-lg z-10">
+          <div className="bg-card/90 backdrop-blur-sm p-4 rounded-lg shadow-lg">
+            <div className="flex items-center space-x-3">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+              <span className="text-sm font-medium">Génération de l'itinéraire...</span>
             </div>
-          )}
-          
-          {/* Error message */}
-          {state.routeError && (
-            <div className="absolute top-4 left-4 right-4 bg-destructive/90 text-destructive-foreground p-3 rounded-lg shadow-lg z-20">
-              <p className="text-sm font-medium text-center">{state.routeError}</p>
-            </div>
-          )}
+          </div>
+        </div>
+      )}
+      
+      {/* Error message */}
+      {state.routeError && (
+        <div className="absolute top-4 left-4 right-4 bg-destructive/90 text-destructive-foreground p-3 rounded-lg shadow-lg z-20">
+          <p className="text-sm font-medium text-center">{state.routeError}</p>
+        </div>
+      )}
 
-          {/* Restore button */}
-          {state.manualSelectionActive && state.currentRoute && (
-            <button
-              onClick={restoreOriginalRoute}
-              className="absolute bottom-4 right-4 bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg hover:bg-primary/90 transition-colors z-10"
-            >
-              Restaurer l'itinéraire automatique
-            </button>
-          )}
+      {/* Restore button */}
+      {state.manualSelectionActive && state.currentRoute && (
+        <button
+          onClick={restoreOriginalRoute}
+          className="absolute bottom-4 right-4 bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg hover:bg-primary/90 transition-colors z-10"
+        >
+          Restaurer l'itinéraire automatique
+        </button>
+      )}
 
-          {/* Instructions */}
-          {planningData && !state.routeError && !state.isCalculating && state.currentRoute && state.mapReady && (
-            <div className="absolute bottom-4 left-4 right-20 bg-card/90 backdrop-blur-sm p-3 rounded-lg shadow-lg">
-              <p className="text-sm text-center text-muted-foreground">
-                {planningData.tripType === 'round-trip' 
-                  ? "Cliquez sur la carte pour personnaliser votre destination aller-retour" 
-                  : "Cliquez sur la carte pour choisir une nouvelle destination"}
-              </p>
-            </div>
-          )}
-        </>
+      {/* Instructions */}
+      {planningData && !state.routeError && !state.isCalculating && state.currentRoute && state.mapReady && (
+        <div className="absolute bottom-4 left-4 right-20 bg-card/90 backdrop-blur-sm p-3 rounded-lg shadow-lg">
+          <p className="text-sm text-center text-muted-foreground">
+            {planningData.tripType === 'round-trip' 
+              ? "Cliquez sur la carte pour personnaliser votre destination aller-retour" 
+              : "Cliquez sur la carte pour choisir une nouvelle destination"}
+          </p>
+        </div>
       )}
     </div>
   );
