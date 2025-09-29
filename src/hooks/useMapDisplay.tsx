@@ -57,101 +57,106 @@ export const useMapDisplay = (map: React.MutableRefObject<mapboxgl.Map | null>) 
     routeGeoJSON: RouteGeoJSON,
     userLocation: Coordinates
   ) => {
-    if (!map.current || !map.current.isStyleLoaded()) {
-      console.log('⏳ Map style not loaded, waiting...');
-      if (map.current) {
-        map.current.once('styledata', () => {
-          if (map.current?.isStyleLoaded()) {
-            displayRoundTripRoute(destinationCoords, routeGeoJSON, userLocation);
-          }
-        });
-      }
+    if (!map.current) {
+      console.log('❌ Map not available');
       return;
     }
 
     if (!routeGeoJSON.outboundCoordinates || !routeGeoJSON.returnCoordinates) {
-      console.error('Missing route coordinates');
+      console.error('❌ Missing route coordinates');
       return;
     }
 
-    console.log('🗺️ Displaying round-trip route');
-    console.log('📍 Position utilisateur pour affichage:', userLocation);
-    console.log('🎯 Destination pour affichage:', destinationCoords);
-    console.log('🛣️ Routes:', { 
-      outbound: routeGeoJSON.outboundCoordinates?.length, 
-      return: routeGeoJSON.returnCoordinates?.length 
-    });
+    // Function to actually display the route
+    const displayRoutes = () => {
+      if (!map.current) return;
 
-    // Clear existing routes
-    clearMap();
+      console.log('🗺️ Starting round-trip route display');
+      
+      // Clear existing routes first
+      clearMap();
 
-    // Add markers
-    addMarkers(userLocation, destinationCoords);
+      // Add markers
+      addMarkers(userLocation, destinationCoords);
 
-    // Add outbound route (solid green)
-    map.current.addSource('outbound-route', {
-      type: 'geojson',
-      data: {
-        type: 'Feature',
-        properties: {},
-        geometry: {
-          type: 'LineString',
-          coordinates: routeGeoJSON.outboundCoordinates
-        }
+      try {
+        // Add outbound route (solid green)
+        map.current.addSource('outbound-route', {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: routeGeoJSON.outboundCoordinates
+            }
+          }
+        });
+
+        map.current.addLayer({
+          id: 'outbound-route',
+          type: 'line',
+          source: 'outbound-route',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': '#10b981', // Green
+            'line-width': 4
+          }
+        });
+
+        // Add return route (dashed blue)
+        map.current.addSource('return-route', {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: routeGeoJSON.returnCoordinates
+            }
+          }
+        });
+
+        map.current.addLayer({
+          id: 'return-route',
+          type: 'line',
+          source: 'return-route',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': '#3b82f6', // Blue
+            'line-width': 4,
+            'line-dasharray': [2, 2]
+          }
+        });
+
+        // Fit map to both routes
+        const allCoordinates = [...routeGeoJSON.outboundCoordinates, ...routeGeoJSON.returnCoordinates];
+        const bounds = allCoordinates.reduce((bounds: any, coord: any) => {
+          return bounds.extend(coord);
+        }, new mapboxgl.LngLatBounds(allCoordinates[0], allCoordinates[0]));
+        
+        map.current.fitBounds(bounds, { padding: 50 });
+
+        console.log('✅ Round-trip route displayed successfully');
+      } catch (error) {
+        console.error('❌ Error displaying round-trip route:', error);
       }
-    });
+    };
 
-    map.current.addLayer({
-      id: 'outbound-route',
-      type: 'line',
-      source: 'outbound-route',
-      layout: {
-        'line-join': 'round',
-        'line-cap': 'round'
-      },
-      paint: {
-        'line-color': '#10b981', // Green
-        'line-width': 4
-      }
-    });
+    // Check if style is loaded, if not wait for it
+    if (!map.current.isStyleLoaded()) {
+      console.log('⏳ Map style not loaded, waiting...');
+      map.current.once('style.load', displayRoutes);
+    } else {
+      displayRoutes();
+    }
 
-    // Add return route (dashed blue)
-    map.current.addSource('return-route', {
-      type: 'geojson',
-      data: {
-        type: 'Feature',
-        properties: {},
-        geometry: {
-          type: 'LineString',
-          coordinates: routeGeoJSON.returnCoordinates
-        }
-      }
-    });
-
-    map.current.addLayer({
-      id: 'return-route',
-      type: 'line',
-      source: 'return-route',
-      layout: {
-        'line-join': 'round',
-        'line-cap': 'round'
-      },
-      paint: {
-        'line-color': '#3b82f6', // Blue
-        'line-width': 4,
-        'line-dasharray': [2, 2]
-      }
-    });
-
-    // Fit map to both routes
-    const allCoordinates = [...routeGeoJSON.outboundCoordinates, ...routeGeoJSON.returnCoordinates];
-    const bounds = allCoordinates.reduce((bounds: any, coord: any) => {
-      return bounds.extend(coord);
-    }, new mapboxgl.LngLatBounds(allCoordinates[0], allCoordinates[0]));
-    
-    map.current.fitBounds(bounds, { padding: 50 });
-
-    console.log('✅ Round-trip route displayed successfully');
   }, [map, clearMap, addMarkers]);
 
   /**
