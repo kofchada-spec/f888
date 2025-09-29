@@ -64,6 +64,8 @@ export const useRouteGeneration = (
           const approximateOneWayDistance = targetDistance / 2;
           const destination = generateRandomCoordinates(userLocation, approximateOneWayDistance * 1.5);
           
+          console.log(`🎯 Tentative ${attempt}: Utilisateur à ${userLocation.lat.toFixed(6)}, ${userLocation.lng.toFixed(6)} -> Destination ${destination.lat.toFixed(6)}, ${destination.lng.toFixed(6)}`);
+          
           // Get real outbound route from user location to destination
           const outboundUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${userLocation.lng},${userLocation.lat};${destination.lng},${destination.lat}?geometries=geojson&access_token=${mapboxToken}`;
           const outboundResponse = await fetch(outboundUrl);
@@ -153,6 +155,8 @@ export const useRouteGeneration = (
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         const destination = generateRandomCoordinates(userLocation, targetDistance * 1.2);
+        
+        console.log(`🎯 Tentative ${attempt}: Utilisateur à ${userLocation.lat.toFixed(6)}, ${userLocation.lng.toFixed(6)} -> Destination ${destination.lat.toFixed(6)}, ${destination.lng.toFixed(6)}`);
         
         // Get real route from Mapbox instead of just calculating straight-line distance
         const mapboxToken = await getMapboxToken();

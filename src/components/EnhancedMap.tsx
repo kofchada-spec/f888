@@ -64,23 +64,29 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
 
   // Get user location
   useEffect(() => {
+    console.log('🌍 Demande de géolocalisation...');
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setUserLocation({
+          const newLocation = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
-          });
+          };
+          console.log('✅ Position géolocalisée obtenue:', newLocation);
+          setUserLocation(newLocation);
         },
         (error) => {
-          console.warn('Geolocation failed:', error.message);
-          // Don't set default location - wait for user to enable location services
+          console.warn('⚠️ Erreur géolocalisation:', error.message);
           console.log('Please enable location services for accurate routes');
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 300000 // 5 minutes
         }
       );
     } else {
-      // No geolocation support - ask user to enable it
-      console.log('Geolocation not supported by this browser');
+      console.log('❌ Geolocation not supported by this browser');
     }
   }, []);
 
@@ -131,12 +137,14 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
             
             // Display the route
             if (planningData.tripType === 'round-trip' && routeData.routeGeoJSON) {
+              console.log('🗺️ Affichage aller-retour avec position utilisateur:', userLocation);
               displayRoundTripRoute(
                 [routeData.endCoordinates.lng, routeData.endCoordinates.lat],
                 routeData.routeGeoJSON,
                 userLocation
               );
             } else {
+              console.log('🗺️ Affichage aller simple avec position utilisateur:', userLocation);
               displayOneWayRoute(userLocation, routeData.endCoordinates, routeData.routeGeoJSON);
             }
           }

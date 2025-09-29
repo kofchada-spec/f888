@@ -75,6 +75,12 @@ export const useMapDisplay = (map: React.MutableRefObject<mapboxgl.Map | null>) 
     }
 
     console.log('🗺️ Displaying round-trip route');
+    console.log('📍 Position utilisateur pour affichage:', userLocation);
+    console.log('🎯 Destination pour affichage:', destinationCoords);
+    console.log('🛣️ Routes:', { 
+      outbound: routeGeoJSON.outboundCoordinates?.length, 
+      return: routeGeoJSON.returnCoordinates?.length 
+    });
 
     // Clear existing routes
     clearMap();
@@ -162,6 +168,8 @@ export const useMapDisplay = (map: React.MutableRefObject<mapboxgl.Map | null>) 
     }
 
     console.log('🗺️ Displaying one-way route', { routeGeoJSON });
+    console.log('📍 Position utilisateur pour affichage:', startCoords);
+    console.log('🎯 Destination pour affichage:', endCoords);
 
     // Clear existing routes
     clearMap();
