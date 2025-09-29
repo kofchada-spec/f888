@@ -60,14 +60,15 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
       try {
         const token = await getMapboxToken();
         if (!token || !mapContainer.current) {
-          console.error('❌ Token Mapbox ou conteneur manquant');
+          console.error('❌ Token Mapbox ou conteneur manquant', { token: !!token, container: !!mapContainer.current });
           return;
         }
 
+        console.log('✅ Token et conteneur disponibles, création de la carte...');
         const mapInstance = initializeMap(
           mapContainer.current,
           token,
-          state.userLocation ? [state.userLocation.lng, state.userLocation.lat] : undefined
+          undefined // Don't use user location for initial center yet
         );
 
         map.current = mapInstance;
@@ -77,15 +78,19 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
           setMapReady(true);
         });
 
+        mapInstance.on('load', () => {
+          console.log('🗺️ Carte complètement chargée');
+        });
+
       } catch (error) {
         console.error('❌ Erreur initialisation carte:', error);
       }
     };
 
-    if (!map.current) {
+    if (!map.current && mapContainer.current) {
       initializeMapAndToken();
     }
-  }, [state.userLocation, setMapReady]);
+  }, [setMapReady]);
 
   // Get user location
   useEffect(() => {
@@ -99,10 +104,30 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
           };
           console.log('✅ Position géolocalisée obtenue:', newLocation);
           setUserLocation(newLocation);
+          
+          // Move map to user location once we have it
+          if (map.current) {
+            map.current.flyTo({
+              center: [newLocation.lng, newLocation.lat],
+              zoom: 14,
+              duration: 1000
+            });
+          }
         },
         (error) => {
           console.warn('⚠️ Erreur géolocalisation:', error.message);
-          console.log('Please enable location services for accurate routes');
+          console.log('Using default location for demo purposes');
+          // Set default location for demo
+          const defaultLocation = { lat: 43.6047, lng: 1.4442 }; // Toulouse
+          setUserLocation(defaultLocation);
+          
+          if (map.current) {
+            map.current.flyTo({
+              center: [defaultLocation.lng, defaultLocation.lat],
+              zoom: 14,
+              duration: 1000
+            });
+          }
         },
         {
           enableHighAccuracy: true,
@@ -112,6 +137,9 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
       );
     } else {
       console.log('❌ Geolocation not supported by this browser');
+      // Set default location for demo
+      const defaultLocation = { lat: 43.6047, lng: 1.4442 }; // Toulouse
+      setUserLocation(defaultLocation);
     }
   }, [setUserLocation]);
 
