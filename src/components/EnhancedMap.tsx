@@ -55,40 +55,55 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
   // Initialize map and get token
   useEffect(() => {
     const initializeMapAndToken = async () => {
-      console.log('🚀 Initialisation de la carte...');
+      console.log('🚀 [EnhancedMap] Initialisation de la carte...');
+      console.log('🚀 [EnhancedMap] mapContainer.current:', !!mapContainer.current);
+      console.log('🚀 [EnhancedMap] map.current:', !!map.current);
       
       try {
         const token = await getMapboxToken();
+        console.log('🚀 [EnhancedMap] Token reçu:', !!token);
+        
         if (!token || !mapContainer.current) {
-          console.error('❌ Token Mapbox ou conteneur manquant', { token: !!token, container: !!mapContainer.current });
+          console.error('❌ [EnhancedMap] Token Mapbox ou conteneur manquant', { 
+            token: !!token, 
+            container: !!mapContainer.current 
+          });
           return;
         }
 
-        console.log('✅ Token et conteneur disponibles, création de la carte...');
+        console.log('✅ [EnhancedMap] Token et conteneur disponibles, création de la carte...');
         const mapInstance = initializeMap(
           mapContainer.current,
           token,
           undefined // Don't use user location for initial center yet
         );
 
+        console.log('✅ [EnhancedMap] Map instance créée:', !!mapInstance);
         map.current = mapInstance;
 
         mapInstance.on('style.load', () => {
-          console.log('🗺️ Style de carte chargé');
+          console.log('🗺️ [EnhancedMap] Style de carte chargé');
           setMapReady(true);
         });
 
         mapInstance.on('load', () => {
-          console.log('🗺️ Carte complètement chargée');
+          console.log('🗺️ [EnhancedMap] Carte complètement chargée');
+        });
+
+        mapInstance.on('error', (e) => {
+          console.error('❌ [EnhancedMap] Erreur carte:', e);
         });
 
       } catch (error) {
-        console.error('❌ Erreur initialisation carte:', error);
+        console.error('❌ [EnhancedMap] Erreur initialisation carte:', error);
       }
     };
 
     if (!map.current && mapContainer.current) {
+      console.log('🚀 [EnhancedMap] Démarrage initialisation carte');
       initializeMapAndToken();
+    } else {
+      console.log('🚀 [EnhancedMap] Initialisation ignorée - map:', !!map.current, 'container:', !!mapContainer.current);
     }
   }, [setMapReady]);
 

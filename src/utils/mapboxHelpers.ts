@@ -9,16 +9,23 @@ export const initializeMap = (
   center?: [number, number],
   zoom?: number
 ): mapboxgl.Map => {
+  console.log('🗺️ [initializeMap] Début initialisation avec token:', !!accessToken);
+  console.log('🗺️ [initializeMap] Container:', !!container);
+  console.log('🗺️ [initializeMap] Center:', center);
+  
   mapboxgl.accessToken = accessToken;
   
+  console.log('🗺️ [initializeMap] Création de l\'instance Map...');
   const map = new mapboxgl.Map({
     container,
     style: 'mapbox://styles/mapbox/streets-v12',
     zoom: zoom || 14,
     center: center || [2.3522, 48.8566], // Default to Paris
   });
+  console.log('🗺️ [initializeMap] Instance Map créée:', !!map);
 
   // Add navigation controls
+  console.log('🗺️ [initializeMap] Ajout des contrôles de navigation...');
   map.addControl(
     new mapboxgl.NavigationControl({
       visualizePitch: true,
