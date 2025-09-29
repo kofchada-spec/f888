@@ -7,7 +7,7 @@ import { useMapClickLimiter } from '@/hooks/useMapClickLimiter';
 import { useRouteGeneration } from '@/hooks/useRouteGeneration';
 import { useMapState } from '@/hooks/useMapState';
 import { useMapRoutes } from '@/hooks/useMapRoutes';
-import { calculateDistance, calculateTargetDistance, getToleranceRange, calculateRouteMetrics } from '@/utils/routeCalculations';
+import { calculateTargetDistance, getToleranceRange, calculateRouteMetrics } from '@/utils/routeCalculations';
 
 interface EnhancedMapProps {
   className?: string;
@@ -115,8 +115,25 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     }
   }, [setUserLocation]);
 
-  // Auto-generate route when everything is ready
+  // Auto-generate route when everything is ready with fallback
   useEffect(() => {
+    const generateCardinalDirection = (centerLat: number, centerLng: number, distanceKm: number, angleDegrees: number) => {
+      const R = 6371; // Earth radius in km
+      const lat1 = centerLat * Math.PI / 180;
+      const lng1 = centerLng * Math.PI / 180;
+      const bearing = angleDegrees * Math.PI / 180;
+      
+      const lat2 = Math.asin(Math.sin(lat1) * Math.cos(distanceKm / R) + 
+                           Math.cos(lat1) * Math.sin(distanceKm / R) * Math.cos(bearing));
+      const lng2 = lng1 + Math.atan2(Math.sin(bearing) * Math.sin(distanceKm / R) * Math.cos(lat1),
+                                     Math.cos(distanceKm / R) - Math.sin(lat1) * Math.sin(lat2));
+      
+      return {
+        lat: lat2 * 180 / Math.PI,
+        lng: lng2 * 180 / Math.PI
+      };
+    };
+
     const autoGenerateRoute = async () => {
       if (!state.mapReady || !state.userLocation || !planningData || state.currentRoute) {
         return;
@@ -128,20 +145,109 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
       try {
         let routeData: RouteData | null = null;
 
+        // Try the original generation first
         if (planningData.tripType === 'round-trip') {
           routeData = await generateRoundTripRoute();
         } else {
           routeData = await generateOneWayRoute();
         }
 
+        // If no route found, use cardinal direction fallback
+        if (!routeData) {
+          console.log('🧭 Génération fallback avec directions cardinales...');
+          
+          const targetDistance = calculateTargetDistance(planningData.steps, planningData.height);
+          const searchDistance = planningData.tripType === 'round-trip' ? targetDistance / 2 : targetDistance;
+          const directions = [0, 90, 180, 270]; // N, E, S, W
+          const token = await getMapboxToken();
+          
+          if (!token) {
+            throw new Error('Token Mapbox manquant pour fallback');
+          }
+
+          for (const angle of directions) {
+            try {
+              const destination = generateCardinalDirection(
+                state.userLocation.lat, 
+                state.userLocation.lng, 
+                searchDistance, 
+                angle
+              );
+
+              // Test this direction with Mapbox Directions
+              const outboundUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${state.userLocation.lng},${state.userLocation.lat};${destination.lng},${destination.lat}?geometries=geojson&access_token=${token}`;
+              
+              const outboundResponse = await fetch(outboundUrl);
+              const outboundData = await outboundResponse.json();
+
+              if (outboundData.routes && outboundData.routes.length > 0) {
+                const outboundRoute = outboundData.routes[0];
+                let outboundDistance = outboundRoute.distance / 1000;
+                let returnRoute = null;
+                let returnDistance = 0;
+
+                if (planningData.tripType === 'round-trip') {
+                  const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${destination.lng},${destination.lat};${state.userLocation.lng},${state.userLocation.lat}?geometries=geojson&access_token=${token}`;
+                  
+                  const returnResponse = await fetch(returnUrl);
+                  const returnData = await returnResponse.json();
+
+                  if (returnData.routes && returnData.routes.length > 0) {
+                    returnRoute = returnData.routes[0];
+                    returnDistance = returnRoute.distance / 1000;
+                  } else {
+                    returnRoute = {
+                      geometry: {
+                        coordinates: [...outboundRoute.geometry.coordinates].reverse()
+                      }
+                    };
+                    returnDistance = outboundDistance;
+                  }
+                }
+
+                const totalDistance = planningData.tripType === 'round-trip' 
+                  ? outboundDistance + returnDistance 
+                  : outboundDistance;
+
+                const { min, max } = getToleranceRange(targetDistance);
+                
+                if (totalDistance >= min && totalDistance <= max) {
+                  console.log(`✅ Fallback direction ${angle}° validée: ${totalDistance.toFixed(2)}km`);
+                  
+                  const metrics = calculateRouteMetrics(totalDistance, planningData);
+                  routeData = {
+                    distance: totalDistance,
+                    duration: metrics.durationMin,
+                    calories: metrics.calories,
+                    steps: metrics.steps,
+                    startCoordinates: state.userLocation,
+                    endCoordinates: destination,
+                    routeGeoJSON: {
+                      outboundCoordinates: outboundRoute.geometry.coordinates,
+                      returnCoordinates: returnRoute?.geometry.coordinates,
+                      samePathReturn: false
+                    }
+                  };
+                  break;
+                }
+              }
+            } catch (dirError) {
+              console.warn(`⚠️ Erreur direction ${angle}°:`, dirError);
+              continue;
+            }
+          }
+        }
+
         if (routeData) {
           setCurrentRoute(routeData);
           await displayRoute(routeData, state.userLocation, planningData.tripType);
           onRouteCalculated?.(routeData);
+        } else {
+          throw new Error('Aucun itinéraire valide trouvé dans toutes les directions');
         }
       } catch (error) {
         console.error('❌ Erreur génération automatique:', error);
-        setRouteError(error instanceof Error ? error.message : 'Erreur inconnue');
+        setRouteError(error instanceof Error ? error.message : 'Erreur génération itinéraire');
       } finally {
         setCalculating(false);
       }
@@ -172,70 +278,116 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     }
   }, [forceReset, clearRoutes, resetState, onResetComplete]);
 
-  // Handle manual selection via map clicks
+  // Handle manual selection via map clicks with real Mapbox Directions API
   useEffect(() => {
     if (!map.current || !state.mapReady || !state.userLocation || !planningData) {
       return;
     }
 
     const handleClick = async (e: mapboxgl.MapMouseEvent) => {
-      if (state.isCalculating || !state.currentRoute || !canClick || !canClickFromLimiter) return;
+      if (state.isCalculating || !canClick || !canClickFromLimiter) return;
 
-      console.log('👆 Clic manuel sur la carte');
+      console.log('👆 Clic manuel sur la carte - génération itinéraire réel');
       setManualSelectionActive(true);
+      setCalculating(true);
       onMapClick?.(e.lngLat);
 
       const clickedCoords = e.lngLat;
       const targetDistance = calculateTargetDistance(planningData.steps, planningData.height);
       const { min, max } = getToleranceRange(targetDistance);
 
-      // Calculate distance to clicked point
-      const oneWayDistance = calculateDistance(
-        state.userLocation!.lat, state.userLocation!.lng,
-        clickedCoords.lat, clickedCoords.lng
-      );
-      const totalDistance = planningData.tripType === 'round-trip' ? oneWayDistance * 2 : oneWayDistance;
-
-      // Check if within tolerance
-      if (totalDistance >= min && totalDistance <= max) {
-        console.log('✅ Destination valide sélectionnée');
-        
-        // Create new route data
-        const metrics = calculateRouteMetrics(totalDistance, planningData);
-        const newRouteData: RouteData = {
-          distance: totalDistance,
-          duration: metrics.durationMin,
-          calories: metrics.calories,
-          steps: metrics.steps,
-          startCoordinates: state.userLocation!,
-          endCoordinates: { lat: clickedCoords.lat, lng: clickedCoords.lng },
-        };
-
-        // Add route geometry for round-trip
-        if (planningData.tripType === 'round-trip') {
-          newRouteData.routeGeoJSON = {
-            outboundCoordinates: [
-              [state.userLocation!.lng, state.userLocation!.lat],
-              [clickedCoords.lng, clickedCoords.lat]
-            ],
-            returnCoordinates: [
-              [clickedCoords.lng, clickedCoords.lat],
-              [state.userLocation!.lng, state.userLocation!.lat]
-            ],
-            samePathReturn: true
-          };
+      try {
+        // Get Mapbox token
+        const token = await getMapboxToken();
+        if (!token) {
+          throw new Error('Token Mapbox manquant');
         }
 
-        setCurrentRoute(newRouteData);
-        await displayRoute(newRouteData, state.userLocation!, planningData.tripType);
-        onRouteCalculated?.(newRouteData);
+        // Generate outbound route using Mapbox Directions API
+        const outboundUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${state.userLocation!.lng},${state.userLocation!.lat};${clickedCoords.lng},${clickedCoords.lat}?alternatives=true&geometries=geojson&access_token=${token}`;
         
-      } else {
-        const diff = Math.abs(totalDistance - targetDistance);
-        const message = `Destination trop ${totalDistance > targetDistance ? 'éloignée' : 'proche'} (${totalDistance.toFixed(1)}km vs ${targetDistance.toFixed(1)}km ciblé)`;
-        console.warn('⚠️', message);
-        setRouteError(message);
+        const outboundResponse = await fetch(outboundUrl);
+        const outboundData = await outboundResponse.json();
+
+        if (!outboundData.routes || outboundData.routes.length === 0) {
+          throw new Error('Aucun itinéraire trouvé pour cette destination');
+        }
+
+        const outboundRoute = outboundData.routes[0];
+        let outboundDistance = outboundRoute.distance / 1000; // Convert to km
+        let returnRoute = null;
+        let returnDistance = 0;
+
+        // For round-trip, generate return route
+        if (planningData.tripType === 'round-trip') {
+          const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${clickedCoords.lng},${clickedCoords.lat};${state.userLocation!.lng},${state.userLocation!.lat}?alternatives=true&geometries=geojson&access_token=${token}`;
+          
+          const returnResponse = await fetch(returnUrl);
+          const returnData = await returnResponse.json();
+
+          if (returnData.routes && returnData.routes.length > 0) {
+            // Try to use a different alternative for return if available
+            const alternativeIndex = returnData.routes.length > 1 ? 1 : 0;
+            returnRoute = returnData.routes[alternativeIndex];
+            returnDistance = returnRoute.distance / 1000;
+          } else {
+            // Fallback: reverse the outbound coordinates
+            returnRoute = {
+              geometry: {
+                coordinates: [...outboundRoute.geometry.coordinates].reverse()
+              },
+              distance: outboundRoute.distance
+            };
+            returnDistance = outboundDistance;
+          }
+        }
+
+        // Calculate total real distance
+        const totalRealDistance = planningData.tripType === 'round-trip' 
+          ? outboundDistance + returnDistance 
+          : outboundDistance;
+
+        console.log(`🛤️ Distance réelle calculée: ${totalRealDistance.toFixed(2)}km (cible: ${targetDistance.toFixed(2)}km)`);
+
+        // Check tolerance on REAL distance (not straight-line)
+        if (totalRealDistance >= min && totalRealDistance <= max) {
+          console.log('✅ Itinéraire réel validé dans la tolérance ±5%');
+          
+          // Create route data with real metrics
+          const metrics = calculateRouteMetrics(totalRealDistance, planningData);
+          const newRouteData: RouteData = {
+            distance: totalRealDistance,
+            duration: metrics.durationMin,
+            calories: metrics.calories,
+            steps: metrics.steps,
+            startCoordinates: state.userLocation!,
+            endCoordinates: { lat: clickedCoords.lat, lng: clickedCoords.lng },
+            routeGeoJSON: {
+              outboundCoordinates: outboundRoute.geometry.coordinates,
+              returnCoordinates: returnRoute?.geometry.coordinates,
+              samePathReturn: false
+            }
+          };
+
+          setCurrentRoute(newRouteData);
+          await displayRoute(newRouteData, state.userLocation!, planningData.tripType);
+          onRouteCalculated?.(newRouteData);
+          
+        } else {
+          const message = `Itinéraire hors plage ±5% : ${totalRealDistance.toFixed(1)}km vs ${targetDistance.toFixed(1)}km ciblé. Essayez un autre point.`;
+          console.warn('⚠️', message);
+          setRouteError(message);
+          setTimeout(() => setRouteError(null), 4000);
+          setManualSelectionActive(false);
+        }
+
+      } catch (error) {
+        console.error('❌ Erreur génération itinéraire:', error);
+        setRouteError(error instanceof Error ? error.message : 'Erreur génération itinéraire');
         setTimeout(() => setRouteError(null), 4000);
+        setManualSelectionActive(false);
+      } finally {
+        setCalculating(false);
       }
     };
 
@@ -249,14 +401,16 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     state.mapReady,
     state.userLocation,
     state.isCalculating,
-    state.currentRoute,
     planningData,
     displayRoute,
     onMapClick,
     onRouteCalculated,
     setCurrentRoute,
     setManualSelectionActive,
-    setRouteError
+    setCalculating,
+    setRouteError,
+    canClick,
+    canClickFromLimiter
   ]);
 
   // Restore original route function
