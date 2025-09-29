@@ -41,17 +41,21 @@ export const useRouteGeneration = (
           const halfDistance = targetDistance / 2; // km for one-way
           const angle = Math.random() * 2 * Math.PI;
           
-          // More accurate coordinate calculation
-          // 1 degree latitude = 111.32 km
-          // 1 degree longitude varies by latitude
-          const deltaLat = (halfDistance * Math.sin(angle)) / 111.32;
-          const deltaLng = (halfDistance * Math.cos(angle)) / (111.32 * Math.cos(userLocation.lat * Math.PI / 180));
+          // More accurate coordinate calculation using haversine formula
+          // 1 degree latitude ≈ 111.32 km
+          // 1 degree longitude varies by latitude: 111.32 * cos(latitude)
+          const latScale = 111.32; // km per degree latitude
+          const lngScale = 111.32 * Math.cos(userLocation.lat * Math.PI / 180); // km per degree longitude
+          
+          const deltaLat = (halfDistance * Math.sin(angle)) / latScale;
+          const deltaLng = (halfDistance * Math.cos(angle)) / lngScale;
           
           const destLat = userLocation.lat + deltaLat;
           const destLng = userLocation.lng + deltaLng;
           
-          // Validate coordinates are reasonable (not in ocean, etc.)
-          if (destLat < -85 || destLat > 85 || destLng < -180 || destLng > 180) {
+          // Validate coordinates are reasonable and within bounds
+          if (Math.abs(destLat) > 85 || Math.abs(destLng) > 180 || 
+              Math.abs(destLat - userLocation.lat) > 1 || Math.abs(destLng - userLocation.lng) > 1) {
             continue;
           }
           

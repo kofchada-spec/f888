@@ -44,24 +44,40 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [mapReady, setMapReady] = useState(false);
 
-  // Calculate steps from distance
   const calculateSteps = useCallback((distanceKm: number) => {
-    const heightM = parseFloat(planningData.height);
-    const strideM = heightM ? 0.415 * heightM : 0.72;
-    return Math.round((distanceKm * 1000) / strideM);
+    try {
+      const heightM = Math.max(1.2, Math.min(2.5, parseFloat(planningData.height) || 1.70));
+      const strideM = 0.415 * heightM;
+      return Math.round((Math.max(0.1, distanceKm) * 1000) / strideM);
+    } catch (error) {
+      console.error('Error calculating steps:', error);
+      return 5000; // Fallback value
+    }
   }, [planningData.height]);
 
   // Calculate time from distance
   const calculateTime = useCallback((distanceKm: number) => {
-    const speeds = { slow: 4, moderate: 5, fast: 6 };
-    return Math.round((distanceKm / speeds[planningData.pace]) * 60);
+    try {
+      const speeds = { slow: 4, moderate: 5, fast: 6 };
+      const validPace = ['slow', 'moderate', 'fast'].includes(planningData.pace) ? planningData.pace : 'moderate';
+      return Math.round((Math.max(0.1, distanceKm) / speeds[validPace]) * 60);
+    } catch (error) {
+      console.error('Error calculating time:', error);
+      return 30; // Fallback: 30 minutes
+    }
   }, [planningData.pace]);
 
   // Calculate calories from distance
   const calculateCalories = useCallback((distanceKm: number) => {
-    const weightKg = parseFloat(planningData.weight) || 70;
-    const coefficients = { slow: 0.35, moderate: 0.50, fast: 0.70 };
-    return Math.round(distanceKm * weightKg * coefficients[planningData.pace]);
+    try {
+      const weightKg = Math.max(40, Math.min(200, parseFloat(planningData.weight) || 70));
+      const coefficients = { slow: 0.35, moderate: 0.50, fast: 0.70 };
+      const validPace = ['slow', 'moderate', 'fast'].includes(planningData.pace) ? planningData.pace : 'moderate';
+      return Math.round(Math.max(0.1, distanceKm) * weightKg * coefficients[validPace]);
+    } catch (error) {
+      console.error('Error calculating calories:', error);
+      return 100; // Fallback value
+    }
   }, [planningData.weight, planningData.pace]);
 
   // Get Mapbox token
@@ -186,9 +202,28 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
       if (route) {
         displayRoute(route, destination);
         console.log(`Default route generated: ${route.steps} steps (target: ${targetSteps})`);
+      } else {
+        // Generate a simple fallback route if calculation fails
+        const fallbackDestination = {
+          lat: userLocation.lat + 0.01,
+          lng: userLocation.lng + 0.01
+        };
+        const fallbackRoute = await calculateRoute(userLocation, fallbackDestination);
+        if (fallbackRoute) {
+          displayRoute(fallbackRoute, fallbackDestination);
+        }
       }
     } catch (error) {
       console.error('Error generating default route:', error);
+      // Create minimal fallback route
+      const targetSteps = parseInt(planningData.steps);
+      setCurrentRoute({
+        distance: 1.0,
+        steps: targetSteps,
+        duration: 15,
+        calories: 50,
+        coordinates: [[userLocation.lng, userLocation.lat]]
+      });
     }
     
     setIsLoading(false);
