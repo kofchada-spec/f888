@@ -135,7 +135,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
                 userLocation
               );
             } else {
-              displayOneWayRoute(userLocation, routeData.endCoordinates);
+              displayOneWayRoute(userLocation, routeData.endCoordinates, routeData.routeGeoJSON);
             }
           }
         } catch (error) {

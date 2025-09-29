@@ -8,6 +8,24 @@ import {
 } from '@/utils/routeCalculations';
 import { PlanningData, Coordinates, RouteData } from '@/types/route';
 
+// Helper function to get Mapbox token
+const getMapboxToken = async (): Promise<string | null> => {
+  try {
+    const { supabase } = await import('@/integrations/supabase/client');
+    const { data, error } = await supabase.functions.invoke('mapbox-token');
+    
+    if (error) {
+      console.error('Error fetching Mapbox token:', error);
+      return null;
+    }
+    
+    return data?.token || null;
+  } catch (error) {
+    console.error('Failed to fetch Mapbox token:', error);
+    return null;
+  }
+};
+
 export const useRouteGeneration = (
   planningData: PlanningData | undefined,
   userLocation: Coordinates | null,
@@ -125,7 +143,7 @@ export const useRouteGeneration = (
   }, [planningData, userLocation]);
 
   /**
-   * Generate one-way route with ±5% tolerance
+   * Generate one-way route with ±5% tolerance using real Mapbox routes
    */
   const generateOneWayRoute = useCallback(async () => {
     if (!planningData || !userLocation || planningData.tripType !== 'one-way') return null;
@@ -141,21 +159,39 @@ export const useRouteGeneration = (
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         const destination = generateRandomCoordinates(userLocation, targetDistance * 1.2);
-        const actualDistance = calculateDistance(
-          userLocation.lat, userLocation.lng,
-          destination.lat, destination.lng
-        );
+        
+        // Get real route from Mapbox instead of just calculating straight-line distance
+        const mapboxToken = await getMapboxToken();
+        if (!mapboxToken) {
+          throw new Error('No Mapbox token available');
+        }
 
-        if (actualDistance >= min && actualDistance <= max) {
-          const metrics = calculateRouteMetrics(actualDistance, planningData);
+        const routeUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${userLocation.lng},${userLocation.lat};${destination.lng},${destination.lat}?geometries=geojson&access_token=${mapboxToken}`;
+        
+        const response = await fetch(routeUrl);
+        if (!response.ok) {
+          throw new Error(`Mapbox API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (!data.routes || data.routes.length === 0) {
+          continue; // Try next attempt
+        }
+
+        const route = data.routes[0];
+        const routeDistanceKm = route.distance / 1000; // Convert to km
+        
+        if (routeDistanceKm >= min && routeDistanceKm <= max) {
+          const metrics = calculateRouteMetrics(routeDistanceKm, planningData);
           
           const routeData: RouteData = {
-            distance: actualDistance,
+            distance: routeDistanceKm,
             duration: metrics.durationMin,
             calories: metrics.calories,
             steps: metrics.steps,
             startCoordinates: userLocation,
             endCoordinates: destination,
+            routeGeoJSON: route.geometry // Real Mapbox route geometry
           };
 
           onRouteCalculated?.(routeData);
@@ -163,7 +199,7 @@ export const useRouteGeneration = (
           return routeData;
         }
       } catch (error) {
-        console.error(`Erreur tentative ${attempt}:`, error);
+        console.warn(`One-way route attempt ${attempt} failed:`, error);
       }
     }
 

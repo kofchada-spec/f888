@@ -153,14 +153,15 @@ export const useMapDisplay = (map: React.MutableRefObject<mapboxgl.Map | null>) 
    */
   const displayOneWayRoute = useCallback((
     startCoords: Coordinates,
-    endCoords: Coordinates
+    endCoords: Coordinates,
+    routeGeoJSON?: any
   ) => {
     if (!map.current || !map.current.isStyleLoaded()) {
       console.log('⏳ Map style not loaded for one-way route');
       return;
     }
 
-    console.log('🗺️ Displaying one-way route');
+    console.log('🗺️ Displaying one-way route', { routeGeoJSON });
 
     // Clear existing routes
     clearMap();
@@ -168,19 +169,32 @@ export const useMapDisplay = (map: React.MutableRefObject<mapboxgl.Map | null>) 
     // Add markers
     addMarkers(startCoords, [endCoords.lng, endCoords.lat]);
 
-    // Add simple route line
+    // Use real route geometry if available, otherwise fallback to straight line
+    let routeGeometry;
+    if (routeGeoJSON && routeGeoJSON.coordinates) {
+      routeGeometry = {
+        type: 'LineString',
+        coordinates: routeGeoJSON.coordinates
+      };
+      console.log('✅ Using real Mapbox route geometry');
+    } else {
+      routeGeometry = {
+        type: 'LineString',
+        coordinates: [
+          [startCoords.lng, startCoords.lat],
+          [endCoords.lng, endCoords.lat]
+        ]
+      };
+      console.log('⚠️ Using fallback straight line');
+    }
+
+    // Add route source
     map.current.addSource('route', {
       type: 'geojson',
       data: {
         type: 'Feature',
         properties: {},
-        geometry: {
-          type: 'LineString',
-          coordinates: [
-            [startCoords.lng, startCoords.lat],
-            [endCoords.lng, endCoords.lat]
-          ]
-        }
+        geometry: routeGeometry
       }
     });
 
@@ -198,11 +212,20 @@ export const useMapDisplay = (map: React.MutableRefObject<mapboxgl.Map | null>) 
       }
     });
 
-    // Fit map to route
-    const bounds = new mapboxgl.LngLatBounds();
-    bounds.extend([startCoords.lng, startCoords.lat]);
-    bounds.extend([endCoords.lng, endCoords.lat]);
-    map.current.fitBounds(bounds, { padding: 50 });
+    // Fit map to route bounds
+    if (routeGeoJSON && routeGeoJSON.coordinates && routeGeoJSON.coordinates.length > 0) {
+      const bounds = new mapboxgl.LngLatBounds();
+      routeGeoJSON.coordinates.forEach((coord: [number, number]) => {
+        bounds.extend(coord);
+      });
+      map.current.fitBounds(bounds, { padding: 50 });
+    } else {
+      // Fallback bounds for straight line
+      const bounds = new mapboxgl.LngLatBounds();
+      bounds.extend([startCoords.lng, startCoords.lat]);
+      bounds.extend([endCoords.lng, endCoords.lat]);
+      map.current.fitBounds(bounds, { padding: 50 });
+    }
 
     console.log('✅ One-way route displayed successfully');
   }, [map, clearMap, addMarkers]);
