@@ -32,13 +32,6 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
   const map = useRef<mapboxgl.Map | null>(null);
   
   const { canClick: canClickFromLimiter } = useMapClickLimiter();
-  const { 
-    generateRoundTripRoute, 
-    generateOneWayRoute,
-    isCalculating,
-    routeError,
-    setRouteError 
-  } = useRouteGeneration(planningData, null, onRouteCalculated);
   
   const {
     state,
@@ -49,6 +42,14 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     setManualSelectionActive,
     resetState
   } = useMapState();
+  
+  const { 
+    generateRoundTripRoute, 
+    generateOneWayRoute,
+    isCalculating,
+    routeError,
+    setRouteError 
+  } = useRouteGeneration(planningData, state.userLocation, onRouteCalculated);
   
   const { displayRoute, clearRoutes } = useMapRoutes(map);
 
