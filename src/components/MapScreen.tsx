@@ -9,11 +9,11 @@ interface MapScreenProps {
   onBack: () => void;
   onGoToDashboard: () => void;
   planningData: {
-    steps: string;
+    steps: number;
     pace: 'slow' | 'moderate' | 'fast';
     tripType: 'one-way' | 'round-trip';
-    height: string;
-    weight: string;
+    height: number;
+    weight: number;
   };
 }
 
@@ -193,7 +193,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
               </div>
               <div className="text-center p-4 bg-gradient-to-br from-secondary/5 to-secondary/10 rounded-lg">
                 <div className="text-2xl font-bold text-secondary mb-1">
-                  {Math.round((routeData.distance * 1000) / (0.415 * parseFloat(planningData.height))).toLocaleString()}
+                  {Math.round((routeData.distance * 1000) / (0.415 * planningData.height)).toLocaleString()}
                 </div>
                 <p className="text-sm text-muted-foreground">Pas estimés</p>
               </div>

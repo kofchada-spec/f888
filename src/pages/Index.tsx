@@ -22,11 +22,11 @@ const Index = () => {
   const [showWalkTracking, setShowWalkTracking] = useState(false);
   const [selectedDestination, setSelectedDestination] = useState<any>(null);
   const [planningData, setPlanningData] = useState({ 
-    steps: '10000', 
+    steps: 10000, 
     pace: 'moderate' as 'slow' | 'moderate' | 'fast',
     tripType: 'one-way' as 'one-way' | 'round-trip',
-    height: '1.70',
-    weight: '70'
+    height: 1.70,
+    weight: 70
   });
 
   // Check stored completion states on mount
@@ -84,7 +84,7 @@ const Index = () => {
     setShowWalkPlanning(true);
   };
 
-  const handleWalkPlanningComplete = (data: { steps: string; pace: 'slow' | 'moderate' | 'fast'; tripType: 'one-way' | 'round-trip'; height: string; weight: string }) => {
+  const handleWalkPlanningComplete = (data: { steps: number; pace: 'slow' | 'moderate' | 'fast'; tripType: 'one-way' | 'round-trip'; height: number; weight: number }) => {
     setPlanningData(data);
     setShowWalkPlanning(false);
     // Reset any previous map/destination state when entering map screen

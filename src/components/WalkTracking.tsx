@@ -24,11 +24,11 @@ interface Destination {
 interface WalkTrackingProps {
   destination: Destination;
   planningData: {
-    steps: string;
+    steps: number;
     pace: 'slow' | 'moderate' | 'fast';
     tripType: 'one-way' | 'round-trip';
-    height: string;
-    weight: string;
+    height: number;
+    weight: number;
   };
   onBack: () => void;
   onGoToDashboard: () => void;
@@ -191,8 +191,8 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
   const handleStopWalk = () => {
     // Save walk session data before resetting
     if (walkStartTime && elapsedTime > 0) {
-      const heightM = parseFloat(planningData.height) || 1.75;
-      const weightKg = parseFloat(planningData.weight) || 70;
+      const heightM = planningData.height || 1.75;
+      const weightKg = planningData.weight || 70;
       const strideM = 0.415 * heightM;
       const distanceKm = (currentSteps * strideM) / 1000;
       const calories = Math.round(distanceKm * weightKg * 0.9); // Walking calories formula
@@ -243,13 +243,13 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
   };
 
   const getProgress = () => {
-    const targetSteps = parseInt(planningData.steps);
+    const targetSteps = planningData.steps;
     return Math.min((currentSteps / targetSteps) * 100, 100);
   };
 
   // Calculate estimated steps for the selected route
   const getEstimatedSteps = () => {
-    const heightM = parseFloat(planningData.height);
+    const heightM = planningData.height;
     const strideM = heightM ? 0.415 * heightM : 0.72;
     const distanceM = destination.distanceKm * 1000;
     return Math.round(distanceM / strideM);
@@ -311,7 +311,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
               <MapPin size={20} className={isMovementDetected ? "text-orange-500" : "text-muted-foreground"} />
             </div>
             <div className="text-2xl font-bold text-foreground">
-              {isMovementDetected ? ((currentSteps * 0.415 * parseFloat(planningData.height)) / 1000).toFixed(1) : "0.0"}
+              {isMovementDetected ? ((currentSteps * 0.415 * planningData.height) / 1000).toFixed(1) : "0.0"}
             </div>
             <div className="text-sm text-muted-foreground">km parcourus</div>
           </Card>

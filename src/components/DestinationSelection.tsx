@@ -15,11 +15,11 @@ interface DestinationSelectionProps {
   onBack: () => void;
   onGoToDashboard: () => void;
   planningData: {
-    steps: string;
+    steps: number;
     pace: 'slow' | 'moderate' | 'fast';
     tripType: 'one-way' | 'round-trip';
-    height: string;
-    weight: string;
+    height: number;
+    weight: number;
   };
 }
 
@@ -471,7 +471,7 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
                         setError(null);
                         findValidOneWayDestination(userLocation);
                       } else if (userLocation) {
-                        fetchDestinations(userLocation, planningData, { heightM: parseFloat(planningData.height), weightKg: parseFloat(planningData.weight) });
+                        fetchDestinations(userLocation, planningData, { heightM: planningData.height, weightKg: planningData.weight });
                       }
                     }}
                   >

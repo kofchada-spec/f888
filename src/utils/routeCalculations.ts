@@ -18,9 +18,9 @@ export const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2
 /**
  * Calculate target distance based on steps and user height with validation
  */
-export const calculateTargetDistance = (steps: string, height: string): number => {
-  const stepCount = Math.max(1000, parseInt(steps) || 10000); // Min 1000 steps
-  const heightInMeters = Math.max(1.2, Math.min(2.5, parseFloat(height) || 1.70)); // Height range 1.2-2.5m
+export const calculateTargetDistance = (steps: number, height: number): number => {
+  const stepCount = Math.max(1000, steps || 10000); // Min 1000 steps
+  const heightInMeters = Math.max(1.2, Math.min(2.5, height || 1.70)); // Height range 1.2-2.5m
   const strideLength = 0.415 * heightInMeters;
   return (stepCount * strideLength) / 1000; // km
 };
@@ -28,8 +28,8 @@ export const calculateTargetDistance = (steps: string, height: string): number =
 /**
  * Calculate calories based on distance, weight, and pace with validation
  */
-export const calculateCalories = (distanceKm: number, weight: string, pace: string): number => {
-  const weightKg = Math.max(40, Math.min(200, parseFloat(weight) || 70)); // Weight range 40-200kg
+export const calculateCalories = (distanceKm: number, weight: number, pace: string): number => {
+  const weightKg = Math.max(40, Math.min(200, weight || 70)); // Weight range 40-200kg
   const validPace = ['slow', 'moderate', 'fast'].includes(pace) ? pace : 'moderate';
   const met = validPace === 'slow' ? 3.0 : validPace === 'moderate' ? 4.0 : 5.0;
   const speed = validPace === 'slow' ? 4 : validPace === 'moderate' ? 5 : 6;
@@ -53,7 +53,7 @@ export const calculateRouteMetrics = (
   const durationMin = Math.round((validDistance / speed) * 60);
   
   // Calculate steps with height validation
-  const heightInMeters = Math.max(1.2, Math.min(2.5, parseFloat(planningData.height) || 1.70));
+  const heightInMeters = Math.max(1.2, Math.min(2.5, planningData.height || 1.70));
   const steps = Math.round((validDistance * 1000) / (0.415 * heightInMeters));
   
   return { calories, durationMin, steps };

@@ -10,11 +10,11 @@ import { useNavigate } from 'react-router-dom';
 
 interface WalkPlanningProps {
   onComplete: (data: {
-    steps: string;
+    steps: number;
     pace: WalkPace;
     tripType: TripType;
-    height: string;
-    weight: string;
+    height: number;
+    weight: number;
   }) => void;
   onBack: () => void;
   onGoToDashboard: () => void;
@@ -84,11 +84,11 @@ const WalkPlanning = ({ onComplete, onBack, onGoToDashboard }: WalkPlanningProps
 
   const handleValidate = () => {
     onComplete({
-      steps: steps.toString(),
+      steps,
       pace: selectedPace,
       tripType,
-      height,
-      weight
+      height: parseFloat(height),
+      weight: parseFloat(weight)
     });
   };
 

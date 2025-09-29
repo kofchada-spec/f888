@@ -26,11 +26,11 @@ export interface RouteData {
 }
 
 export interface PlanningData {
-  steps: string;
+  steps: number;
   pace: 'slow' | 'moderate' | 'fast';
   tripType: 'one-way' | 'round-trip';
-  height: string;
-  weight: string;
+  height: number;
+  weight: number;
 }
 
 export interface MapboxRoute {
