@@ -29,9 +29,13 @@ const getMapboxToken = async (): Promise<string | null> => {
 export const useRouteGeneration = (
   planningData: PlanningData | undefined,
   userLocation: Coordinates | null,
-  onRouteCalculated?: (data: RouteData) => void
+  onRouteCalculated?: (data: RouteData) => void,
+  externalSetCalculating?: (calculating: boolean) => void
 ) => {
   const [isCalculating, setIsCalculating] = useState(false);
+  
+  // Use external setter if provided, otherwise use internal one
+  const setCalculating = externalSetCalculating || setIsCalculating;
   const [routeError, setRouteError] = useState<string | null>(null);
 
   /**
@@ -43,7 +47,7 @@ export const useRouteGeneration = (
     const targetDistance = calculateTargetDistance(planningData.steps, planningData.height);
     const { min, max } = getToleranceRange(targetDistance);
     
-    setIsCalculating(true);
+      setCalculating(true);
     setRouteError(null);
 
     try {
@@ -111,7 +115,7 @@ export const useRouteGeneration = (
             console.log(`✅ Itinéraire aller-retour réel trouvé à la tentative ${attempt} (${totalDistance.toFixed(2)}km)`);
             
             const routeData = createRouteData(bestRoute, planningData, userLocation);
-            setIsCalculating(false);
+            setCalculating(false);
             return routeData;
           }
         } catch (error) {
@@ -123,17 +127,17 @@ export const useRouteGeneration = (
       if (bestRoute && bestDifference <= targetDistance * 0.08) {
         console.log(`⚠️ Utilisation du meilleur itinéraire aller-retour réel (différence: ${bestDifference.toFixed(2)}km)`);
         const routeData = createRouteData(bestRoute, planningData, userLocation);
-        setIsCalculating(false);
+        setCalculating(false);
         return routeData;
       }
 
       setRouteError(`Aucun itinéraire aller-retour trouvé dans la tolérance ±5%.`);
-      setIsCalculating(false);
+      setCalculating(false);
       return null;
     } catch (error) {
       console.error('Erreur génération aller-retour:', error);
       setRouteError('Erreur lors de la génération de l\'itinéraire');
-      setIsCalculating(false);
+      setCalculating(false);
       return null;
     }
   }, [planningData, userLocation, onRouteCalculated]);
@@ -147,7 +151,7 @@ export const useRouteGeneration = (
     const targetDistance = calculateTargetDistance(planningData.steps, planningData.height);
     const { min, max } = getToleranceRange(targetDistance);
     
-    setIsCalculating(true);
+    setCalculating(true);
     setRouteError(null);
 
     const maxAttempts = 10;
@@ -193,7 +197,7 @@ export const useRouteGeneration = (
           };
 
           onRouteCalculated?.(routeData);
-          setIsCalculating(false);
+          setCalculating(false);
           return routeData;
         }
       } catch (error) {
@@ -202,7 +206,7 @@ export const useRouteGeneration = (
     }
 
     setRouteError(`Aucun itinéraire trouvé dans la tolérance ±5%.`);
-    setIsCalculating(false);
+    setCalculating(false);
     return null;
   }, [planningData, userLocation, onRouteCalculated]);
 

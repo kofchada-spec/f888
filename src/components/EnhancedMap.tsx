@@ -49,7 +49,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     isCalculating,
     routeError,
     setRouteError 
-  } = useRouteGeneration(planningData, state.userLocation, onRouteCalculated);
+  } = useRouteGeneration(planningData, state.userLocation, onRouteCalculated, setCalculating);
   
   const { displayRoute, clearRoutes } = useMapRoutes(map);
 
@@ -184,7 +184,6 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
       }
 
       console.log('🎯 Génération automatique d\'itinéraire...');
-      setCalculating(true);
 
       try {
         let routeData: RouteData | null = null;
@@ -463,7 +462,6 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
 
     console.log('🔄 Restauration de l\'itinéraire original...');
     setManualSelectionActive(false);
-    setCalculating(true);
 
     try {
       let routeData: RouteData | null = null;
