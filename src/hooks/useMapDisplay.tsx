@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { RouteGeoJSON, Coordinates } from '@/types/route';
+import { clearMapRoutes, addRouteMarkers } from '@/utils/mapRouteDisplay';
 
 export const useMapDisplay = (map: React.MutableRefObject<mapboxgl.Map | null>) => {
 
@@ -10,21 +11,12 @@ export const useMapDisplay = (map: React.MutableRefObject<mapboxgl.Map | null>) 
   const clearMap = useCallback(() => {
     if (!map.current) return;
 
-    // Remove all route layers and sources
-    const routeLayers = ['outbound-route', 'return-route', 'route'];
-    const routeSources = ['outbound-route', 'return-route', 'route'];
-
-    routeLayers.forEach(layerId => {
-      if (map.current?.getLayer(layerId)) {
-        map.current.removeLayer(layerId);
-      }
-    });
-
-    routeSources.forEach(sourceId => {
-      if (map.current?.getSource(sourceId)) {
-        map.current.removeSource(sourceId);
-      }
-    });
+    console.log('🧹 Nettoyage de la carte');
+    clearMapRoutes(map.current);
+    
+    // Remove markers
+    const existingMarkers = document.querySelectorAll('.mapboxgl-marker');
+    existingMarkers.forEach(marker => marker.remove());
   }, [map]);
 
   /**
@@ -34,225 +26,37 @@ export const useMapDisplay = (map: React.MutableRefObject<mapboxgl.Map | null>) 
     userLocation: Coordinates,
     destinationCoords: [number, number]
   ) => {
-    if (!map.current) return { userMarker: null, destinationMarker: null };
-
-    // Add user marker (green)
-    const userMarker = new mapboxgl.Marker({ color: '#10b981' })
-      .setLngLat([userLocation.lng, userLocation.lat])
-      .addTo(map.current);
-
-    // Add destination marker (red)
-    const destinationMarker = new mapboxgl.Marker({ color: '#ef4444' })
-      .setLngLat(destinationCoords)
-      .addTo(map.current);
-
-    return { userMarker, destinationMarker };
+    if (!map.current) return;
+    
+    console.log('📍 Ajout des marqueurs');
+    addRouteMarkers(map.current, userLocation, destinationCoords);
   }, [map]);
 
   /**
    * Display round-trip route on the map
+   * @deprecated Use useMapRoutes hook instead
    */
   const displayRoundTripRoute = useCallback((
     destinationCoords: [number, number],
     routeGeoJSON: RouteGeoJSON,
     userLocation: Coordinates
   ) => {
-    if (!map.current) {
-      console.log('❌ Map not available');
-      return;
-    }
-
-    if (!routeGeoJSON.outboundCoordinates || !routeGeoJSON.returnCoordinates) {
-      console.error('❌ Missing route coordinates');
-      return;
-    }
-
-    // Function to actually display the route
-    const displayRoutes = () => {
-      if (!map.current) return;
-
-      console.log('🗺️ Starting round-trip route display');
-      
-      // Clear existing routes first
-      clearMap();
-
-      // Add markers
-      addMarkers(userLocation, destinationCoords);
-
-      try {
-        // Add outbound route (solid green)
-        map.current.addSource('outbound-route', {
-          type: 'geojson',
-          data: {
-            type: 'Feature',
-            properties: {},
-            geometry: {
-              type: 'LineString',
-              coordinates: routeGeoJSON.outboundCoordinates
-            }
-          }
-        });
-
-        map.current.addLayer({
-          id: 'outbound-route',
-          type: 'line',
-          source: 'outbound-route',
-          layout: {
-            'line-join': 'round',
-            'line-cap': 'round'
-          },
-          paint: {
-            'line-color': '#10b981', // Green
-            'line-width': 4
-          }
-        });
-
-        // Add return route (dashed blue)
-        map.current.addSource('return-route', {
-          type: 'geojson',
-          data: {
-            type: 'Feature',
-            properties: {},
-            geometry: {
-              type: 'LineString',
-              coordinates: routeGeoJSON.returnCoordinates
-            }
-          }
-        });
-
-        map.current.addLayer({
-          id: 'return-route',
-          type: 'line',
-          source: 'return-route',
-          layout: {
-            'line-join': 'round',
-            'line-cap': 'round'
-          },
-          paint: {
-            'line-color': '#3b82f6', // Blue
-            'line-width': 4,
-            'line-dasharray': [2, 2]
-          }
-        });
-
-        // Fit map to both routes with better bounds calculation
-        const allCoordinates = [...routeGeoJSON.outboundCoordinates, ...routeGeoJSON.returnCoordinates];
-        
-        if (allCoordinates.length > 0) {
-          const bounds = new mapboxgl.LngLatBounds();
-          allCoordinates.forEach((coord: [number, number]) => {
-            bounds.extend(coord);
-          });
-          
-          // Add user location to bounds to ensure it's visible
-          bounds.extend([userLocation.lng, userLocation.lat]);
-          bounds.extend(destinationCoords);
-          
-          map.current.fitBounds(bounds, { 
-            padding: 80,
-            maxZoom: 15
-          });
-        }
-
-        console.log('✅ Round-trip route displayed successfully');
-      } catch (error) {
-        console.error('❌ Error displaying round-trip route:', error);
-      }
-    };
-
-    // Check if style is loaded, if not wait for it
-    if (!map.current.isStyleLoaded()) {
-      console.log('⏳ Map style not loaded, waiting...');
-      map.current.once('style.load', displayRoutes);
-    } else {
-      displayRoutes();
-    }
-
-  }, [map, clearMap, addMarkers]);
+    console.warn('⚠️ displayRoundTripRoute is deprecated, use useMapRoutes instead');
+    // This method is kept for backward compatibility but should not be used
+  }, []);
 
   /**
    * Display one-way route on the map
+   * @deprecated Use useMapRoutes hook instead
    */
   const displayOneWayRoute = useCallback((
     startCoords: Coordinates,
     endCoords: Coordinates,
     routeGeoJSON?: any
   ) => {
-    if (!map.current || !map.current.isStyleLoaded()) {
-      console.log('⏳ Map style not loaded for one-way route');
-      return;
-    }
-
-    console.log('🗺️ Displaying one-way route', { routeGeoJSON });
-    console.log('📍 Position utilisateur pour affichage:', startCoords);
-    console.log('🎯 Destination pour affichage:', endCoords);
-
-    // Clear existing routes
-    clearMap();
-
-    // Add markers
-    addMarkers(startCoords, [endCoords.lng, endCoords.lat]);
-
-    // Use real route geometry if available, otherwise fallback to straight line
-    let routeGeometry;
-    if (routeGeoJSON && routeGeoJSON.coordinates) {
-      routeGeometry = {
-        type: 'LineString',
-        coordinates: routeGeoJSON.coordinates
-      };
-      console.log('✅ Using real Mapbox route geometry');
-    } else {
-      routeGeometry = {
-        type: 'LineString',
-        coordinates: [
-          [startCoords.lng, startCoords.lat],
-          [endCoords.lng, endCoords.lat]
-        ]
-      };
-      console.log('⚠️ Using fallback straight line');
-    }
-
-    // Add route source
-    map.current.addSource('route', {
-      type: 'geojson',
-      data: {
-        type: 'Feature',
-        properties: {},
-        geometry: routeGeometry
-      }
-    });
-
-    map.current.addLayer({
-      id: 'route',
-      type: 'line',
-      source: 'route',
-      layout: {
-        'line-join': 'round',
-        'line-cap': 'round'
-      },
-      paint: {
-        'line-color': '#10b981',
-        'line-width': 4
-      }
-    });
-
-    // Fit map to route bounds
-    if (routeGeoJSON && routeGeoJSON.coordinates && routeGeoJSON.coordinates.length > 0) {
-      const bounds = new mapboxgl.LngLatBounds();
-      routeGeoJSON.coordinates.forEach((coord: [number, number]) => {
-        bounds.extend(coord);
-      });
-      map.current.fitBounds(bounds, { padding: 50 });
-    } else {
-      // Fallback bounds for straight line
-      const bounds = new mapboxgl.LngLatBounds();
-      bounds.extend([startCoords.lng, startCoords.lat]);
-      bounds.extend([endCoords.lng, endCoords.lat]);
-      map.current.fitBounds(bounds, { padding: 50 });
-    }
-
-    console.log('✅ One-way route displayed successfully');
-  }, [map, clearMap, addMarkers]);
+    console.warn('⚠️ displayOneWayRoute is deprecated, use useMapRoutes instead');
+    // This method is kept for backward compatibility but should not be used
+  }, []);
 
   return {
     displayRoundTripRoute,
