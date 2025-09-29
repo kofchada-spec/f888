@@ -132,18 +132,39 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
         },
         (error) => {
           console.warn('⚠️ Erreur géolocalisation:', error.message);
-          console.log('Using default location for demo purposes');
-          // Set default location for demo
-          const defaultLocation = { lat: 43.6047, lng: 1.4442 }; // Toulouse
-          setUserLocation(defaultLocation);
           
-          if (map.current) {
-            map.current.flyTo({
-              center: [defaultLocation.lng, defaultLocation.lat],
-              zoom: 14,
-              duration: 1000
+          // Try to get location from IP geolocation as fallback
+          fetch('https://ipapi.co/json/')
+            .then(response => response.json())
+            .then(data => {
+              if (data.latitude && data.longitude) {
+                const ipLocation = { lat: data.latitude, lng: data.longitude };
+                console.log('✅ Position obtenue via IP:', `${data.city}, ${data.country_name}`);
+                setUserLocation(ipLocation);
+                
+                if (map.current) {
+                  map.current.flyTo({
+                    center: [ipLocation.lng, ipLocation.lat],
+                    zoom: 14,
+                    duration: 1000
+                  });
+                }
+              } else {
+                throw new Error('IP geolocation failed');
+              }
+            })
+            .catch(() => {
+              // Final fallback: Ask user to click on map to set location
+              console.log('💡 Demande à l\'utilisateur de cliquer sur la carte pour définir sa position');
+              if (map.current) {
+                // Center on Europe as neutral starting point
+                map.current.flyTo({
+                  center: [2.3522, 48.8566], // Paris as European center
+                  zoom: 5,
+                  duration: 1000
+                });
+              }
             });
-          }
         },
         {
           enableHighAccuracy: true,
@@ -152,10 +173,35 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
         }
       );
     } else {
-      console.log('❌ Geolocation not supported by this browser');
-      // Set default location for demo
-      const defaultLocation = { lat: 43.6047, lng: 1.4442 }; // Toulouse
-      setUserLocation(defaultLocation);
+      console.log('❌ Géolocalisation non supportée par ce navigateur');
+      // Try IP geolocation fallback
+      fetch('https://ipapi.co/json/')
+        .then(response => response.json())
+        .then(data => {
+          if (data.latitude && data.longitude) {
+            const ipLocation = { lat: data.latitude, lng: data.longitude };
+            console.log('✅ Position obtenue via IP:', `${data.city}, ${data.country_name}`);
+            setUserLocation(ipLocation);
+            
+            if (map.current) {
+              map.current.flyTo({
+                center: [ipLocation.lng, ipLocation.lat],
+                zoom: 14,
+                duration: 1000
+              });
+            }
+          }
+        })
+        .catch(() => {
+          // Center on Europe and let user click to set location
+          if (map.current) {
+            map.current.flyTo({
+              center: [2.3522, 48.8566], // Paris
+              zoom: 5,
+              duration: 1000
+            });
+          }
+        });
     }
   }, [setUserLocation]);
 
@@ -328,6 +374,22 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     }
 
     const handleClick = async (e: mapboxgl.MapMouseEvent) => {
+      // Allow setting user location if not set yet
+      if (!state.userLocation) {
+        const clickedLocation = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+        console.log('📍 Position définie par clic utilisateur:', clickedLocation);
+        setUserLocation(clickedLocation);
+        
+        if (map.current) {
+          map.current.flyTo({
+            center: [clickedLocation.lng, clickedLocation.lat],
+            zoom: 14,
+            duration: 1000
+          });
+        }
+        return;
+      }
+
       if (state.isCalculating || !canClick || !canClickFromLimiter) return;
 
       console.log('👆 Clic manuel sur la carte - génération itinéraire réel');
@@ -510,12 +572,13 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
       {/* Loading overlay - waiting for location */}
       {!state.userLocation && !isLoading && (
         <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center rounded-lg z-10">
-          <div className="bg-card/90 backdrop-blur-sm p-4 rounded-lg shadow-lg">
-            <div className="flex items-center space-x-3">
+          <div className="bg-card/90 backdrop-blur-sm p-4 rounded-lg shadow-lg max-w-sm text-center">
+            <div className="flex items-center justify-center space-x-3 mb-3">
               <div className="animate-pulse rounded-full h-5 w-5 bg-primary/50"></div>
               <span className="text-sm font-medium">Localisation en cours...</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-2 text-center">Veuillez autoriser l'accès à votre position</p>
+            <p className="text-xs text-muted-foreground mb-2">Autoriser l'accès à votre position ou</p>
+            <p className="text-xs text-primary font-medium">Cliquer sur la carte pour définir votre position</p>
           </div>
         </div>
       )}
