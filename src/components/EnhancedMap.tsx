@@ -523,7 +523,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
       )}
       
       {/* Loading overlay - route calculation */}
-      {state.userLocation && state.isCalculating && (
+      {state.userLocation && (state.isCalculating || isCalculating) && (
         <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center rounded-lg z-10">
           <div className="bg-card/90 backdrop-blur-sm p-4 rounded-lg shadow-lg">
             <div className="flex items-center space-x-3">
