@@ -135,13 +135,24 @@ export const useMapDisplay = (map: React.MutableRefObject<mapboxgl.Map | null>) 
           }
         });
 
-        // Fit map to both routes
+        // Fit map to both routes with better bounds calculation
         const allCoordinates = [...routeGeoJSON.outboundCoordinates, ...routeGeoJSON.returnCoordinates];
-        const bounds = allCoordinates.reduce((bounds: any, coord: any) => {
-          return bounds.extend(coord);
-        }, new mapboxgl.LngLatBounds(allCoordinates[0], allCoordinates[0]));
         
-        map.current.fitBounds(bounds, { padding: 50 });
+        if (allCoordinates.length > 0) {
+          const bounds = new mapboxgl.LngLatBounds();
+          allCoordinates.forEach((coord: [number, number]) => {
+            bounds.extend(coord);
+          });
+          
+          // Add user location to bounds to ensure it's visible
+          bounds.extend([userLocation.lng, userLocation.lat]);
+          bounds.extend(destinationCoords);
+          
+          map.current.fitBounds(bounds, { 
+            padding: 80,
+            maxZoom: 15
+          });
+        }
 
         console.log('✅ Round-trip route displayed successfully');
       } catch (error) {
