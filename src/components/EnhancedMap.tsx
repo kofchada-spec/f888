@@ -4,7 +4,8 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { PlanningData, RouteData } from '@/types/route';
 import { initializeMap, getMapboxToken } from '@/utils/mapboxHelpers';
 import { useMapClickLimiter } from '@/hooks/useMapClickLimiter';
-import { useRouteGeneration } from '@/hooks/useRouteGeneration';
+import { useRoundTripRouteGeneration } from '@/hooks/useRoundTripRouteGeneration';
+import { useOneWayRouteGeneration } from '@/hooks/useOneWayRouteGeneration';
 import { useMapState } from '@/hooks/useMapState';
 import { useMapRoutes } from '@/hooks/useMapRoutes';
 import { calculateTargetDistance, getToleranceRange, calculateRouteMetrics } from '@/utils/routeCalculations';
@@ -43,13 +44,12 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     resetState
   } = useMapState();
   
-  const { 
-    generateRoundTripRoute, 
-    generateOneWayRoute,
-    isCalculating,
-    routeError,
-    setRouteError 
-  } = useRouteGeneration(planningData, state.userLocation, onRouteCalculated, setCalculating);
+  const roundTripHook = useRoundTripRouteGeneration(planningData, state.userLocation, onRouteCalculated, setCalculating);
+  const oneWayHook = useOneWayRouteGeneration(planningData, state.userLocation, onRouteCalculated, setCalculating);
+  
+  // Select appropriate hook based on trip type
+  const currentHook = planningData?.tripType === 'round-trip' ? roundTripHook : oneWayHook;
+  const { isCalculating, routeError, setRouteError } = currentHook;
   
   const { displayRoute, clearRoutes } = useMapRoutes(map);
 
@@ -190,9 +190,9 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
 
         // Try the original generation first
         if (planningData.tripType === 'round-trip') {
-          routeData = await generateRoundTripRoute();
+          routeData = await roundTripHook.generateRoundTripRoute();
         } else {
-          routeData = await generateOneWayRoute();
+          routeData = await oneWayHook.generateOneWayRoute();
         }
 
         // If no route found, use cardinal direction fallback
@@ -302,8 +302,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     state.userLocation,
     planningData,
     state.currentRoute,
-    generateRoundTripRoute,
-    generateOneWayRoute,
+    roundTripHook.generateRoundTripRoute,
+    oneWayHook.generateOneWayRoute,
     displayRoute,
     onRouteCalculated,
     setCurrentRoute,
@@ -467,9 +467,9 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
       let routeData: RouteData | null = null;
 
       if (planningData.tripType === 'round-trip') {
-        routeData = await generateRoundTripRoute();
+        routeData = await roundTripHook.generateRoundTripRoute();
       } else {
-        routeData = await generateOneWayRoute();
+        routeData = await oneWayHook.generateOneWayRoute();
       }
 
       if (routeData) {

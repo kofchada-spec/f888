@@ -1,42 +1,31 @@
 import { useState, useCallback } from 'react';
-import { 
-  calculateTargetDistance, 
-  calculateDistance, 
-  calculateRouteMetrics, 
-  getToleranceRange,
-  generateRandomCoordinates
-} from '@/utils/routeCalculations';
-import { PlanningData, Coordinates, RouteData } from '@/types/route';
+import { supabase } from '@/integrations/supabase/client';
+import { Coordinates, RouteData, PlanningData } from '@/types/route';
+import { calculateTargetDistance, calculateRouteMetrics, generateRandomCoordinates } from '@/utils/routeCalculations';
 
-// Helper function to get Mapbox token
+// Get Mapbox token from Supabase function
 const getMapboxToken = async (): Promise<string | null> => {
   try {
-    const { supabase } = await import('@/integrations/supabase/client');
     const { data, error } = await supabase.functions.invoke('mapbox-token');
-    
-    if (error) {
-      console.error('Error fetching Mapbox token:', error);
-      return null;
-    }
-    
+    if (error) throw error;
     return data?.token || null;
   } catch (error) {
-    console.error('Failed to fetch Mapbox token:', error);
+    console.error('Error getting Mapbox token:', error);
     return null;
   }
 };
 
-export const useRouteGeneration = (
+export const useRoundTripRouteGeneration = (
   planningData: PlanningData | undefined,
   userLocation: Coordinates | null,
   onRouteCalculated?: (data: RouteData) => void,
   externalSetCalculating?: (calculating: boolean) => void
 ) => {
   const [isCalculating, setIsCalculating] = useState(false);
+  const [routeError, setRouteError] = useState<string | null>(null);
   
   // Use external setter if provided, otherwise use internal one
   const setCalculating = externalSetCalculating || setIsCalculating;
-  const [routeError, setRouteError] = useState<string | null>(null);
 
   /**
    * Generate round-trip route with real Mapbox routes and ±5% tolerance validation
@@ -45,31 +34,29 @@ export const useRouteGeneration = (
     if (!planningData || !userLocation || planningData.tripType !== 'round-trip') return null;
 
     const targetDistance = calculateTargetDistance(planningData.steps, planningData.height);
-    const { min, max } = getToleranceRange(targetDistance);
-    
-      setCalculating(true);
-    setRouteError(null);
+    const tolerance = 0.05; // ±5%
+    const min = targetDistance * (1 - tolerance);
+    const max = targetDistance * (1 + tolerance);
 
     try {
-      console.log(`🎯 Génération itinéraire aller-retour avec routes réelles - cible: ${targetDistance.toFixed(2)}km (±5% = ${min.toFixed(2)}-${max.toFixed(2)}km)`);
+      setCalculating(true);
+      setRouteError(null);
 
       const mapboxToken = await getMapboxToken();
-      if (!mapboxToken) {
-        throw new Error('No Mapbox token available');
-      }
+      if (!mapboxToken) throw new Error('Failed to get Mapbox token');
 
-      const maxAttempts = 10;
       let bestRoute = null;
       let bestDifference = Infinity;
+      const maxAttempts = 15;
 
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-          // Generate random destination around user location
-          const approximateOneWayDistance = targetDistance / 2;
-          const destination = generateRandomCoordinates(userLocation, approximateOneWayDistance * 1.5);
+          // Generate destination around half the target distance
+          const searchDistance = targetDistance / 2;
+          const destination = generateRandomCoordinates(userLocation, searchDistance);
           
           console.log(`🎯 Tentative ${attempt}: Utilisateur à ${userLocation.lat.toFixed(6)}, ${userLocation.lng.toFixed(6)} -> Destination ${destination.lat.toFixed(6)}, ${destination.lng.toFixed(6)}`);
-          
+
           // Get real outbound route from user location to destination
           const outboundUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${userLocation.lng},${userLocation.lat};${destination.lng},${destination.lat}?geometries=geojson&access_token=${mapboxToken}`;
           const outboundResponse = await fetch(outboundUrl);
@@ -94,19 +81,20 @@ export const useRouteGeneration = (
           const outboundDistanceKm = outboundRoute.distance / 1000;
           const returnDistanceKm = returnRoute.distance / 1000;
           const totalDistance = outboundDistanceKm + returnDistanceKm;
+
+          console.log(`📏 Distance totale: ${totalDistance.toFixed(2)}km (Aller: ${outboundDistanceKm.toFixed(2)}km + Retour: ${returnDistanceKm.toFixed(2)}km)`);
+
           const difference = Math.abs(totalDistance - targetDistance);
-
-          console.log(`Tentative ${attempt}: Aller ${outboundDistanceKm.toFixed(2)}km + Retour ${returnDistanceKm.toFixed(2)}km = Total ${totalDistance.toFixed(2)}km (diff: ${difference.toFixed(2)}km)`);
-
-          // Save best option
+          
+          // Track best route for fallback
           if (difference < bestDifference) {
             bestDifference = difference;
             bestRoute = {
-              outboundCoordinates: outboundRoute.geometry.coordinates,
-              returnCoordinates: returnRoute.geometry.coordinates,
               totalDistance,
               destLat: destination.lat,
-              destLng: destination.lng
+              destLng: destination.lng,
+              outboundCoordinates: outboundRoute.geometry.coordinates,
+              returnCoordinates: returnRoute.geometry.coordinates
             };
           }
 
@@ -142,74 +130,6 @@ export const useRouteGeneration = (
     }
   }, [planningData, userLocation, onRouteCalculated]);
 
-  /**
-   * Generate one-way route with ±5% tolerance using real Mapbox routes
-   */
-  const generateOneWayRoute = useCallback(async () => {
-    if (!planningData || !userLocation || planningData.tripType !== 'one-way') return null;
-
-    const targetDistance = calculateTargetDistance(planningData.steps, planningData.height);
-    const { min, max } = getToleranceRange(targetDistance);
-    
-    setCalculating(true);
-    setRouteError(null);
-
-    const maxAttempts = 10;
-    
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        const destination = generateRandomCoordinates(userLocation, targetDistance * 1.2);
-        
-        console.log(`🎯 Tentative ${attempt}: Utilisateur à ${userLocation.lat.toFixed(6)}, ${userLocation.lng.toFixed(6)} -> Destination ${destination.lat.toFixed(6)}, ${destination.lng.toFixed(6)}`);
-        
-        // Get real route from Mapbox instead of just calculating straight-line distance
-        const mapboxToken = await getMapboxToken();
-        if (!mapboxToken) {
-          throw new Error('No Mapbox token available');
-        }
-
-        const routeUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${userLocation.lng},${userLocation.lat};${destination.lng},${destination.lat}?geometries=geojson&access_token=${mapboxToken}`;
-        
-        const response = await fetch(routeUrl);
-        if (!response.ok) {
-          throw new Error(`Mapbox API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        if (!data.routes || data.routes.length === 0) {
-          continue; // Try next attempt
-        }
-
-        const route = data.routes[0];
-        const routeDistanceKm = route.distance / 1000; // Convert to km
-        
-        if (routeDistanceKm >= min && routeDistanceKm <= max) {
-          const metrics = calculateRouteMetrics(routeDistanceKm, planningData);
-          
-          const routeData: RouteData = {
-            distance: routeDistanceKm,
-            duration: metrics.durationMin,
-            calories: metrics.calories,
-            steps: metrics.steps,
-            startCoordinates: userLocation,
-            endCoordinates: destination,
-            routeGeoJSON: route.geometry // Real Mapbox route geometry
-          };
-
-          onRouteCalculated?.(routeData);
-          setCalculating(false);
-          return routeData;
-        }
-      } catch (error) {
-        console.warn(`One-way route attempt ${attempt} failed:`, error);
-      }
-    }
-
-    setRouteError(`Aucun itinéraire trouvé dans la tolérance ±5%.`);
-    setCalculating(false);
-    return null;
-  }, [planningData, userLocation, onRouteCalculated]);
-
   // Helper function to create RouteData from route info
   const createRouteData = (routeInfo: any, planningData: PlanningData, userLocation: Coordinates): RouteData => {
     const { totalDistance, destLat, destLng, outboundCoordinates, returnCoordinates } = routeInfo;
@@ -223,8 +143,8 @@ export const useRouteGeneration = (
       startCoordinates: userLocation,
       endCoordinates: { lat: destLat, lng: destLng },
       routeGeoJSON: {
-        outboundCoordinates,
-        returnCoordinates,
+        outboundCoordinates: outboundCoordinates,
+        returnCoordinates: returnCoordinates,
         samePathReturn: false
       }
     };
@@ -235,7 +155,6 @@ export const useRouteGeneration = (
 
   return {
     generateRoundTripRoute,
-    generateOneWayRoute,
     isCalculating,
     routeError,
     setRouteError
