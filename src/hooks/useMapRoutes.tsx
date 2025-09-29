@@ -1,13 +1,6 @@
 import { useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
-import { RouteGeoJSON, Coordinates, RouteData } from '@/types/route';
-import { 
-  clearMapRoutes, 
-  addRouteMarkers, 
-  addRoundTripRoute, 
-  addOneWayRoute, 
-  fitMapToRoute 
-} from '@/utils/mapRouteDisplay';
+import { Coordinates, RouteData } from '@/types/route';
 
 export const useMapRoutes = (map: React.MutableRefObject<mapboxgl.Map | null>) => {
 
@@ -30,27 +23,54 @@ export const useMapRoutes = (map: React.MutableRefObject<mapboxgl.Map | null>) =
     if (!map.current) return;
     
     console.log('🧹 Nettoyage des itinéraires existants');
-    clearMapRoutes(map.current);
+    
+    // Remove route layers
+    ['route-outbound-layer', 'route-return-layer'].forEach(layerId => {
+      if (map.current!.getLayer(layerId)) {
+        map.current!.removeLayer(layerId);
+      }
+    });
+    
+    // Remove route sources
+    ['route-outbound-src', 'route-return-src'].forEach(sourceId => {
+      if (map.current!.getSource(sourceId)) {
+        map.current!.removeSource(sourceId);
+      }
+    });
     
     // Remove markers
     const existingMarkers = document.querySelectorAll('.mapboxgl-marker');
     existingMarkers.forEach(marker => marker.remove());
   }, [map]);
 
-  const displayRoundTripRoute = useCallback(async (
+  const addRouteMarkers = useCallback((userLocation: Coordinates, destinationCoords: [number, number]) => {
+    if (!map.current) return;
+
+    // User location marker (blue)
+    const userMarker = new mapboxgl.Marker({ color: '#3b82f6' })
+      .setLngLat([userLocation.lng, userLocation.lat])
+      .addTo(map.current);
+
+    // Destination marker (red)
+    const destMarker = new mapboxgl.Marker({ color: '#ef4444' })
+      .setLngLat(destinationCoords)
+      .addTo(map.current);
+  }, [map]);
+
+  const displayRoute = useCallback(async (
     routeData: RouteData,
-    userLocation: Coordinates
+    userLocation: Coordinates,
+    tripType: 'one-way' | 'round-trip'
   ) => {
     if (!map.current || !routeData.routeGeoJSON) {
       console.error('❌ Carte ou données d\'itinéraire manquantes');
       return;
     }
 
-    console.log('🗺️ Affichage itinéraire aller-retour');
+    console.log(`🗺️ Affichage itinéraire ${tripType}`);
     
     try {
       await waitForMapReady();
-      
       clearRoutes();
       
       const destinationCoords: [number, number] = [
@@ -59,10 +79,66 @@ export const useMapRoutes = (map: React.MutableRefObject<mapboxgl.Map | null>) =
       ];
       
       // Add markers
-      addRouteMarkers(map.current, userLocation, destinationCoords);
+      addRouteMarkers(userLocation, destinationCoords);
       
-      // Add round-trip route
-      addRoundTripRoute(map.current, routeData.routeGeoJSON);
+      // Add outbound route (green)
+      if (routeData.routeGeoJSON.outboundCoordinates) {
+        map.current.addSource('route-outbound-src', {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: routeData.routeGeoJSON.outboundCoordinates
+            }
+          }
+        });
+
+        map.current.addLayer({
+          id: 'route-outbound-layer',
+          type: 'line',
+          source: 'route-outbound-src',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': '#22c55e',
+            'line-width': 4
+          }
+        });
+      }
+      
+      // Add return route for round-trip (blue dashed)
+      if (tripType === 'round-trip' && routeData.routeGeoJSON.returnCoordinates) {
+        map.current.addSource('route-return-src', {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: routeData.routeGeoJSON.returnCoordinates
+            }
+          }
+        });
+
+        map.current.addLayer({
+          id: 'route-return-layer',
+          type: 'line',
+          source: 'route-return-src',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': '#3b82f6',
+            'line-width': 4,
+            'line-dasharray': [2, 2]
+          }
+        });
+      }
       
       // Fit map to route
       const allCoordinates = [
@@ -70,97 +146,28 @@ export const useMapRoutes = (map: React.MutableRefObject<mapboxgl.Map | null>) =
         ...(routeData.routeGeoJSON.returnCoordinates || [])
       ];
       
-      fitMapToRoute(
-        map.current,
-        allCoordinates,
-        userLocation,
-        destinationCoords
-      );
-      
-      console.log('✅ Itinéraire aller-retour affiché avec succès');
-      
-    } catch (error) {
-      console.error('❌ Erreur lors de l\'affichage de l\'itinéraire aller-retour:', error);
-      throw error;
-    }
-  }, [map, waitForMapReady, clearRoutes]);
-
-  const displayOneWayRoute = useCallback(async (
-    routeData: RouteData,
-    userLocation: Coordinates
-  ) => {
-    if (!map.current) {
-      console.error('❌ Carte non disponible');
-      return;
-    }
-
-    console.log('🗺️ Affichage itinéraire aller simple');
-    
-    try {
-      await waitForMapReady();
-      
-      clearRoutes();
-      
-      const destinationCoords: [number, number] = [
-        routeData.endCoordinates.lng,
-        routeData.endCoordinates.lat
-      ];
-      
-      // Add markers
-      addRouteMarkers(map.current, userLocation, destinationCoords);
-      
-      // Determine route coordinates
-      let routeCoordinates: [number, number][];
-      
-      if (routeData.routeGeoJSON?.outboundCoordinates) {
-        routeCoordinates = routeData.routeGeoJSON.outboundCoordinates;
-        console.log('✅ Utilisation de la géométrie Mapbox réelle');
-      } else {
-        // Fallback to straight line
-        routeCoordinates = [
-          [userLocation.lng, userLocation.lat],
-          destinationCoords
-        ];
-        console.log('⚠️ Utilisation d\'une ligne droite de substitution');
+      if (allCoordinates.length > 0) {
+        const bounds = new mapboxgl.LngLatBounds();
+        allCoordinates.forEach(coord => bounds.extend(coord as [number, number]));
+        bounds.extend([userLocation.lng, userLocation.lat]);
+        bounds.extend(destinationCoords);
+        
+        map.current.fitBounds(bounds, {
+          padding: 80,
+          maxZoom: 15
+        });
       }
       
-      // Add one-way route
-      addOneWayRoute(map.current, routeCoordinates);
-      
-      // Fit map to route
-      fitMapToRoute(
-        map.current,
-        routeCoordinates,
-        userLocation,
-        destinationCoords
-      );
-      
-      console.log('✅ Itinéraire aller simple affiché avec succès');
+      console.log(`✅ Itinéraire ${tripType} affiché avec succès`);
       
     } catch (error) {
-      console.error('❌ Erreur lors de l\'affichage de l\'itinéraire aller simple:', error);
+      console.error(`❌ Erreur lors de l'affichage de l'itinéraire ${tripType}:`, error);
       throw error;
     }
-  }, [map, waitForMapReady, clearRoutes]);
-
-  const displayRoute = useCallback(async (
-    routeData: RouteData,
-    userLocation: Coordinates,
-    tripType: 'one-way' | 'round-trip'
-  ) => {
-    console.log(`🎯 Affichage itinéraire ${tripType}`);
-    
-    if (tripType === 'round-trip') {
-      await displayRoundTripRoute(routeData, userLocation);
-    } else {
-      await displayOneWayRoute(routeData, userLocation);
-    }
-  }, [displayRoundTripRoute, displayOneWayRoute]);
+  }, [map, waitForMapReady, clearRoutes, addRouteMarkers]);
 
   return {
     displayRoute,
-    displayRoundTripRoute,
-    displayOneWayRoute,
     clearRoutes,
     waitForMapReady,
   };
