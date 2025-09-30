@@ -343,7 +343,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
               <div className="text-sm text-muted-foreground">Distance totale</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-orange-500">{destination.durationMin} min</div>
+              <div className="text-2xl font-bold text-orange-500">{Math.round(destination.durationMin)} min</div>
               <div className="text-sm text-muted-foreground">Durée estimée</div>
             </div>
             <div className="text-center">

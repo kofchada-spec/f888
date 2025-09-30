@@ -202,7 +202,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
               </div>
               <div className="text-center p-4 bg-gradient-to-br from-green-500/5 to-green-500/10 rounded-lg">
                 <div className="text-2xl font-bold text-green-600 mb-1">
-                  {routeData.duration} min
+                  {Math.round(routeData.duration)} min
                 </div>
                 <p className="text-sm text-muted-foreground">Durée estimée</p>
               </div>
