@@ -217,13 +217,17 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
 
   useEffect(() => {
     if (mapReady && userLocation && planningData && !currentRoute && !isCalculating) {
-      if (planningData.tripType === 'one-way') {
-        oneWayHook.generateOneWayRoute();
-      } else if (planningData.tripType === 'round-trip') {
-        roundTripHook.generateRoundTripRoute();
-      }
+      const generateRoute = async () => {
+        if (planningData.tripType === 'one-way') {
+          await oneWayHook.generateOneWayRoute();
+        } else if (planningData.tripType === 'round-trip') {
+          await roundTripHook.generateRoundTripRoute();
+        }
+      };
+      
+      generateRoute();
     }
-  }, [mapReady, userLocation, planningData, currentRoute, isCalculating]);
+  }, [mapReady, userLocation, planningData?.tripType, planningData?.steps, planningData?.height, currentRoute, isCalculating]);
 
   return (
     <div className="relative w-full h-full">
