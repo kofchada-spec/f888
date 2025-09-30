@@ -33,6 +33,19 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
   
   const { canClick, isLocked, incrementAttempts, remainingAttempts } = useMapClickLimiter(3);
 
+  // Refs pour accéder aux valeurs actuelles dans les event listeners
+  const userLocationRef = useRef<Coordinates | null>(null);
+  const canClickRef = useRef(canClick);
+  
+  // Mettre à jour les refs quand les valeurs changent
+  useEffect(() => {
+    userLocationRef.current = userLocation;
+  }, [userLocation]);
+  
+  useEffect(() => {
+    canClickRef.current = canClick;
+  }, [canClick]);
+
   const handleRouteCalculated = (route: RouteData, isInitial: boolean = false) => {
     setCurrentRoute(route);
     if (isInitial && !initialRoute) {
@@ -92,12 +105,16 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     if (!map.current) return;
 
     map.current.on('click', async (e) => {
-      console.log('Map clicked!', { canClick, isLocked, userLocation, planningData: !!planningData });
+      // Utiliser les refs pour avoir toujours les valeurs actuelles
+      const currentUserLocation = userLocationRef.current;
+      const currentCanClick = canClickRef.current;
       
-      if (!canClick || !userLocation || !planningData) {
+      console.log('Map clicked!', { canClick: currentCanClick, isLocked, userLocation: currentUserLocation, planningData: !!planningData });
+      
+      if (!currentCanClick || !currentUserLocation || !planningData) {
         if (isLocked) {
           toast.error('Vous avez utilisé vos 3 tentatives. Utilisez le bouton Réinitialiser pour revenir à l\'itinéraire initial.');
-        } else if (!userLocation) {
+        } else if (!currentUserLocation) {
           toast.error('Position utilisateur non disponible');
         } else if (!planningData) {
           toast.error('Données de planification manquantes');
@@ -111,8 +128,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
       };
 
       const distance = calculateDistance(
-        userLocation.lat,
-        userLocation.lng,
+        currentUserLocation.lat,
+        currentUserLocation.lng,
         clickedPoint.lat,
         clickedPoint.lng
       );
@@ -144,7 +161,9 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     // Changer le curseur en fonction du statut
     map.current.on('mousemove', () => {
       if (map.current) {
-        const cursor = !canClick ? 'not-allowed' : (!userLocation || !planningData) ? 'default' : 'pointer';
+        const currentCanClick = canClickRef.current;
+        const currentUserLocation = userLocationRef.current;
+        const cursor = !currentCanClick ? 'not-allowed' : (!currentUserLocation || !planningData) ? 'default' : 'pointer';
         map.current.getCanvas().style.cursor = cursor;
       }
     });
