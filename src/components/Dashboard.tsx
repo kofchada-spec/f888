@@ -1,17 +1,21 @@
 import { useState, useEffect } from 'react';
-import { User, Edit3, Footprints, MapPin, Flame, Clock, LogOut, Crown, Settings, UserCircle, CreditCard, HelpCircle, Target, Award } from 'lucide-react';
+import { User, Edit3, Footprints, MapPin, Flame, Clock, LogOut, Crown, Settings, UserCircle, CreditCard, HelpCircle, Target, Award, Zap } from 'lucide-react';
 import { useWalkStats } from '@/hooks/useWalkStats';
+import { useRunStats } from '@/hooks/useRunStats';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 import { ProfileEditModal } from '@/components/ProfileEditModal';
 import { WeeklyStats } from '@/components/WeeklyStats';
+import { RunWeeklyStats } from '@/components/RunWeeklyStats';
+import { BadgeSystem } from '@/components/BadgeSystem';
 import { Link, useNavigate } from 'react-router-dom';
 
 interface DashboardProps {
@@ -23,7 +27,8 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
   const { signOut, user } = useAuth();
   const { subscriptionData } = useSubscription();
   const navigate = useNavigate();
-  const { getTodayStats } = useWalkStats();
+  const { getTodayStats: getWalkTodayStats, getWeeklyStats: getWalkWeeklyStats, walkSessions } = useWalkStats();
+  const { getTodayStats: getRunTodayStats, getWeeklyStats: getRunWeeklyStats, runSessions } = useRunStats();
   const [userProfile, setUserProfile] = useState({
     firstName: "Utilisateur",
     gender: "-",
@@ -34,6 +39,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
   });
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'all' | 'walk' | 'run'>('all');
 
   // Load user profile from Supabase or localStorage
   useEffect(() => {
@@ -98,35 +104,73 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
     }));
   };
 
-  // Get today's actual stats from walk sessions
-  const todayStats = getTodayStats();
+  // Get today's actual stats from walk and run sessions
+  const walkTodayStats = getWalkTodayStats();
+  const runTodayStats = getRunTodayStats();
+  
+  // Combined today stats
+  const todayStats = {
+    steps: walkTodayStats.steps + runTodayStats.steps,
+    distanceKm: walkTodayStats.distanceKm + runTodayStats.distanceKm,
+    calories: walkTodayStats.calories + runTodayStats.calories,
+    activeTime: walkTodayStats.walkTime + runTodayStats.runTime
+  };
   
   // Daily goals
   const dailyGoals = {
     steps: 10000,
     distanceKm: 8.0,
     calories: 400,
-    walkTime: 60
+    activeTime: 60
   };
 
-  // Calculate progress percentages
-  const progress = {
-    steps: Math.min((todayStats.steps / dailyGoals.steps) * 100, 100),
-    distanceKm: Math.min((todayStats.distanceKm / dailyGoals.distanceKm) * 100, 100),
-    calories: Math.min((todayStats.calories / dailyGoals.calories) * 100, 100),
-    walkTime: Math.min((todayStats.walkTime / dailyGoals.walkTime) * 100, 100)
+  // Calculate progress percentages based on active tab
+  const getProgress = () => {
+    if (activeTab === 'walk') {
+      return {
+        steps: Math.min((walkTodayStats.steps / dailyGoals.steps) * 100, 100),
+        distanceKm: Math.min((walkTodayStats.distanceKm / dailyGoals.distanceKm) * 100, 100),
+        calories: Math.min((walkTodayStats.calories / dailyGoals.calories) * 100, 100),
+        activeTime: Math.min((walkTodayStats.walkTime / dailyGoals.activeTime) * 100, 100),
+        stats: walkTodayStats
+      };
+    } else if (activeTab === 'run') {
+      return {
+        steps: Math.min((runTodayStats.steps / dailyGoals.steps) * 100, 100),
+        distanceKm: Math.min((runTodayStats.distanceKm / dailyGoals.distanceKm) * 100, 100),
+        calories: Math.min((runTodayStats.calories / dailyGoals.calories) * 100, 100),
+        activeTime: Math.min((runTodayStats.runTime / dailyGoals.activeTime) * 100, 100),
+        stats: { ...runTodayStats, walkTime: runTodayStats.runTime }
+      };
+    } else {
+      return {
+        steps: Math.min((todayStats.steps / dailyGoals.steps) * 100, 100),
+        distanceKm: Math.min((todayStats.distanceKm / dailyGoals.distanceKm) * 100, 100),
+        calories: Math.min((todayStats.calories / dailyGoals.calories) * 100, 100),
+        activeTime: Math.min((todayStats.activeTime / dailyGoals.activeTime) * 100, 100),
+        stats: { ...todayStats, walkTime: todayStats.activeTime }
+      };
+    }
   };
 
-  // Calculate current streak
-  const { getWeeklyStats } = useWalkStats();
-  const weeklyStats = getWeeklyStats();
+  const progress = getProgress();
+
+  // Calculate current streak based on active tab
+  const walkWeeklyStats = getWalkWeeklyStats();
+  const runWeeklyStats = getRunWeeklyStats();
   
-  const calculateStreak = () => {
+  const calculateStreak = (weekStats: any[], activityType: 'walk' | 'run' | 'all') => {
     let streak = 0;
     const today = new Date();
     
-    // Check today first
-    if (todayStats.steps > 0) {
+    // Check today first based on activity type
+    const todayHasActivity = activityType === 'walk' 
+      ? walkTodayStats.steps > 0
+      : activityType === 'run'
+      ? runTodayStats.steps > 0
+      : todayStats.steps > 0;
+    
+    if (todayHasActivity) {
       streak = 1;
     }
     
@@ -136,7 +180,13 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
       checkDate.setDate(today.getDate() - i);
       const dayIndex = (checkDate.getDay() + 6) % 7; // Convert to 0=Monday format
       
-      if (weeklyStats[dayIndex]?.steps > 0) {
+      const dayHasActivity = activityType === 'walk'
+        ? walkWeeklyStats[dayIndex]?.steps > 0
+        : activityType === 'run'
+        ? runWeeklyStats[dayIndex]?.steps > 0
+        : (walkWeeklyStats[dayIndex]?.steps > 0 || runWeeklyStats[dayIndex]?.steps > 0);
+      
+      if (dayHasActivity) {
         if (i === 1 || streak > 0) { // Only continue streak if consecutive
           streak++;
         }
@@ -148,11 +198,27 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
     return streak;
   };
 
-  const currentStreak = calculateStreak();
+  const currentStreak = calculateStreak(
+    activeTab === 'walk' ? walkWeeklyStats : activeTab === 'run' ? runWeeklyStats : walkWeeklyStats,
+    activeTab
+  );
+
+  // Calculate badge stats
+  const walkBadgeStats = {
+    totalDistance: walkSessions.reduce((sum, s) => sum + s.distanceKm, 0),
+    totalSessions: walkSessions.length,
+    streak: calculateStreak(walkWeeklyStats, 'walk')
+  };
+
+  const runBadgeStats = {
+    totalDistance: runSessions.reduce((sum, s) => sum + s.distanceKm, 0),
+    totalSessions: runSessions.length,
+    streak: calculateStreak(runWeeklyStats, 'run')
+  };
 
   // Motivational messages
   const getMotivationalMessage = () => {
-    const overallProgress = (progress.steps + progress.distanceKm + progress.calories + progress.walkTime) / 4;
+    const overallProgress = (progress.steps + progress.distanceKm + progress.calories + progress.activeTime) / 4;
     
     if (overallProgress >= 100) {
       return "🎉 Objectifs atteints ! Fantastique !";
@@ -162,7 +228,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
       return "💪 Tu es à mi-chemin, c'est super !";
     } else if (overallProgress >= 25) {
       return "🚀 Bon début, continue sur ta lancée !";
-    } else if (todayStats.steps > 0) {
+    } else if (progress.stats.steps > 0) {
       return "👟 C'est parti ! Chaque pas compte !";
     } else {
       return "☀️ Nouvelle journée, nouveaux objectifs !";
@@ -373,7 +439,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                 Mes objectifs du jour
               </h2>
               <div className="text-sm text-muted-foreground">
-                {Math.round((progress.steps + progress.distanceKm + progress.calories + progress.walkTime) / 4)}% complétés
+                {Math.round((progress.steps + progress.distanceKm + progress.calories + progress.activeTime) / 4)}% complétés
               </div>
             </div>
             
@@ -386,7 +452,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                     <span className="text-sm font-medium">Pas</span>
                   </div>
                   <span className="text-sm text-muted-foreground">
-                    {todayStats.steps.toLocaleString()} / {dailyGoals.steps.toLocaleString()}
+                    {progress.stats.steps.toLocaleString()} / {dailyGoals.steps.toLocaleString()}
                   </span>
                 </div>
                 <Progress value={progress.steps} className="h-2" />
@@ -400,7 +466,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                     <span className="text-sm font-medium">Distance</span>
                   </div>
                   <span className="text-sm text-muted-foreground">
-                    {todayStats.distanceKm.toFixed(1)} / {dailyGoals.distanceKm} km
+                    {progress.stats.distanceKm.toFixed(1)} / {dailyGoals.distanceKm} km
                   </span>
                 </div>
                 <Progress value={progress.distanceKm} className="h-2" />
@@ -414,31 +480,74 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                     <span className="text-sm font-medium">Calories</span>
                   </div>
                   <span className="text-sm text-muted-foreground">
-                    {todayStats.calories} / {dailyGoals.calories} kcal
+                    {progress.stats.calories} / {dailyGoals.calories} kcal
                   </span>
                 </div>
                 <Progress value={progress.calories} className="h-2" />
               </div>
 
-              {/* Temps de marche */}
+              {/* Temps actif */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <Clock className="h-4 w-4 mr-2 text-purple-500" />
-                    <span className="text-sm font-medium">Temps de marche</span>
+                    <span className="text-sm font-medium">Temps actif</span>
                   </div>
                   <span className="text-sm text-muted-foreground">
-                    {formatWalkTime(todayStats.walkTime)} / {formatWalkTime(dailyGoals.walkTime)}
+                    {formatWalkTime(progress.stats.walkTime)} / {formatWalkTime(dailyGoals.activeTime)}
                   </span>
                 </div>
-                <Progress value={progress.walkTime} className="h-2" />
+                <Progress value={progress.activeTime} className="h-2" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Statistiques de la semaine */}
-        <WeeklyStats userProfile={{ height: userProfile.height, weight: userProfile.weight }} />
+        {/* Onglets Activités avec statistiques */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'all' | 'walk' | 'run')} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsTrigger value="all" className="flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              Tout
+            </TabsTrigger>
+            <TabsTrigger value="walk" className="flex items-center gap-2">
+              <Footprints className="h-4 w-4" />
+              Marche
+            </TabsTrigger>
+            <TabsTrigger value="run" className="flex items-center gap-2">
+              <Zap className="h-4 w-4" />
+              Course
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="all" className="space-y-6">
+            <WeeklyStats userProfile={{ height: userProfile.height, weight: userProfile.weight }} />
+            <RunWeeklyStats userProfile={{ height: userProfile.height, weight: userProfile.weight }} />
+            <BadgeSystem 
+              walkStats={walkBadgeStats} 
+              runStats={runBadgeStats}
+              activityType="all"
+            />
+          </TabsContent>
+
+          <TabsContent value="walk" className="space-y-6">
+            <WeeklyStats userProfile={{ height: userProfile.height, weight: userProfile.weight }} />
+            <BadgeSystem 
+              walkStats={walkBadgeStats} 
+              runStats={runBadgeStats}
+              activityType="walk"
+            />
+          </TabsContent>
+
+          <TabsContent value="run" className="space-y-6">
+            <RunWeeklyStats userProfile={{ height: userProfile.height, weight: userProfile.weight }} />
+            <BadgeSystem 
+              walkStats={walkBadgeStats} 
+              runStats={runBadgeStats}
+              activityType="run"
+            />
+          </TabsContent>
+        </Tabs>
 
         {/* CTA Principal */}
         <div className="flex flex-col items-center gap-4 pt-4">
@@ -454,7 +563,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
             onClick={onPlanifyRun}
             className="h-14 px-12 text-lg font-semibold rounded-[14px] bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200"
           >
-            <Footprints className="mr-3 h-6 w-6" />
+            <Zap className="mr-3 h-6 w-6" />
             Planifier ma course
           </Button>
         </div>
