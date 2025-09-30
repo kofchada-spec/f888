@@ -129,19 +129,44 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setUserLocation({
+          const newLocation = {
             lat: position.coords.latitude,
             lng: position.coords.longitude
-          });
+          };
+          setUserLocation(newLocation);
+          
+          // Fit map to route once location is obtained
+          setTimeout(() => {
+            if (mapRef.current) {
+              mapRef.current.fitToRoute();
+            }
+          }, 500);
         },
         (error) => {
           console.log('Geolocation error:', error);
           // Position par défaut
-          setUserLocation({ lat: 48.8566, lng: 2.3522 });
+          const defaultLocation = { lat: 48.8566, lng: 2.3522 };
+          setUserLocation(defaultLocation);
+          
+          // Fit map to route even with default location
+          setTimeout(() => {
+            if (mapRef.current) {
+              mapRef.current.fitToRoute();
+            }
+          }, 500);
         }
       );
     }
   }, []);
+
+  // Fit map to route when destination or user location is available
+  useEffect(() => {
+    if (userLocation && destination.routeGeoJSON && mapRef.current) {
+      setTimeout(() => {
+        mapRef.current?.fitToRoute();
+      }, 1000);
+    }
+  }, [userLocation, destination]);
 
   // Surveillance de la position pendant le tracking (optionnel)
   useEffect(() => {
