@@ -92,9 +92,15 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     if (!map.current) return;
 
     map.current.on('click', async (e) => {
+      console.log('Map clicked!', { canClick, isLocked, userLocation, planningData: !!planningData });
+      
       if (!canClick || !userLocation || !planningData) {
         if (isLocked) {
           toast.error('Vous avez utilisé vos 3 tentatives. Utilisez le bouton Réinitialiser pour revenir à l\'itinéraire initial.');
+        } else if (!userLocation) {
+          toast.error('Position utilisateur non disponible');
+        } else if (!planningData) {
+          toast.error('Données de planification manquantes');
         }
         return;
       }
@@ -138,7 +144,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     // Changer le curseur en fonction du statut
     map.current.on('mousemove', () => {
       if (map.current) {
-        map.current.getCanvas().style.cursor = isLocked ? 'not-allowed' : 'pointer';
+        const cursor = !canClick ? 'not-allowed' : (!userLocation || !planningData) ? 'default' : 'pointer';
+        map.current.getCanvas().style.cursor = cursor;
       }
     });
   };
