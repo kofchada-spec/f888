@@ -1,7 +1,12 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Coordinates, RouteData, PlanningData } from '@/types/route';
-import { calculateTargetDistance, calculateRouteMetrics, generateRandomCoordinates } from '@/utils/routeCalculations';
+import { 
+  calculateTargetDistance, 
+  calculateRunRouteMetrics, 
+  generateRandomCoordinates, 
+  getToleranceRange 
+} from '@/utils/runCalculations';
 
 // Get Mapbox token from Supabase function
 const getMapboxToken = async (): Promise<string | null> => {
@@ -15,16 +20,7 @@ const getMapboxToken = async (): Promise<string | null> => {
   }
 };
 
-// Helper function to get tolerance range
-const getToleranceRange = (targetDistance: number) => {
-  const tolerance = 0.05; // ±5%
-  return {
-    min: targetDistance * (1 - tolerance),
-    max: targetDistance * (1 + tolerance)
-  };
-};
-
-export const useOneWayRouteGeneration = (
+export const useRunOneWayRouteGeneration = (
   planningData: PlanningData | undefined,
   userLocation: Coordinates | null,
   onRouteCalculated?: (data: RouteData) => void,
@@ -33,17 +29,17 @@ export const useOneWayRouteGeneration = (
   const [isCalculating, setIsCalculating] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
   
-  // Use external setter if provided, otherwise use internal one
   const setCalculating = externalSetCalculating || setIsCalculating;
 
   /**
-   * Generate one-way route with ±5% tolerance using real Mapbox routes
+   * Generate one-way running route with ±5% tolerance using real Mapbox routes
    */
   const generateOneWayRoute = useCallback(async () => {
-    if (!planningData || !userLocation || planningData.tripType !== 'one-way') return null;
+    if (!planningData || !userLocation || planningData.tripType !== 'one-way' || !planningData.distance) {
+      return null;
+    }
 
-    // For walks: calculate from steps
-    const targetDistance = calculateTargetDistance(planningData.steps || 10000, planningData.height);
+    const targetDistance = calculateTargetDistance(planningData.distance);
     const { min, max } = getToleranceRange(targetDistance);
     
     setCalculating(true);
@@ -72,7 +68,7 @@ export const useOneWayRouteGeneration = (
 
           if (distanceKm >= min && distanceKm <= max) {
             console.log(`✅ Itinéraire aller simple trouvé à la tentative ${attempt}`);
-            const metrics = calculateRouteMetrics(distanceKm, planningData);
+            const metrics = calculateRunRouteMetrics(distanceKm, planningData);
 
             const routeData: RouteData = {
               distance: distanceKm,

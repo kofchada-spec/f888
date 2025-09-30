@@ -1,7 +1,11 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Coordinates, RouteData, PlanningData } from '@/types/route';
-import { calculateTargetDistance, calculateRouteMetrics, generateRandomCoordinates } from '@/utils/routeCalculations';
+import { 
+  calculateTargetDistance, 
+  calculateRunRouteMetrics, 
+  generateRandomCoordinates 
+} from '@/utils/runCalculations';
 
 // Get Mapbox token from Supabase function
 const getMapboxToken = async (): Promise<string | null> => {
@@ -15,7 +19,7 @@ const getMapboxToken = async (): Promise<string | null> => {
   }
 };
 
-export const useRoundTripRouteGeneration = (
+export const useRunRoundTripRouteGeneration = (
   planningData: PlanningData | undefined,
   userLocation: Coordinates | null,
   onRouteCalculated?: (data: RouteData) => void,
@@ -24,18 +28,17 @@ export const useRoundTripRouteGeneration = (
   const [isCalculating, setIsCalculating] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
   
-  // Use external setter if provided, otherwise use internal one
   const setCalculating = externalSetCalculating || setIsCalculating;
 
   /**
-   * Generate round-trip route with real Mapbox routes and ±5% tolerance validation
+   * Generate round-trip running route with real Mapbox routes and ±5% tolerance validation
    */
   const generateRoundTripRoute = useCallback(async () => {
-    if (!planningData || !userLocation || planningData.tripType !== 'round-trip') return null;
+    if (!planningData || !userLocation || planningData.tripType !== 'round-trip' || !planningData.distance) {
+      return null;
+    }
 
-    // For walks: calculate from steps
-    const targetDistance = calculateTargetDistance(planningData.steps || 10000, planningData.height);
-    
+    const targetDistance = calculateTargetDistance(planningData.distance);
     const tolerance = 0.05; // ±5%
     const min = targetDistance * (1 - tolerance);
     const max = targetDistance * (1 + tolerance);
@@ -135,7 +138,7 @@ export const useRoundTripRouteGeneration = (
   // Helper function to create RouteData from route info
   const createRouteData = (routeInfo: any, planningData: PlanningData, userLocation: Coordinates): RouteData => {
     const { totalDistance, destLat, destLng, outboundCoordinates, returnCoordinates } = routeInfo;
-    const metrics = calculateRouteMetrics(totalDistance, planningData);
+    const metrics = calculateRunRouteMetrics(totalDistance, planningData);
 
     const routeData: RouteData = {
       distance: totalDistance,

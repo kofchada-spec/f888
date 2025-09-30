@@ -64,8 +64,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     displayRouteOnMap(route);
   };
 
-  const oneWayHook = useOneWayRouteGeneration(planningData, userLocation, (route) => handleRouteCalculated(route, true), undefined, activityType);
-  const roundTripHook = useRoundTripRouteGeneration(planningData, userLocation, (route) => handleRouteCalculated(route, true), undefined, activityType);
+  const oneWayHook = useOneWayRouteGeneration(planningData, userLocation, (route) => handleRouteCalculated(route, true));
+  const roundTripHook = useRoundTripRouteGeneration(planningData, userLocation, (route) => handleRouteCalculated(route, true));
 
   const routeHook = planningData?.tripType === 'one-way' ? oneWayHook : roundTripHook;
   const { isCalculating, routeError } = routeHook;

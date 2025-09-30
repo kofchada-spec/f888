@@ -3,10 +3,10 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { PlanningData, RouteData, Coordinates } from '@/types/route';
 import { initializeMap, getMapboxToken } from '@/utils/mapboxHelpers';
-import { useOneWayRouteGeneration } from '@/hooks/useOneWayRouteGeneration';
-import { useRoundTripRouteGeneration } from '@/hooks/useRoundTripRouteGeneration';
+import { useRunOneWayRouteGeneration } from '@/hooks/useRunOneWayRouteGeneration';
+import { useRunRoundTripRouteGeneration } from '@/hooks/useRunRoundTripRouteGeneration';
 import { useMapClickLimiter } from '@/hooks/useMapClickLimiter';
-import { calculateDistance, getToleranceRange, calculateTargetDistance, calculateRouteMetrics } from '@/utils/routeCalculations';
+import { calculateDistance, getToleranceRange, calculateTargetDistance, calculateRunRouteMetrics } from '@/utils/runCalculations';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -60,8 +60,8 @@ const RunEnhancedMap: React.FC<RunEnhancedMapProps> = ({
     displayRouteOnMap(route);
   };
 
-  const oneWayHook = useOneWayRouteGeneration(planningData, userLocation, (route) => handleRouteCalculated(route, true), undefined, 'run');
-  const roundTripHook = useRoundTripRouteGeneration(planningData, userLocation, (route) => handleRouteCalculated(route, true), undefined, 'run');
+  const oneWayHook = useRunOneWayRouteGeneration(planningData, userLocation, (route) => handleRouteCalculated(route, true));
+  const roundTripHook = useRunRoundTripRouteGeneration(planningData, userLocation, (route) => handleRouteCalculated(route, true));
 
   const routeHook = planningData?.tripType === 'one-way' ? oneWayHook : roundTripHook;
   const { isCalculating, routeError } = routeHook;
@@ -136,15 +136,8 @@ const RunEnhancedMap: React.FC<RunEnhancedMapProps> = ({
         clickedPoint.lng
       );
 
-      // For runs: use distance directly, for walks: calculate from steps
-      const targetDistance = planningData.distance 
-        ? planningData.distance 
-        : calculateTargetDistance(
-            planningData.steps || 10000,
-            planningData.height || 1.70,
-            'run',
-            planningData.pace || 'moderate'
-          );
+      // Use distance directly for running
+      const targetDistance = calculateTargetDistance(planningData.distance || 5);
 
       const tolerance = getToleranceRange(targetDistance);
 
@@ -229,7 +222,7 @@ const RunEnhancedMap: React.FC<RunEnhancedMapProps> = ({
         if (data.routes && data.routes[0]) {
           const route = data.routes[0];
           const distanceKm = route.distance / 1000;
-          const metrics = calculateRouteMetrics(distanceKm, planningData, 'run');
+          const metrics = calculateRunRouteMetrics(distanceKm, planningData);
           
           const routeData: RouteData = {
             distance: distanceKm,
@@ -258,7 +251,7 @@ const RunEnhancedMap: React.FC<RunEnhancedMapProps> = ({
         if (outboundData.routes?.[0] && returnData.routes?.[0]) {
           const totalDistance = (outboundData.routes[0].distance + returnData.routes[0].distance) / 1000;
           const totalDuration = (outboundData.routes[0].duration + returnData.routes[0].duration) / 60;
-          const metrics = calculateRouteMetrics(totalDistance, planningData, 'run');
+          const metrics = calculateRunRouteMetrics(totalDistance, planningData);
 
           const routeData: RouteData = {
             distance: totalDistance,
@@ -291,9 +284,7 @@ const RunEnhancedMap: React.FC<RunEnhancedMapProps> = ({
     }
 
     const targetDistance = calculateTargetDistance(
-      currentPlanningData.steps || 10000,
-      currentPlanningData.height || 1.70,
-      'run'
+      currentPlanningData.distance || 5
     );
 
     const tolerance = getToleranceRange(targetDistance);
@@ -333,7 +324,7 @@ const RunEnhancedMap: React.FC<RunEnhancedMapProps> = ({
 
           if (distanceKm >= tolerance.min && distanceKm <= tolerance.max) {
             console.log(`   ✅ TROUVÉ ! Itinéraire valide à ${angle}°: ${distanceKm.toFixed(3)}km`);
-            const metrics = calculateRouteMetrics(distanceKm, currentPlanningData, 'run');
+            const metrics = calculateRunRouteMetrics(distanceKm, currentPlanningData);
             const routeData: RouteData = {
               distance: distanceKm,
               duration: route.duration / 60,
@@ -365,7 +356,7 @@ const RunEnhancedMap: React.FC<RunEnhancedMapProps> = ({
           if (totalDistance >= tolerance.min && totalDistance <= tolerance.max) {
             console.log(`   ✅ TROUVÉ ! Itinéraire aller-retour valide à ${angle}°: ${totalDistance.toFixed(3)}km`);
             const totalDuration = (outboundData.routes[0].duration + returnData.routes[0].duration) / 60;
-            const metrics = calculateRouteMetrics(totalDistance, currentPlanningData, 'run');
+            const metrics = calculateRunRouteMetrics(totalDistance, currentPlanningData);
 
             const routeData: RouteData = {
               distance: totalDistance,
