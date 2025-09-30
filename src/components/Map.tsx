@@ -24,13 +24,14 @@ interface MapProps {
   selectedDestination: string | null;
   onDestinationSelect: (destination: Destination) => void;
   planningData: PlanningData;
+  isTracking?: boolean; // Nouveau prop pour le mode suivi
 }
 
 export interface MapRef {
   fitToRoute: () => void;
 }
 
-const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selectedDestination, onDestinationSelect, planningData }, ref) => {
+const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selectedDestination, onDestinationSelect, planningData, isTracking = false }, ref) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
@@ -197,7 +198,7 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
     }
   }, [userLocation]);
 
-  // Update user location marker only (don't redraw routes)
+  // Update user location marker and center camera in tracking mode
   useEffect(() => {
     if (!map.current || !userLocation) return;
 
@@ -208,9 +209,18 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
     
     if (existingUserMarker) {
       existingUserMarker.setLngLat([userLocation.lng, userLocation.lat]);
+      
+      // En mode tracking, centrer la caméra sur la position de l'utilisateur
+      if (isTracking) {
+        map.current.easeTo({
+          center: [userLocation.lng, userLocation.lat],
+          duration: 1000,
+          zoom: 16 // Zoom plus serré pour le suivi
+        });
+      }
       return;
     }
-  }, [userLocation]);
+  }, [userLocation, isTracking]);
 
   // Initialize markers and routes ONLY when destinations actually change - prevent route flicker
   useEffect(() => {
@@ -241,30 +251,31 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
     markers.current.forEach(marker => marker.remove());
     markers.current = [];
 
-    // Add user location marker (custom "Départ" marker)
+    // Add user location marker (custom "Départ" marker with tracking animation)
     const userLocationEl = document.createElement('div');
     userLocationEl.className = 'user-location-marker';
     userLocationEl.innerHTML = `
       <div style="
-        width: 24px;
-        height: 24px;
-        background: #ef4444;
+        width: ${isTracking ? '32px' : '24px'};
+        height: ${isTracking ? '32px' : '24px'};
+        background: ${isTracking ? '#f97316' : '#ef4444'};
         border: 3px solid white;
         border-radius: 50%;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3), ${isTracking ? '0 0 0 10px rgba(249, 115, 22, 0.2)' : 'none'};
         position: relative;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 12px;
+        font-size: ${isTracking ? '16px' : '12px'};
+        animation: ${isTracking ? 'pulse 2s infinite' : 'none'};
       ">
-        📍
+        ${isTracking ? '🏃' : '📍'}
         <div style="
           position: absolute;
-          top: -35px;
+          top: -${isTracking ? '40px' : '35px'};
           left: 50%;
           transform: translateX(-50%);
-          background: #ef4444;
+          background: ${isTracking ? '#f97316' : '#ef4444'};
           color: white;
           padding: 4px 8px;
           border-radius: 4px;
@@ -273,9 +284,15 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
           white-space: nowrap;
           box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         ">
-          Départ
+          ${isTracking ? 'En course...' : 'Départ'}
         </div>
       </div>
+      <style>
+        @keyframes pulse {
+          0%, 100% { box-shadow: 0 2px 10px rgba(0,0,0,0.3), 0 0 0 10px rgba(249, 115, 22, 0.2); }
+          50% { box-shadow: 0 2px 10px rgba(0,0,0,0.3), 0 0 0 20px rgba(249, 115, 22, 0); }
+        }
+      </style>
     `;
 
     const userMarker = new mapboxgl.Marker(userLocationEl)
@@ -498,8 +515,8 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
           },
           paint: {
             'line-color': '#10b981', // Green - Aller
-            'line-width': 5,
-            'line-opacity': 0.9
+            'line-width': isTracking ? 6 : 4, // Plus épais en mode tracking
+            'line-opacity': isTracking ? 0.9 : 0.7
           }
         });
 
@@ -526,8 +543,8 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
           },
           paint: {
             'line-color': '#3b82f6', // Blue - Retour
-            'line-width': 4,
-            'line-opacity': 0.8,
+            'line-width': isTracking ? 6 : 4, // Plus épais en mode tracking
+            'line-opacity': isTracking ? 0.9 : 0.8,
             'line-dasharray': [2, 3] // Ligne pointillée pour le retour
           }
         });

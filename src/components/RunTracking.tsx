@@ -405,6 +405,7 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
               selectedDestination={destination.id}
               onDestinationSelect={() => {}}
               planningData={planningData}
+              isTracking={isTracking}
             />
           ) : (
             <div className="h-full flex items-center justify-center bg-gradient-to-br from-orange-500/10 to-red-500/10">
