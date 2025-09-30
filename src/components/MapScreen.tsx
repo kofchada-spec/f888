@@ -138,7 +138,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
         </div>
 
         {/* Enhanced Map */}
-        <div className="mb-6 relative">
+        <div className="mb-6 relative h-[500px] rounded-xl overflow-hidden shadow-lg">
           <EnhancedMap 
             planningData={planningData}
             onRouteCalculated={handleRouteCalculated}

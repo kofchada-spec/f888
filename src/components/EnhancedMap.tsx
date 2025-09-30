@@ -106,8 +106,49 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
         (error) => {
           console.error('Error getting user location:', error);
           setLocationError('Impossible de vous géolocaliser. Veuillez autoriser l\'accès à votre position.');
+          
+          // Fallback: Use Paris as default location
+          const defaultLocation = { lat: 48.8566, lng: 2.3522 };
+          setUserLocation(defaultLocation);
+          
+          if (map.current) {
+            map.current.flyTo({
+              center: [defaultLocation.lng, defaultLocation.lat],
+              zoom: 14,
+              essential: true
+            });
+
+            if (userMarker.current) {
+              userMarker.current.remove();
+            }
+
+            userMarker.current = new mapboxgl.Marker({ color: '#3B82F6' })
+              .setLngLat([defaultLocation.lng, defaultLocation.lat])
+              .addTo(map.current);
+          }
         }
       );
+    } else {
+      // Browser doesn't support geolocation - use default location
+      const defaultLocation = { lat: 48.8566, lng: 2.3522 };
+      setUserLocation(defaultLocation);
+      setLocationError('Géolocalisation non disponible. Position par défaut utilisée.');
+      
+      if (map.current) {
+        map.current.flyTo({
+          center: [defaultLocation.lng, defaultLocation.lat],
+          zoom: 14,
+          essential: true
+        });
+
+        if (userMarker.current) {
+          userMarker.current.remove();
+        }
+
+        userMarker.current = new mapboxgl.Marker({ color: '#3B82F6' })
+          .setLngLat([defaultLocation.lng, defaultLocation.lat])
+          .addTo(map.current);
+      }
     }
   };
 
