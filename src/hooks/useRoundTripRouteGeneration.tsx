@@ -34,7 +34,11 @@ export const useRoundTripRouteGeneration = (
   const generateRoundTripRoute = useCallback(async () => {
     if (!planningData || !userLocation || planningData.tripType !== 'round-trip') return null;
 
-    const targetDistance = calculateTargetDistance(planningData.steps, planningData.height, activityType);
+    // For runs: use distance directly, for walks: calculate from steps
+    const targetDistance = planningData.distance 
+      ? planningData.distance 
+      : calculateTargetDistance(planningData.steps || 10000, planningData.height, activityType);
+    
     const tolerance = 0.05; // ±5%
     const min = targetDistance * (1 - tolerance);
     const max = targetDistance * (1 + tolerance);

@@ -43,7 +43,11 @@ export const useOneWayRouteGeneration = (
   const generateOneWayRoute = useCallback(async () => {
     if (!planningData || !userLocation || planningData.tripType !== 'one-way') return null;
 
-    const targetDistance = calculateTargetDistance(planningData.steps, planningData.height, activityType);
+    // For runs: use distance directly, for walks: calculate from steps
+    const targetDistance = planningData.distance 
+      ? planningData.distance 
+      : calculateTargetDistance(planningData.steps || 10000, planningData.height, activityType);
+    
     const { min, max } = getToleranceRange(targetDistance);
     
     setCalculating(true);
