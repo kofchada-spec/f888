@@ -7,7 +7,9 @@ import Dashboard from '@/components/Dashboard';
 import WalkPlanning from '@/components/WalkPlanning';
 import RunPlanning from '@/components/RunPlanning';
 import MapScreen from '@/components/MapScreen';
+import RunMapScreen from '@/components/RunMapScreen';
 import WalkTracking from '@/components/WalkTracking';
+import RunTracking from '@/components/RunTracking';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 
@@ -181,27 +183,50 @@ const Index = () => {
 
   // Show Destination Selection if active
   if (showDestinationSelection) {
-    return (
-      <MapScreen 
-        onComplete={handleDestinationComplete} 
-        onBack={handleBackToPlanning}
-        onGoToDashboard={handleGoToDashboard}
-        planningData={planningData}
-        activityType={activityType}
-      />
-    );
+    // Use different map screens based on activity type
+    if (activityType === 'run') {
+      return (
+        <RunMapScreen 
+          onComplete={handleDestinationComplete} 
+          onBack={handleBackToPlanning}
+          onGoToDashboard={handleGoToDashboard}
+          planningData={planningData}
+        />
+      );
+    } else {
+      return (
+        <MapScreen 
+          onComplete={handleDestinationComplete} 
+          onBack={handleBackToPlanning}
+          onGoToDashboard={handleGoToDashboard}
+          planningData={planningData}
+          activityType={activityType}
+        />
+      );
+    }
   }
 
-  // Show Walk Tracking if active
+  // Show Walk/Run Tracking if active
   if (showWalkTracking && selectedDestination) {
-    return (
-      <WalkTracking 
-        destination={selectedDestination}
-        planningData={planningData}
-        onBack={handleBackToDestination}
-        onGoToDashboard={handleGoToDashboard}
-      />
-    );
+    if (activityType === 'run') {
+      return (
+        <RunTracking 
+          destination={selectedDestination}
+          planningData={planningData}
+          onBack={handleBackToDestination}
+          onGoToDashboard={handleGoToDashboard}
+        />
+      );
+    } else {
+      return (
+        <WalkTracking 
+          destination={selectedDestination}
+          planningData={planningData}
+          onBack={handleBackToDestination}
+          onGoToDashboard={handleGoToDashboard}
+        />
+      );
+    }
   }
 
   // Show Dashboard (default authenticated state)
