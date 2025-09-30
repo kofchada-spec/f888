@@ -145,14 +145,9 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
             manualSelectionEnabled={canClick}
           />
           
-          {/* Click Counter & Reset */}
-          <div className="absolute top-4 right-4 bg-card/90 backdrop-blur-sm rounded-lg p-3 shadow-lg">
-            <div className="text-sm text-center mb-2">
-              <span className="text-muted-foreground">Essais: </span>
-              <span className="font-semibold text-primary">{attemptCount}/3</span>
-            </div>
-            
-            {isLocked && (
+          {/* Reset Button */}
+          {isLocked && (
+            <div className="absolute top-4 right-4 bg-card/90 backdrop-blur-sm rounded-lg p-3 shadow-lg">
               <Button
                 onClick={handleResetToDefault}
                 size="sm"
@@ -162,14 +157,8 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
                 <RotateCcw className="w-3 h-3 mr-1" />
                 Réinitialiser
               </Button>
-            )}
-            
-            {!isLocked && remainingAttempts > 0 && (
-              <p className="text-xs text-muted-foreground text-center">
-                {remainingAttempts} essai{remainingAttempts > 1 ? 's' : ''} restant{remainingAttempts > 1 ? 's' : ''}
-              </p>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Walk Estimation - Enhanced for round-trip */}

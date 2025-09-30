@@ -178,10 +178,11 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
       } else {
         // Phase 2: Rechercher le meilleur itinéraire dans un rayon de 500m
         console.log('🔄 Phase 2: Recherche d\'itinéraires alternatifs dans un rayon de 500m...');
-        toast.loading('Recherche du meilleur itinéraire...', { duration: 2000 });
+        const loadingToast = toast.loading('Recherche du meilleur itinéraire...');
         
         try {
           const bestRoute = await findBestRouteNearClick(clickedPoint);
+          toast.dismiss(loadingToast);
           
           if (bestRoute) {
             incrementAttempts();
