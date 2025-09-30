@@ -19,6 +19,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
   const map = useRef<mapboxgl.Map | null>(null);
   const userMarker = useRef<mapboxgl.Marker | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
@@ -62,6 +64,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
         (position) => {
           const { latitude, longitude } = position.coords;
           
+          setUserLocation({ lat: latitude, lng: longitude });
+          
           if (map.current) {
             map.current.flyTo({
               center: [longitude, latitude],
@@ -80,6 +84,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
         },
         (error) => {
           console.error('Error getting user location:', error);
+          setLocationError('Impossible de vous géolocaliser. Veuillez autoriser l\'accès à votre position.');
         }
       );
     }
@@ -88,6 +93,11 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
   return (
     <div className="relative w-full h-full">
       <div ref={mapContainer} className="absolute inset-0" />
+      {locationError && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-destructive text-destructive-foreground px-4 py-2 rounded-lg shadow-lg z-10">
+          {locationError}
+        </div>
+      )}
     </div>
   );
 };
