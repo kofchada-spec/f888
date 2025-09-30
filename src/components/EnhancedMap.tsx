@@ -36,6 +36,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
   // Refs pour accéder aux valeurs actuelles dans les event listeners
   const userLocationRef = useRef<Coordinates | null>(null);
   const canClickRef = useRef(canClick);
+  const planningDataRef = useRef<PlanningData | undefined>(planningData);
   
   // Mettre à jour les refs quand les valeurs changent
   useEffect(() => {
@@ -45,6 +46,10 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
   useEffect(() => {
     canClickRef.current = canClick;
   }, [canClick]);
+  
+  useEffect(() => {
+    planningDataRef.current = planningData;
+  }, [planningData]);
 
   const handleRouteCalculated = (route: RouteData, isInitial: boolean = false) => {
     setCurrentRoute(route);
@@ -282,14 +287,20 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
   };
 
   const findBestRouteNearClick = async (clickedPoint: Coordinates): Promise<RouteData | null> => {
-    if (!userLocation || !planningData) {
-      console.error('❌ findBestRouteNearClick: missing userLocation or planningData');
+    const currentUserLocation = userLocationRef.current;
+    const currentPlanningData = planningDataRef.current;
+    
+    if (!currentUserLocation || !currentPlanningData) {
+      console.error('❌ findBestRouteNearClick: missing userLocation or planningData', {
+        hasUserLocation: !!currentUserLocation,
+        hasPlanningData: !!currentPlanningData
+      });
       return null;
     }
 
     const targetDistance = calculateTargetDistance(
-      planningData.steps || 10000,
-      planningData.height || 1.70
+      currentPlanningData.steps || 10000,
+      currentPlanningData.height || 1.70
     );
 
     const tolerance = getToleranceRange(targetDistance);
@@ -325,10 +336,10 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
           continue;
         }
 
-        const start = `${userLocation.lng},${userLocation.lat}`;
+        const start = `${currentUserLocation.lng},${currentUserLocation.lat}`;
         const end = `${candidatePoint.lng},${candidatePoint.lat}`;
 
-        if (planningData.tripType === 'one-way') {
+        if (currentPlanningData.tripType === 'one-way') {
           const response = await fetch(
             `https://api.mapbox.com/directions/v5/mapbox/walking/${start};${end}?geometries=geojson&access_token=${token}`
           );
@@ -342,13 +353,13 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
 
           if (distanceKm >= tolerance.min && distanceKm <= tolerance.max) {
             console.log(`   ✅ TROUVÉ ! Itinéraire valide à ${angle}°: ${distanceKm.toFixed(3)}km`);
-            const metrics = calculateRouteMetrics(distanceKm, planningData);
+            const metrics = calculateRouteMetrics(distanceKm, currentPlanningData);
             const routeData: RouteData = {
               distance: distanceKm,
               duration: route.duration / 60,
               calories: metrics.calories,
               steps: metrics.steps,
-              startCoordinates: userLocation,
+              startCoordinates: currentUserLocation,
               endCoordinates: candidatePoint,
               routeGeoJSON: {
                 outboundCoordinates: route.geometry.coordinates
@@ -382,14 +393,14 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
           if (totalDistance >= tolerance.min && totalDistance <= tolerance.max) {
             console.log(`   ✅ TROUVÉ ! Itinéraire aller-retour valide à ${angle}°: ${totalDistance.toFixed(3)}km`);
             const totalDuration = (outboundData.routes[0].duration + returnData.routes[0].duration) / 60;
-            const metrics = calculateRouteMetrics(totalDistance, planningData);
+            const metrics = calculateRouteMetrics(totalDistance, currentPlanningData);
 
             const routeData: RouteData = {
               distance: totalDistance,
               duration: totalDuration,
               calories: metrics.calories,
               steps: metrics.steps,
-              startCoordinates: userLocation,
+              startCoordinates: currentUserLocation,
               endCoordinates: candidatePoint,
               routeGeoJSON: {
                 outboundCoordinates: outboundData.routes[0].geometry.coordinates,
