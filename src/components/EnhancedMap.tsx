@@ -1,9 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
-import { PlanningData, RouteData, Coordinates } from '@/types/route';
-import { getMapboxToken } from '@/utils/mapboxHelpers';
-import { calculateTargetDistance } from '@/utils/routeCalculations';
+import React, { useRef } from 'react';
+import { PlanningData, RouteData } from '@/types/route';
 
 interface EnhancedMapProps {
   planningData: PlanningData;
@@ -17,7 +13,6 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
   manualSelectionEnabled = true
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
 
   return (
     <div className="relative w-full h-full">
