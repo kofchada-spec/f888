@@ -467,8 +467,11 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
       returnLength: routeGeometry?.returnCoordinates?.length
     });
 
-    if (routeGeometry.outboundCoordinates && routeGeometry.returnCoordinates) {
-      console.log('✅ Affichage route aller-retour avec coordonnées séparées');
+    // Handle routes with outboundCoordinates (modern format)
+    if (routeGeometry.outboundCoordinates) {
+      const hasReturnRoute = !!routeGeometry.returnCoordinates;
+      console.log(`✅ Affichage route ${hasReturnRoute ? 'aller-retour' : 'aller simple'} avec coordonnées`);
+      
       // Remove existing routes
       const outboundLayerId = `outbound-route-${destId}`;
       const returnLayerId = `return-route-${destId}`;
@@ -486,12 +489,12 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
         }
       });
 
-      // TOUJOURS afficher les routes aller-retour (même si pas officiellement "sélectionnée")
-      // Car dans DestinationSelection il n'y a qu'une seule destination
+      // TOUJOURS afficher les routes (même si pas officiellement "sélectionnée")
       const shouldDisplay = isSelected || destinations.length === 1;
       
       if (shouldDisplay) {
-        console.log('🎯 Ajout des couches aller et retour sur la carte');
+        console.log('🎯 Ajout de la route sur la carte');
+        
         // Add outbound route (green solid)
         map.current.addSource(outboundSourceId, {
           type: 'geojson',
@@ -520,36 +523,40 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
           }
         });
 
-        // Add return route (blue dashed)
-        map.current.addSource(returnSourceId, {
-          type: 'geojson',
-          data: {
-            type: 'Feature',
-            properties: {},
-            geometry: {
-              type: 'LineString',
-              coordinates: routeGeometry.returnCoordinates
+        // Add return route only if it exists (blue dashed)
+        if (hasReturnRoute) {
+          map.current.addSource(returnSourceId, {
+            type: 'geojson',
+            data: {
+              type: 'Feature',
+              properties: {},
+              geometry: {
+                type: 'LineString',
+                coordinates: routeGeometry.returnCoordinates
+              }
             }
-          }
-        });
+          });
 
-        map.current.addLayer({
-          id: returnLayerId,
-          type: 'line',
-          source: returnSourceId,
-          layout: {
-            'line-join': 'round',
-            'line-cap': 'round'
-          },
-          paint: {
-            'line-color': '#3b82f6', // Blue - Retour
-            'line-width': isTracking ? 6 : 4, // Plus épais en mode tracking
-            'line-opacity': isTracking ? 0.9 : 0.8,
-            'line-dasharray': [2, 3] // Ligne pointillée pour le retour
-          }
-        });
-        
-        console.log('✅ Routes aller-retour ajoutées avec succès');
+          map.current.addLayer({
+            id: returnLayerId,
+            type: 'line',
+            source: returnSourceId,
+            layout: {
+              'line-join': 'round',
+              'line-cap': 'round'
+            },
+            paint: {
+              'line-color': '#3b82f6', // Blue - Retour
+              'line-width': isTracking ? 6 : 4, // Plus épais en mode tracking
+              'line-opacity': isTracking ? 0.9 : 0.8,
+              'line-dasharray': [2, 3] // Ligne pointillée pour le retour
+            }
+          });
+          
+          console.log('✅ Routes aller-retour ajoutées avec succès');
+        } else {
+          console.log('✅ Route aller simple ajoutée avec succès');
+        }
       } else {
         console.log('⏸️ Route non sélectionnée, pas d\'affichage');
       }
