@@ -127,13 +127,15 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
         lng: e.lngLat.lng
       };
 
-      const distance = calculateDistance(
+      // Calculer la distance en ligne droite
+      const straightLineDistance = calculateDistance(
         currentUserLocation.lat,
         currentUserLocation.lng,
         clickedPoint.lat,
         clickedPoint.lng
       );
 
+      // Calculer la distance cible totale selon les pas et la taille
       const targetDistance = calculateTargetDistance(
         planningData.steps || 10000,
         planningData.height || 1.70
@@ -141,20 +143,36 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
 
       const tolerance = getToleranceRange(targetDistance);
 
+      // Pour aller-retour, la distance en ligne droite doit être la moitié de la distance cible
+      // Pour aller simple, on compare directement
+      const distanceToCompare = planningData.tripType === 'round-trip' 
+        ? straightLineDistance * 2 
+        : straightLineDistance;
+
+      console.log({
+        straightLineDistance: straightLineDistance.toFixed(2),
+        distanceToCompare: distanceToCompare.toFixed(2),
+        targetDistance: targetDistance.toFixed(2),
+        min: tolerance.min.toFixed(2),
+        max: tolerance.max.toFixed(2),
+        tripType: planningData.tripType
+      });
+
       // Vérifier si la distance est dans la tolérance
-      if (distance >= tolerance.min && distance <= tolerance.max) {
+      if (distanceToCompare >= tolerance.min && distanceToCompare <= tolerance.max) {
+        toast.success(`Génération de l'itinéraire vers la destination...`);
         incrementAttempts();
-        toast.success(`Tentative ${3 - remainingAttempts + 1}/3 - Génération de l'itinéraire...`);
         
         try {
           await generateRouteToPoint(clickedPoint);
         } catch (error) {
           toast.error('Erreur lors de la génération de l\'itinéraire');
+          console.error('Error generating route:', error);
         }
-      } else if (distance < tolerance.min) {
-        toast.error(`Destination trop proche (${distance.toFixed(2)}km). Distance souhaitée: ${targetDistance.toFixed(2)}km ±5%`);
+      } else if (distanceToCompare < tolerance.min) {
+        toast.error(`Destination trop proche (${distanceToCompare.toFixed(2)}km). Distance souhaitée: ${targetDistance.toFixed(2)}km ±5%`);
       } else {
-        toast.error(`Destination trop éloignée (${distance.toFixed(2)}km). Distance souhaitée: ${targetDistance.toFixed(2)}km ±5%`);
+        toast.error(`Destination trop éloignée (${distanceToCompare.toFixed(2)}km). Distance souhaitée: ${targetDistance.toFixed(2)}km ±5%`);
       }
     });
 
