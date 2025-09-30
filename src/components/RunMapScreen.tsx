@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, RotateCcw } from 'lucide-react';
-import EnhancedMap from '@/components/EnhancedMap';
+import RunEnhancedMap from '@/components/RunEnhancedMap';
 import { useMapClickLimiter } from '@/hooks/useMapClickLimiter';
 
 interface RunMapScreenProps {
@@ -137,13 +137,12 @@ const RunMapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: Run
           </div>
         </div>
 
-        {/* Enhanced Map */}
+        {/* Run Enhanced Map */}
         <div className="mb-6 relative h-[500px] rounded-xl overflow-hidden shadow-lg">
-          <EnhancedMap 
+          <RunEnhancedMap 
             planningData={planningData}
             onRouteCalculated={handleRouteCalculated}
             manualSelectionEnabled={canClick}
-            activityType="run"
           />
           
           {/* Reset Button */}
