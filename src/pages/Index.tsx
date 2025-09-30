@@ -18,9 +18,11 @@ const Index = () => {
   const [skipAuth, setSkipAuth] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [showWalkPlanning, setShowWalkPlanning] = useState(false);
+  const [showRunPlanning, setShowRunPlanning] = useState(false);
   const [showDestinationSelection, setShowDestinationSelection] = useState(false);
   const [showWalkTracking, setShowWalkTracking] = useState(false);
   const [selectedDestination, setSelectedDestination] = useState<any>(null);
+  const [activityType, setActivityType] = useState<'walk' | 'run'>('walk');
   const [planningData, setPlanningData] = useState({ 
     steps: 10000, 
     pace: 'moderate' as 'slow' | 'moderate' | 'fast',
@@ -81,7 +83,13 @@ const Index = () => {
   };
 
   const handlePlanifyWalk = () => {
+    setActivityType('walk');
     setShowWalkPlanning(true);
+  };
+
+  const handlePlanifyRun = () => {
+    setActivityType('run');
+    setShowRunPlanning(true);
   };
 
   const handleWalkPlanningComplete = (data: { steps: number; pace: 'slow' | 'moderate' | 'fast'; tripType: 'one-way' | 'round-trip'; height: number; weight: number }) => {
@@ -94,6 +102,7 @@ const Index = () => {
 
   const handleGoToDashboard = () => {
     setShowWalkPlanning(false);
+    setShowRunPlanning(false);
     setShowDestinationSelection(false);
     setShowWalkTracking(false);
     setSelectedDestination(null);
@@ -101,6 +110,14 @@ const Index = () => {
 
   const handleBackToDashboard = () => {
     setShowWalkPlanning(false);
+    setShowRunPlanning(false);
+  };
+
+  const handleRunPlanningComplete = (data: { steps: number; pace: 'slow' | 'moderate' | 'fast'; tripType: 'one-way' | 'round-trip'; height: number; weight: number }) => {
+    setPlanningData(data);
+    setShowRunPlanning(false);
+    setSelectedDestination(null);
+    setShowDestinationSelection(true);
   };
 
   const handleDestinationComplete = (destination: any) => {
@@ -112,7 +129,11 @@ const Index = () => {
 
   const handleBackToPlanning = () => {
     setShowDestinationSelection(false);
-    setShowWalkPlanning(true);
+    if (activityType === 'walk') {
+      setShowWalkPlanning(true);
+    } else {
+      setShowRunPlanning(true);
+    }
   };
 
   const handleBackToDestination = () => {
@@ -152,6 +173,11 @@ const Index = () => {
     return <WalkPlanning onComplete={handleWalkPlanningComplete} onBack={handleBackToDashboard} onGoToDashboard={handleGoToDashboard} />;
   }
 
+  // Show Run Planning if active
+  if (showRunPlanning) {
+    return <WalkPlanning onComplete={handleRunPlanningComplete} onBack={handleBackToDashboard} onGoToDashboard={handleGoToDashboard} />;
+  }
+
   // Show Destination Selection if active
   if (showDestinationSelection) {
     return (
@@ -177,7 +203,7 @@ const Index = () => {
   }
 
   // Show Dashboard (default authenticated state)
-  return <Dashboard onPlanifyWalk={handlePlanifyWalk} />;
+  return <Dashboard onPlanifyWalk={handlePlanifyWalk} onPlanifyRun={handlePlanifyRun} />;
 };
 
 export default Index;

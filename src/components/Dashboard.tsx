@@ -16,9 +16,10 @@ import { Link, useNavigate } from 'react-router-dom';
 
 interface DashboardProps {
   onPlanifyWalk: () => void;
+  onPlanifyRun: () => void;
 }
 
-const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
+const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
   const { signOut, user } = useAuth();
   const { subscriptionData } = useSubscription();
   const navigate = useNavigate();
@@ -440,13 +441,21 @@ const Dashboard = ({ onPlanifyWalk }: DashboardProps) => {
         <WeeklyStats userProfile={{ height: userProfile.height, weight: userProfile.weight }} />
 
         {/* CTA Principal */}
-        <div className="flex justify-center pt-4">
+        <div className="flex flex-col items-center gap-4 pt-4">
           <Button
             onClick={onPlanifyWalk}
             className="h-14 px-12 text-lg font-semibold rounded-[14px] bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200"
           >
             <Footprints className="mr-3 h-6 w-6" />
             Planifier ma marche
+          </Button>
+          
+          <Button
+            onClick={onPlanifyRun}
+            className="h-14 px-12 text-lg font-semibold rounded-[14px] bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200"
+          >
+            <Footprints className="mr-3 h-6 w-6" />
+            Planifier ma course
           </Button>
         </div>
       </div>
