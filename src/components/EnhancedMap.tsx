@@ -291,13 +291,12 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
 
     const tolerance = getToleranceRange(targetDistance);
     
-    console.log('🔍 Recherche du meilleur itinéraire près du point cliqué...');
+    console.log('🔍 Recherche d\'un itinéraire valide près du point cliqué...');
     console.log('🎯 Distance cible:', targetDistance.toFixed(3), 'km');
     console.log('📊 Plage acceptable:', tolerance.min.toFixed(3), '-', tolerance.max.toFixed(3), 'km');
 
     const searchRadiusKm = 0.5;
     const candidateAngles = [0, 60, 120, 180, 240, 300];
-    const candidates: Array<{ point: Coordinates; distance: number; routeData: RouteData }> = [];
 
     for (const angle of candidateAngles) {
       const angleRad = (angle * Math.PI) / 180;
@@ -326,24 +325,23 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
             const route = data.routes[0];
             const distanceKm = route.distance / 1000;
 
-            if (distanceKm >= tolerance.min && distanceKm <= tolerance.max) {
-              const metrics = calculateRouteMetrics(distanceKm, planningData);
-              const routeData: RouteData = {
-                distance: distanceKm,
-                duration: route.duration / 60,
-                calories: metrics.calories,
-                steps: metrics.steps,
-                startCoordinates: userLocation,
-                endCoordinates: candidatePoint,
-                routeGeoJSON: {
-                  outboundCoordinates: route.geometry.coordinates
-                }
-              };
+          if (distanceKm >= tolerance.min && distanceKm <= tolerance.max) {
+            const metrics = calculateRouteMetrics(distanceKm, planningData);
+            const routeData: RouteData = {
+              distance: distanceKm,
+              duration: route.duration / 60,
+              calories: metrics.calories,
+              steps: metrics.steps,
+              startCoordinates: userLocation,
+              endCoordinates: candidatePoint,
+              routeGeoJSON: {
+                outboundCoordinates: route.geometry.coordinates
+              }
+            };
 
-              const distanceFromTarget = Math.abs(distanceKm - targetDistance);
-              candidates.push({ point: candidatePoint, distance: distanceFromTarget, routeData });
-              console.log(`✅ Candidat à ${angle}°: ${distanceKm.toFixed(3)}km (valide)`);
-            }
+            console.log(`✅ Itinéraire valide trouvé à ${angle}°: ${distanceKm.toFixed(3)}km`);
+            return routeData;
+          }
           }
         } else {
           const outboundResponse = await fetch(
@@ -359,27 +357,26 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
           if (outboundData.routes?.[0] && returnData.routes?.[0]) {
             const totalDistance = (outboundData.routes[0].distance + returnData.routes[0].distance) / 1000;
 
-            if (totalDistance >= tolerance.min && totalDistance <= tolerance.max) {
-              const totalDuration = (outboundData.routes[0].duration + returnData.routes[0].duration) / 60;
-              const metrics = calculateRouteMetrics(totalDistance, planningData);
+          if (totalDistance >= tolerance.min && totalDistance <= tolerance.max) {
+            const totalDuration = (outboundData.routes[0].duration + returnData.routes[0].duration) / 60;
+            const metrics = calculateRouteMetrics(totalDistance, planningData);
 
-              const routeData: RouteData = {
-                distance: totalDistance,
-                duration: totalDuration,
-                calories: metrics.calories,
-                steps: metrics.steps,
-                startCoordinates: userLocation,
-                endCoordinates: candidatePoint,
-                routeGeoJSON: {
-                  outboundCoordinates: outboundData.routes[0].geometry.coordinates,
-                  returnCoordinates: returnData.routes[0].geometry.coordinates
-                }
-              };
+            const routeData: RouteData = {
+              distance: totalDistance,
+              duration: totalDuration,
+              calories: metrics.calories,
+              steps: metrics.steps,
+              startCoordinates: userLocation,
+              endCoordinates: candidatePoint,
+              routeGeoJSON: {
+                outboundCoordinates: outboundData.routes[0].geometry.coordinates,
+                returnCoordinates: returnData.routes[0].geometry.coordinates
+              }
+            };
 
-              const distanceFromTarget = Math.abs(totalDistance - targetDistance);
-              candidates.push({ point: candidatePoint, distance: distanceFromTarget, routeData });
-              console.log(`✅ Candidat à ${angle}°: ${totalDistance.toFixed(3)}km (valide)`);
-            }
+            console.log(`✅ Itinéraire valide trouvé à ${angle}°: ${totalDistance.toFixed(3)}km`);
+            return routeData;
+          }
           }
         }
       } catch (error) {
@@ -387,17 +384,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
       }
     }
 
-    if (candidates.length === 0) {
-      console.log('❌ Aucun itinéraire valide trouvé dans un rayon de 500m');
-      return null;
-    }
-
-    candidates.sort((a, b) => a.distance - b.distance);
-    const bestCandidate = candidates[0];
-    
-    console.log(`🏆 Meilleur itinéraire trouvé: ${bestCandidate.routeData.distance.toFixed(3)}km (${bestCandidate.distance.toFixed(3)}km de la cible)`);
-    
-    return bestCandidate.routeData;
+    console.log('❌ Aucun itinéraire valide trouvé dans un rayon de 500m');
+    return null;
   };
 
   const getUserLocation = () => {
