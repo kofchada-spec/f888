@@ -400,7 +400,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
 
         {/* Carte de suivi */}
         <div className="bg-card rounded-2xl shadow-lg overflow-hidden mb-6" style={{ height: '400px' }}>
-          {userLocation && destination.routeGeoJSON ? (
+          {userLocation ? (
             <Map 
               ref={mapRef}
               userLocation={userLocation}
@@ -408,11 +408,11 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
                 id: destination.id,
                 name: destination.name,
                 distance: `${destination.distanceKm.toFixed(1)} km`,
-                duration: `${destination.durationMin} min`,
+                duration: `${Math.round(destination.durationMin)} min`,
                 calories: destination.calories,
                 description: `Destination à ${destination.distanceKm.toFixed(1)} km - ${getEstimatedSteps()} pas estimés`,
                 coordinates: destination.coordinates,
-                routeGeoJSON: destination.routeGeoJSON // Correction : utiliser routeGeoJSON au lieu de route
+                routeGeoJSON: destination.routeGeoJSON
               }]}
               selectedDestination={destination.id}
               onDestinationSelect={() => {}}
@@ -422,9 +422,9 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
             <div className="h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                <p className="text-muted-foreground">Chargement de l'itinéraire...</p>
+                <p className="text-muted-foreground">Chargement de votre position...</p>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Préparation de la navigation GPS
+                  Activation du GPS
                 </p>
               </div>
             </div>
