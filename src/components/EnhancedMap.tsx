@@ -14,12 +14,14 @@ interface EnhancedMapProps {
   planningData?: PlanningData;
   onRouteCalculated?: (route: RouteData) => void;
   manualSelectionEnabled?: boolean;
+  activityType?: 'walk' | 'run';
 }
 
 const EnhancedMap: React.FC<EnhancedMapProps> = ({ 
   planningData, 
   onRouteCalculated,
-  manualSelectionEnabled = true
+  manualSelectionEnabled = true,
+  activityType = 'walk'
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -62,8 +64,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     displayRouteOnMap(route);
   };
 
-  const oneWayHook = useOneWayRouteGeneration(planningData, userLocation, (route) => handleRouteCalculated(route, true));
-  const roundTripHook = useRoundTripRouteGeneration(planningData, userLocation, (route) => handleRouteCalculated(route, true));
+  const oneWayHook = useOneWayRouteGeneration(planningData, userLocation, (route) => handleRouteCalculated(route, true), undefined, activityType);
+  const roundTripHook = useRoundTripRouteGeneration(planningData, userLocation, (route) => handleRouteCalculated(route, true), undefined, activityType);
 
   const routeHook = planningData?.tripType === 'one-way' ? oneWayHook : roundTripHook;
   const { isCalculating, routeError } = routeHook;

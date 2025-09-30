@@ -19,7 +19,8 @@ export const useRoundTripRouteGeneration = (
   planningData: PlanningData | undefined,
   userLocation: Coordinates | null,
   onRouteCalculated?: (data: RouteData) => void,
-  externalSetCalculating?: (calculating: boolean) => void
+  externalSetCalculating?: (calculating: boolean) => void,
+  activityType: 'walk' | 'run' = 'walk'
 ) => {
   const [isCalculating, setIsCalculating] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
@@ -33,7 +34,7 @@ export const useRoundTripRouteGeneration = (
   const generateRoundTripRoute = useCallback(async () => {
     if (!planningData || !userLocation || planningData.tripType !== 'round-trip') return null;
 
-    const targetDistance = calculateTargetDistance(planningData.steps, planningData.height);
+    const targetDistance = calculateTargetDistance(planningData.steps, planningData.height, activityType);
     const tolerance = 0.05; // ±5%
     const min = targetDistance * (1 - tolerance);
     const max = targetDistance * (1 + tolerance);
@@ -133,7 +134,7 @@ export const useRoundTripRouteGeneration = (
   // Helper function to create RouteData from route info
   const createRouteData = (routeInfo: any, planningData: PlanningData, userLocation: Coordinates): RouteData => {
     const { totalDistance, destLat, destLng, outboundCoordinates, returnCoordinates } = routeInfo;
-    const metrics = calculateRouteMetrics(totalDistance, planningData);
+    const metrics = calculateRouteMetrics(totalDistance, planningData, activityType);
 
     const routeData: RouteData = {
       distance: totalDistance,

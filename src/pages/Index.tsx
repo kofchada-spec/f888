@@ -187,6 +187,7 @@ const Index = () => {
         onBack={handleBackToPlanning}
         onGoToDashboard={handleGoToDashboard}
         planningData={planningData}
+        activityType={activityType}
       />
     );
   }

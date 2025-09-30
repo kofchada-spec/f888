@@ -15,9 +15,10 @@ interface MapScreenProps {
     height: number;
     weight: number;
   };
+  activityType: 'walk' | 'run';
 }
 
-const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScreenProps) => {
+const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData, activityType }: MapScreenProps) => {
   const [isReadyToStart, setIsReadyToStart] = useState(false);
   const [routeData, setRouteData] = useState<{
     distance: number;
@@ -99,7 +100,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
         {/* Title */}
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-foreground mb-4">
-            Planifiez votre marche
+            Planifiez votre {activityType === 'walk' ? 'marche' : 'course'}
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             Tapez sur la carte pour placer votre destination. Un itinéraire sera calculé automatiquement.
@@ -143,6 +144,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
             planningData={planningData}
             onRouteCalculated={handleRouteCalculated}
             manualSelectionEnabled={canClick}
+            activityType={activityType}
           />
           
           {/* Reset Button */}
@@ -165,7 +167,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
         {routeData && (
           <div className="bg-card rounded-xl p-6 mb-6 shadow-lg">
             <h3 className="text-lg font-semibold text-foreground mb-4 text-center">
-              Estimation de votre marche
+              Estimation de votre {activityType === 'walk' ? 'marche' : 'course'}
               {planningData.tripType === 'round-trip' && (
                 <span className="text-sm font-normal text-muted-foreground ml-2">(Aller-retour)</span>
               )}
@@ -231,7 +233,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
             size="lg"
             className="w-full max-w-md h-14 text-lg font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-50"
           >
-            {isReadyToStart ? 'Commencer la marche' : 'Calcul de l\'itinéraire...'}
+            {isReadyToStart ? `Commencer la ${activityType === 'walk' ? 'marche' : 'course'}` : 'Calcul de l\'itinéraire...'}
           </Button>
           <p className="text-xs text-muted-foreground mt-2">
             L'itinéraire sera sauvegardé et le suivi GPS commencera

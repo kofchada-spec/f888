@@ -18,23 +18,31 @@ export const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2
 /**
  * Calculate target distance based on steps and user height with validation
  */
-export const calculateTargetDistance = (steps: number, height: number): number => {
+export const calculateTargetDistance = (steps: number, height: number, activityType: 'walk' | 'run' = 'walk'): number => {
   const stepCount = Math.max(1000, steps || 10000); // Min 1000 steps
   const heightInMeters = Math.max(1.2, Math.min(2.5, height || 1.70)); // Height range 1.2-2.5m
-  const strideLength = 0.415 * heightInMeters;
+  const strideLength = activityType === 'run' ? 0.5 * heightInMeters : 0.415 * heightInMeters;
   return (stepCount * strideLength) / 1000; // km
 };
 
 /**
  * Calculate calories based on distance, weight, and pace with validation
  */
-export const calculateCalories = (distanceKm: number, weight: number, pace: string): number => {
+export const calculateCalories = (distanceKm: number, weight: number, pace: string, activityType: 'walk' | 'run' = 'walk'): number => {
   const weightKg = Math.max(40, Math.min(200, weight || 70)); // Weight range 40-200kg
   const validPace = ['slow', 'moderate', 'fast'].includes(pace) ? pace : 'moderate';
-  const met = validPace === 'slow' ? 3.0 : validPace === 'moderate' ? 4.0 : 5.0;
-  const speed = validPace === 'slow' ? 4 : validPace === 'moderate' ? 5 : 6;
-  const timeHours = Math.max(0.1, distanceKm / speed); // Minimum 0.1 hours
-  return Math.round(met * weightKg * timeHours);
+  
+  if (activityType === 'run') {
+    // Coefficients pour la course
+    const coefficient = validPace === 'slow' ? 0.75 : validPace === 'moderate' ? 1.00 : 1.30;
+    return Math.round(distanceKm * weightKg * coefficient);
+  } else {
+    // Calcul pour la marche (existant)
+    const met = validPace === 'slow' ? 3.0 : validPace === 'moderate' ? 4.0 : 5.0;
+    const speed = validPace === 'slow' ? 4 : validPace === 'moderate' ? 5 : 6;
+    const timeHours = Math.max(0.1, distanceKm / speed); // Minimum 0.1 hours
+    return Math.round(met * weightKg * timeHours);
+  }
 };
 
 /**
@@ -42,19 +50,25 @@ export const calculateCalories = (distanceKm: number, weight: number, pace: stri
  */
 export const calculateRouteMetrics = (
   distance: number, 
-  planningData: PlanningData
+  planningData: PlanningData,
+  activityType: 'walk' | 'run' = 'walk'
 ) => {
   // Validate distance
   const validDistance = Math.max(0.1, Math.min(100, distance)); // 0.1km to 100km range
   
-  const calories = calculateCalories(validDistance, planningData.weight, planningData.pace);
+  const calories = calculateCalories(validDistance, planningData.weight, planningData.pace, activityType);
   const validPace = ['slow', 'moderate', 'fast'].includes(planningData.pace) ? planningData.pace : 'moderate';
-  const speed = validPace === 'slow' ? 4 : validPace === 'moderate' ? 5 : 6;
+  
+  // Vitesses différentes pour marche et course
+  const speed = activityType === 'run'
+    ? (validPace === 'slow' ? 8 : validPace === 'moderate' ? 10 : 12)
+    : (validPace === 'slow' ? 4 : validPace === 'moderate' ? 5 : 6);
   const durationMin = Math.round((validDistance / speed) * 60);
   
   // Calculate steps with height validation
   const heightInMeters = Math.max(1.2, Math.min(2.5, planningData.height || 1.70));
-  const steps = Math.round((validDistance * 1000) / (0.415 * heightInMeters));
+  const strideLength = activityType === 'run' ? 0.5 * heightInMeters : 0.415 * heightInMeters;
+  const steps = Math.round((validDistance * 1000) / strideLength);
   
   return { calories, durationMin, steps };
 };

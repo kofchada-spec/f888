@@ -28,7 +28,8 @@ export const useOneWayRouteGeneration = (
   planningData: PlanningData | undefined,
   userLocation: Coordinates | null,
   onRouteCalculated?: (data: RouteData) => void,
-  externalSetCalculating?: (calculating: boolean) => void
+  externalSetCalculating?: (calculating: boolean) => void,
+  activityType: 'walk' | 'run' = 'walk'
 ) => {
   const [isCalculating, setIsCalculating] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
@@ -42,7 +43,7 @@ export const useOneWayRouteGeneration = (
   const generateOneWayRoute = useCallback(async () => {
     if (!planningData || !userLocation || planningData.tripType !== 'one-way') return null;
 
-    const targetDistance = calculateTargetDistance(planningData.steps, planningData.height);
+    const targetDistance = calculateTargetDistance(planningData.steps, planningData.height, activityType);
     const { min, max } = getToleranceRange(targetDistance);
     
     setCalculating(true);
@@ -71,7 +72,7 @@ export const useOneWayRouteGeneration = (
 
           if (distanceKm >= min && distanceKm <= max) {
             console.log(`✅ Itinéraire aller simple trouvé à la tentative ${attempt}`);
-            const metrics = calculateRouteMetrics(distanceKm, planningData);
+            const metrics = calculateRouteMetrics(distanceKm, planningData, activityType);
 
             const routeData: RouteData = {
               distance: distanceKm,
