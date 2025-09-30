@@ -282,7 +282,10 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
   };
 
   const findBestRouteNearClick = async (clickedPoint: Coordinates): Promise<RouteData | null> => {
-    if (!userLocation || !planningData) return null;
+    if (!userLocation || !planningData) {
+      console.error('❌ findBestRouteNearClick: missing userLocation or planningData');
+      return null;
+    }
 
     const targetDistance = calculateTargetDistance(
       planningData.steps || 10000,
@@ -294,11 +297,16 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     console.log('🔍 Recherche d\'un itinéraire valide près du point cliqué...');
     console.log('🎯 Distance cible:', targetDistance.toFixed(3), 'km');
     console.log('📊 Plage acceptable:', tolerance.min.toFixed(3), '-', tolerance.max.toFixed(3), 'km');
+    console.log('📍 Point cliqué:', clickedPoint);
+    console.log('📍 Position utilisateur:', userLocation);
 
     const searchRadiusKm = 0.5;
     const candidateAngles = [0, 60, 120, 180, 240, 300];
+    
+    console.log(`🔄 Test de ${candidateAngles.length} directions dans un rayon de ${searchRadiusKm}km`);
 
     for (const angle of candidateAngles) {
+      console.log(`\n🧭 Test angle ${angle}°...`);
       const angleRad = (angle * Math.PI) / 180;
       const latOffset = (searchRadiusKm / 111.32) * Math.cos(angleRad);
       const lngOffset = (searchRadiusKm / (111.32 * Math.cos(clickedPoint.lat * Math.PI / 180))) * Math.sin(angleRad);
@@ -307,10 +315,15 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
         lat: clickedPoint.lat + latOffset,
         lng: clickedPoint.lng + lngOffset
       };
+      
+      console.log(`   📍 Point candidat: ${candidatePoint.lat.toFixed(6)}, ${candidatePoint.lng.toFixed(6)}`);
 
       try {
         const token = await getMapboxToken();
-        if (!token) continue;
+        if (!token) {
+          console.error(`   ❌ Pas de token Mapbox`);
+          continue;
+        }
 
         const start = `${userLocation.lng},${userLocation.lat}`;
         const end = `${candidatePoint.lng},${candidatePoint.lat}`;
@@ -324,8 +337,11 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
           if (data.routes && data.routes[0]) {
             const route = data.routes[0];
             const distanceKm = route.distance / 1000;
+            
+            console.log(`   📏 Distance trouvée: ${distanceKm.toFixed(3)}km (plage: ${tolerance.min.toFixed(3)}-${tolerance.max.toFixed(3)}km)`);
 
           if (distanceKm >= tolerance.min && distanceKm <= tolerance.max) {
+            console.log(`   ✅ TROUVÉ ! Itinéraire valide à ${angle}°: ${distanceKm.toFixed(3)}km`);
             const metrics = calculateRouteMetrics(distanceKm, planningData);
             const routeData: RouteData = {
               distance: distanceKm,
@@ -339,9 +355,13 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
               }
             };
 
-            console.log(`✅ Itinéraire valide trouvé à ${angle}°: ${distanceKm.toFixed(3)}km`);
+            console.log(`   🎉 Retour de l'itinéraire valide`);
             return routeData;
+          } else {
+            console.log(`   ❌ Hors plage: ${distanceKm.toFixed(3)}km`);
           }
+          } else {
+            console.log(`   ❌ Pas de route dans la réponse Mapbox`);
           }
         } else {
           const outboundResponse = await fetch(
@@ -356,8 +376,11 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
 
           if (outboundData.routes?.[0] && returnData.routes?.[0]) {
             const totalDistance = (outboundData.routes[0].distance + returnData.routes[0].distance) / 1000;
+            
+            console.log(`   📏 Distance totale trouvée: ${totalDistance.toFixed(3)}km (plage: ${tolerance.min.toFixed(3)}-${tolerance.max.toFixed(3)}km)`);
 
           if (totalDistance >= tolerance.min && totalDistance <= tolerance.max) {
+            console.log(`   ✅ TROUVÉ ! Itinéraire aller-retour valide à ${angle}°: ${totalDistance.toFixed(3)}km`);
             const totalDuration = (outboundData.routes[0].duration + returnData.routes[0].duration) / 60;
             const metrics = calculateRouteMetrics(totalDistance, planningData);
 
@@ -374,17 +397,21 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
               }
             };
 
-            console.log(`✅ Itinéraire valide trouvé à ${angle}°: ${totalDistance.toFixed(3)}km`);
+            console.log(`   🎉 Retour de l'itinéraire valide`);
             return routeData;
+          } else {
+            console.log(`   ❌ Hors plage: ${totalDistance.toFixed(3)}km`);
           }
+          } else {
+            console.log(`   ❌ Pas de routes aller-retour dans la réponse Mapbox`);
           }
         }
       } catch (error) {
-        console.error(`❌ Erreur candidat à ${angle}°:`, error);
+        console.error(`   ❌ Erreur lors de la requête à ${angle}°:`, error);
       }
     }
 
-    console.log('❌ Aucun itinéraire valide trouvé dans un rayon de 500m');
+    console.log('\n❌ AUCUN ITINÉRAIRE VALIDE trouvé après test des 6 directions');
     return null;
   };
 
