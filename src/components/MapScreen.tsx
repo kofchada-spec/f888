@@ -142,10 +142,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: MapScr
           <EnhancedMap 
             planningData={planningData}
             onRouteCalculated={handleRouteCalculated}
-            canClick={canClick}
-            onMapClick={incrementAttempts}
-            forceReset={hasReset}
-            onResetComplete={() => setHasReset(false)}
+            manualSelectionEnabled={canClick}
           />
           
           {/* Click Counter & Reset */}
