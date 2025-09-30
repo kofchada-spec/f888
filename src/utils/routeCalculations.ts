@@ -18,10 +18,20 @@ export const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2
 /**
  * Calculate target distance based on steps and user height with validation
  */
-export const calculateTargetDistance = (steps: number, height: number, activityType: 'walk' | 'run' = 'walk'): number => {
+export const calculateTargetDistance = (steps: number, height: number, activityType: 'walk' | 'run' = 'walk', pace: string = 'moderate'): number => {
   const stepCount = Math.max(1000, steps || 10000); // Min 1000 steps
   const heightInMeters = Math.max(1.2, Math.min(2.5, height || 1.70)); // Height range 1.2-2.5m
-  const strideLength = activityType === 'run' ? 0.5 * heightInMeters : 0.415 * heightInMeters;
+  
+  let strideLength: number;
+  if (activityType === 'run') {
+    // Course : foulée selon l'allure
+    strideLength = pace === 'slow' ? 0.65 * heightInMeters 
+                 : pace === 'fast' ? 1.1 * heightInMeters 
+                 : 0.9 * heightInMeters; // moderate
+  } else {
+    strideLength = 0.415 * heightInMeters;
+  }
+  
   return (stepCount * strideLength) / 1000; // km
 };
 
@@ -33,9 +43,11 @@ export const calculateCalories = (distanceKm: number, weight: number, pace: stri
   const validPace = ['slow', 'moderate', 'fast'].includes(pace) ? pace : 'moderate';
   
   if (activityType === 'run') {
-    // Coefficients pour la course
-    const coefficient = validPace === 'slow' ? 0.75 : validPace === 'moderate' ? 1.00 : 1.30;
-    return Math.round(distanceKm * weightKg * coefficient);
+    // MET (Metabolic Equivalent of Task) selon la vitesse
+    const speed = validPace === 'slow' ? 8 : validPace === 'moderate' ? 11 : 15;
+    const met = validPace === 'slow' ? 8.3 : validPace === 'moderate' ? 10 : 14;
+    const timeHours = Math.max(0.1, distanceKm / speed);
+    return Math.round(met * weightKg * timeHours);
   } else {
     // Calcul pour la marche (existant)
     const met = validPace === 'slow' ? 3.0 : validPace === 'moderate' ? 4.0 : 5.0;
@@ -61,13 +73,20 @@ export const calculateRouteMetrics = (
   
   // Vitesses différentes pour marche et course
   const speed = activityType === 'run'
-    ? (validPace === 'slow' ? 8 : validPace === 'moderate' ? 10 : 12)
+    ? (validPace === 'slow' ? 8 : validPace === 'moderate' ? 11 : 15)
     : (validPace === 'slow' ? 4 : validPace === 'moderate' ? 5 : 6);
   const durationMin = Math.round((validDistance / speed) * 60);
   
   // Calculate steps with height validation
   const heightInMeters = Math.max(1.2, Math.min(2.5, planningData.height || 1.70));
-  const strideLength = activityType === 'run' ? 0.5 * heightInMeters : 0.415 * heightInMeters;
+  let strideLength: number;
+  if (activityType === 'run') {
+    strideLength = validPace === 'slow' ? 0.65 * heightInMeters 
+                 : validPace === 'fast' ? 1.1 * heightInMeters 
+                 : 0.9 * heightInMeters; // moderate
+  } else {
+    strideLength = 0.415 * heightInMeters;
+  }
   const steps = Math.round((validDistance * 1000) / strideLength);
   
   return { calories, durationMin, steps };
