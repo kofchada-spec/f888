@@ -443,78 +443,106 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
   };
 
   const displayRouteOnMap = (route: RouteData) => {
-    if (!map.current || !route.routeGeoJSON) return;
+    console.log('=== DISPLAY ROUTE ON MAP ===');
+    console.log('Map instance exists:', !!map.current);
+    console.log('Route has GeoJSON:', !!route.routeGeoJSON);
+    console.log('Route data:', route);
 
+    if (!map.current || !route.routeGeoJSON) {
+      console.error('Cannot display route: missing map or GeoJSON');
+      return;
+    }
+
+    console.log('Clearing previous route...');
     clearRoute();
 
     const { outboundCoordinates, returnCoordinates } = route.routeGeoJSON;
+    console.log('Outbound coordinates count:', outboundCoordinates?.length || 0);
+    console.log('Return coordinates count:', returnCoordinates?.length || 0);
 
     if (outboundCoordinates) {
-      map.current.addSource('route-outbound', {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          properties: {},
-          geometry: {
-            type: 'LineString',
-            coordinates: outboundCoordinates
+      console.log('Adding outbound route source and layer...');
+      try {
+        map.current.addSource('route-outbound', {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: outboundCoordinates
+            }
           }
-        }
-      });
+        });
 
-      map.current.addLayer({
-        id: 'route-outbound-layer',
-        type: 'line',
-        source: 'route-outbound',
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round'
-        },
-        paint: {
-          'line-color': '#3b82f6',
-          'line-width': 5,
-          'line-opacity': 0.8
-        }
-      });
+        map.current.addLayer({
+          id: 'route-outbound-layer',
+          type: 'line',
+          source: 'route-outbound',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': '#3b82f6',
+            'line-width': 5,
+            'line-opacity': 0.8
+          }
+        });
+        console.log('✓ Outbound route displayed successfully');
+      } catch (error) {
+        console.error('✗ Error adding outbound route:', error);
+      }
     }
 
     if (returnCoordinates && planningData?.tripType === 'round-trip') {
-      map.current.addSource('route-return', {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          properties: {},
-          geometry: {
-            type: 'LineString',
-            coordinates: returnCoordinates
+      console.log('Adding return route source and layer...');
+      try {
+        map.current.addSource('route-return', {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: returnCoordinates
+            }
           }
-        }
-      });
+        });
 
-      map.current.addLayer({
-        id: 'route-return-layer',
-        type: 'line',
-        source: 'route-return',
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round'
-        },
-        paint: {
-          'line-color': '#10b981',
-          'line-width': 5,
-          'line-dasharray': [2, 2],
-          'line-opacity': 0.9,
-          'line-offset': 3
-        }
-      });
+        map.current.addLayer({
+          id: 'route-return-layer',
+          type: 'line',
+          source: 'route-return',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': '#10b981',
+            'line-width': 5,
+            'line-dasharray': [2, 2],
+            'line-opacity': 0.9,
+            'line-offset': 3
+          }
+        });
+        console.log('✓ Return route displayed successfully');
+      } catch (error) {
+        console.error('✗ Error adding return route:', error);
+      }
     }
 
+    console.log('Adding destination marker...');
+    if (destinationMarker.current) {
+      destinationMarker.current.remove();
+    }
     destinationMarker.current = new mapboxgl.Marker({ color: '#EF4444' })
       .setLngLat([route.endCoordinates.lng, route.endCoordinates.lat])
       .addTo(map.current);
 
     const coordinates = outboundCoordinates || [];
     if (coordinates.length > 0) {
+      console.log('Fitting map bounds to route...');
       const bounds = coordinates.reduce((bounds, coord) => {
         return bounds.extend(coord as [number, number]);
       }, new mapboxgl.LngLatBounds(coordinates[0] as [number, number], coordinates[0] as [number, number]));
@@ -523,7 +551,10 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
         padding: 80,
         maxZoom: 15
       });
+      console.log('✓ Map bounds adjusted');
     }
+
+    console.log('=== DISPLAY ROUTE COMPLETED ===');
   };
 
   useEffect(() => {
