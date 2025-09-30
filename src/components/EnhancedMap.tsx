@@ -161,7 +161,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
         },
         paint: {
           'line-color': '#3b82f6',
-          'line-width': 4
+          'line-width': 5,
+          'line-opacity': 0.8
         }
       });
     }
@@ -188,9 +189,11 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
           'line-cap': 'round'
         },
         paint: {
-          'line-color': '#3b82f6',
-          'line-width': 4,
-          'line-dasharray': [2, 2]
+          'line-color': '#10b981',
+          'line-width': 5,
+          'line-dasharray': [2, 2],
+          'line-opacity': 0.9,
+          'line-offset': 3
         }
       });
     }
