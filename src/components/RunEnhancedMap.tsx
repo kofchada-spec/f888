@@ -136,11 +136,15 @@ const RunEnhancedMap: React.FC<RunEnhancedMapProps> = ({
         clickedPoint.lng
       );
 
-      const targetDistance = calculateTargetDistance(
-        planningData.steps || 10000,
-        planningData.height || 1.70,
-        'run'
-      );
+      // For runs: use distance directly, for walks: calculate from steps
+      const targetDistance = planningData.distance 
+        ? planningData.distance 
+        : calculateTargetDistance(
+            planningData.steps || 10000,
+            planningData.height || 1.70,
+            'run',
+            planningData.pace || 'moderate'
+          );
 
       const tolerance = getToleranceRange(targetDistance);
 
