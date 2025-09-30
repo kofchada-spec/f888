@@ -9,7 +9,8 @@ interface MapScreenProps {
   onBack: () => void;
   onGoToDashboard: () => void;
   planningData: {
-    steps: number;
+    steps?: number;
+    distance?: number;
     pace: 'slow' | 'moderate' | 'fast';
     tripType: 'one-way' | 'round-trip';
     height: number;

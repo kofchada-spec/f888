@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 
 interface RunPlanningProps {
   onComplete: (data: {
-    steps: number;
+    distance: number;
     pace: RunPace;
     tripType: TripType;
     height: number;
@@ -81,13 +81,8 @@ const RunPlanning = ({ onComplete, onBack, onGoToDashboard }: RunPlanningProps) 
   }, [user]);
 
   const handleValidate = () => {
-    // Calculer les pas à partir de la distance pour compatibilité
-    const heightInM = parseFloat(height);
-    const strideLength = heightInM > 0 ? 0.5 * heightInM : 0.85;
-    const steps = Math.round((distance * 1000) / strideLength);
-    
     onComplete({
-      steps,
+      distance,
       pace: selectedPace,
       tripType,
       height: parseFloat(height),

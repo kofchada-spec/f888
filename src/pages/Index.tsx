@@ -26,10 +26,17 @@ const Index = () => {
   const [showWalkTracking, setShowWalkTracking] = useState(false);
   const [selectedDestination, setSelectedDestination] = useState<any>(null);
   const [activityType, setActivityType] = useState<'walk' | 'run'>('walk');
-  const [planningData, setPlanningData] = useState({ 
+  const [planningData, setPlanningData] = useState<{ 
+    steps?: number;
+    distance?: number;
+    pace: 'slow' | 'moderate' | 'fast';
+    tripType: 'one-way' | 'round-trip';
+    height: number;
+    weight: number;
+  }>({ 
     steps: 10000, 
-    pace: 'moderate' as 'slow' | 'moderate' | 'fast',
-    tripType: 'one-way' as 'one-way' | 'round-trip',
+    pace: 'moderate',
+    tripType: 'one-way',
     height: 1.70,
     weight: 70
   });
@@ -116,7 +123,7 @@ const Index = () => {
     setShowRunPlanning(false);
   };
 
-  const handleRunPlanningComplete = (data: { steps: number; pace: 'slow' | 'moderate' | 'fast'; tripType: 'one-way' | 'round-trip'; height: number; weight: number }) => {
+  const handleRunPlanningComplete = (data: { distance: number; pace: 'slow' | 'moderate' | 'fast'; tripType: 'one-way' | 'round-trip'; height: number; weight: number }) => {
     setPlanningData(data);
     setShowRunPlanning(false);
     setSelectedDestination(null);

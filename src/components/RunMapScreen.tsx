@@ -9,7 +9,8 @@ interface RunMapScreenProps {
   onBack: () => void;
   onGoToDashboard: () => void;
   planningData: {
-    steps: number;
+    steps?: number;
+    distance?: number;
     pace: 'slow' | 'moderate' | 'fast';
     tripType: 'one-way' | 'round-trip';
     height: number;
@@ -111,7 +112,7 @@ const RunMapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: Run
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
             <div className="text-center">
               <p className="text-muted-foreground">Objectif</p>
-              <p className="font-semibold">{planningData.steps} pas</p>
+              <p className="font-semibold">{planningData.distance} km</p>
             </div>
             <div className="text-center">
               <p className="text-muted-foreground">Taille</p>

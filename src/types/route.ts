@@ -26,7 +26,8 @@ export interface RouteData {
 }
 
 export interface PlanningData {
-  steps: number;
+  steps?: number;
+  distance?: number;
   pace: 'slow' | 'moderate' | 'fast';
   tripType: 'one-way' | 'round-trip';
   height: number;
