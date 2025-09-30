@@ -26,7 +26,7 @@ type TripType = 'one-way' | 'round-trip';
 const RunPlanning = ({ onComplete, onBack, onGoToDashboard }: RunPlanningProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [steps, setSteps] = useState(5000);
+  const [distance, setDistance] = useState(5);
   const [selectedPace, setSelectedPace] = useState<RunPace>('moderate');
   const [tripType, setTripType] = useState<TripType>('one-way');
   const [height, setHeight] = useState('1.70');
@@ -81,6 +81,11 @@ const RunPlanning = ({ onComplete, onBack, onGoToDashboard }: RunPlanningProps) 
   }, [user]);
 
   const handleValidate = () => {
+    // Calculer les pas à partir de la distance pour compatibilité
+    const heightInM = parseFloat(height);
+    const strideLength = heightInM > 0 ? 0.5 * heightInM : 0.85;
+    const steps = Math.round((distance * 1000) / strideLength);
+    
     onComplete({
       steps,
       pace: selectedPace,
@@ -92,16 +97,11 @@ const RunPlanning = ({ onComplete, onBack, onGoToDashboard }: RunPlanningProps) 
 
   // Calculs préliminaires pour affichage (adaptés à la course)
   const calculatePreview = () => {
-    const stepCount = steps;
     const heightInM = parseFloat(height);
     const weightInKg = parseFloat(weight);
     
-    // Foulée de course plus longue: 0.5 × taille (m) ou défaut 0.85m
-    const strideLength = heightInM > 0 ? 0.5 * heightInM : 0.85;
-    
-    // Distance cible (km)
-    const targetDistanceKm = (stepCount * strideLength) / 1000;
-    const displayDistance = targetDistanceKm;
+    // Utiliser directement la distance sélectionnée
+    const displayDistance = distance;
     
     // Vitesse selon l'allure de course (km/h)
     const paceSpeed = {
@@ -126,10 +126,7 @@ const RunPlanning = ({ onComplete, onBack, onGoToDashboard }: RunPlanningProps) 
     return {
       distance: displayDistance.toFixed(1),
       duration: Math.round(duration),
-      calories: Math.round(calories),
-      strideLength: (strideLength * 100).toFixed(1),
-      targetDistanceKm,
-      targetSteps: stepCount
+      calories: Math.round(calories)
     };
   };
 
@@ -180,28 +177,28 @@ const RunPlanning = ({ onComplete, onBack, onGoToDashboard }: RunPlanningProps) 
         </div>
 
         <div className="bg-card rounded-2xl shadow-lg p-8 space-y-8">
-          {/* Objectif de pas */}
+          {/* Distance à parcourir */}
           <div className="space-y-6">
             <Label className="text-lg font-medium text-foreground flex items-center space-x-2">
               <Target className="w-5 h-5 text-orange-600" />
-              <span>Nombre de pas souhaités</span>
+              <span>Distance à parcourir</span>
             </Label>
             
             <div className="space-y-4">
               <div className="px-6">
                 <Slider
-                  value={[steps]}
-                  onValueChange={(value) => setSteps(value[0])}
-                  max={100000}
-                  min={1000}
-                  step={500}
+                  value={[distance]}
+                  onValueChange={(value) => setDistance(value[0])}
+                  max={42}
+                  min={1}
+                  step={0.5}
                   className="w-full"
                 />
               </div>
               
               <div className="text-center">
-                <div className="text-3xl font-bold text-orange-600">{steps.toLocaleString()}</div>
-                <div className="text-sm text-muted-foreground">pas</div>
+                <div className="text-3xl font-bold text-orange-600">{distance.toFixed(1)}</div>
+                <div className="text-sm text-muted-foreground">km</div>
               </div>
             </div>
           </div>
