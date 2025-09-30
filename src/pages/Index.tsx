@@ -5,6 +5,7 @@ import Auth from '@/components/Auth';
 import ProfileCompletion from '@/components/ProfileCompletion';
 import Dashboard from '@/components/Dashboard';
 import WalkPlanning from '@/components/WalkPlanning';
+import RunPlanning from '@/components/RunPlanning';
 import MapScreen from '@/components/MapScreen';
 import WalkTracking from '@/components/WalkTracking';
 import { useAuth } from '@/hooks/useAuth';
@@ -175,7 +176,7 @@ const Index = () => {
 
   // Show Run Planning if active
   if (showRunPlanning) {
-    return <WalkPlanning onComplete={handleRunPlanningComplete} onBack={handleBackToDashboard} onGoToDashboard={handleGoToDashboard} />;
+    return <RunPlanning onComplete={handleRunPlanningComplete} onBack={handleBackToDashboard} onGoToDashboard={handleGoToDashboard} />;
   }
 
   // Show Destination Selection if active
