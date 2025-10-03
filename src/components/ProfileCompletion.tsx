@@ -17,6 +17,7 @@ interface ProfileCompletionProps {
 const profileSchema = z.object({
   firstName: z.string().min(2, "Le prénom doit contenir au moins 2 caractères"),
   gender: z.string().min(1, "Veuillez sélectionner votre genre"),
+  customGender: z.string().optional(),
   height: z.number()
     .min(1.0, "Entrez une taille entre 1,00 et 2,30 m")
     .max(2.3, "Entrez une taille entre 1,00 et 2,30 m"),
@@ -26,6 +27,15 @@ const profileSchema = z.object({
   day: z.number().min(1).max(31),
   month: z.number().min(1).max(12),
   year: z.number().min(1950).max(new Date().getFullYear() - 13)
+}).refine((data) => {
+  // Si "autre" est sélectionné, customGender doit être rempli
+  if (data.gender === "autre" && (!data.customGender || data.customGender.trim().length === 0)) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Veuillez préciser votre genre",
+  path: ["customGender"]
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -39,6 +49,7 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
     defaultValues: {
       firstName: '',
       gender: '',
+      customGender: '',
       height: 1.7,
       weight: 70,
       day: 15,
@@ -46,6 +57,8 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
       year: 1990
     }
   });
+
+  const watchedGender = form.watch('gender');
 
   const onSubmit = async (data: ProfileFormData) => {
     setIsSubmitting(true);
@@ -60,6 +73,11 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
       const monthDiff = today.getMonth() - birthDate.getMonth();
       const finalAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate()) ? age - 1 : age;
 
+      // Déterminer la valeur finale du genre
+      const finalGender = data.gender === "autre" && data.customGender 
+        ? data.customGender.trim() 
+        : data.gender;
+
       if (user) {
         // Save to Supabase profiles table if user is authenticated
         const { supabase } = await import('@/integrations/supabase/client');
@@ -68,7 +86,7 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
           .from('profiles')
           .update({
             first_name: data.firstName,
-            gender: data.gender,
+            gender: finalGender,
             height_m: data.height,
             weight_kg: data.weight,
             birth_date: birthDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
@@ -84,7 +102,7 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
         // If no user (auth skipped), store in localStorage
         const profileData = {
           first_name: data.firstName,
-          gender: data.gender,
+          gender: finalGender,
           height_m: data.height,
           weight_kg: data.weight,
           birth_date: birthDate.toISOString().split('T')[0],
@@ -179,6 +197,30 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
                 </FormItem>
               )}
             />
+
+            {/* Champ personnalisé pour "Autre" */}
+            {watchedGender === "autre" && (
+              <FormField
+                control={form.control}
+                name="customGender"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <User className="w-4 h-4" />
+                      Précisez votre genre
+                    </FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Entrez votre genre" 
+                        {...field} 
+                        className="bg-background"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             {/* Taille */}
             <FormField
