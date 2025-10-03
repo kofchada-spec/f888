@@ -49,7 +49,12 @@
       "remaining": "of",
       "bonus": "bonus",
       "streak": "Streak",
-      "limitReached": "Limit reached - Complete an activity to maintain your streak!"
+      "limitReached": "Limit reached - Complete an activity to maintain your streak!",
+      "startStreak": "Start the streak!",
+      "todayPlanning": "Planning today"
+    },
+    "tabs": {
+      "all": "All"
     }
   },
   "menu": {

@@ -49,7 +49,12 @@
       "remaining": "de",
       "bonus": "bonus",
       "streak": "Racha",
-      "limitReached": "¡Límite alcanzado - Completa una actividad para mantener tu racha!"
+      "limitReached": "¡Límite alcanzado - Completa una actividad para mantener tu racha!",
+      "startStreak": "¡Comienza la racha!",
+      "todayPlanning": "Planificación hoy"
+    },
+    "tabs": {
+      "all": "Todo"
     }
   },
   "menu": {

@@ -483,7 +483,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <Footprints className="h-4 w-4 mr-2 text-primary" />
-                    <span className="text-sm font-medium">Pas</span>
+                    <span className="text-sm font-medium">{t('dashboard.stats.steps')}</span>
                   </div>
                   <span className="text-sm text-muted-foreground">
                     {progress.stats.steps.toLocaleString()} / {dailyGoals.steps.toLocaleString()}
@@ -497,7 +497,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <MapPin className="h-4 w-4 mr-2 text-secondary" />
-                    <span className="text-sm font-medium">Distance</span>
+                    <span className="text-sm font-medium">{t('dashboard.stats.distance')}</span>
                   </div>
                   <span className="text-sm text-muted-foreground">
                     {progress.stats.distanceKm.toFixed(1)} / {dailyGoals.distanceKm} km
@@ -511,7 +511,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <Flame className="h-4 w-4 mr-2 text-destructive" />
-                    <span className="text-sm font-medium">Calories</span>
+                    <span className="text-sm font-medium">{t('dashboard.stats.calories')}</span>
                   </div>
                   <span className="text-sm text-muted-foreground">
                     {progress.stats.calories} / {dailyGoals.calories} kcal
@@ -525,7 +525,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <Clock className="h-4 w-4 mr-2 text-accent" />
-                    <span className="text-sm font-medium">Temps actif</span>
+                    <span className="text-sm font-medium">{t('dashboard.stats.activeTime')}</span>
                   </div>
                   <span className="text-sm text-muted-foreground">
                     {formatWalkTime(progress.stats.walkTime)} / {formatWalkTime(dailyGoals.activeTime)}
@@ -542,15 +542,15 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
           <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="all" className="flex items-center gap-2">
               <Target className="h-4 w-4" />
-              Tout
+              {t('dashboard.tabs.all')}
             </TabsTrigger>
             <TabsTrigger value="walk" className="flex items-center gap-2">
               <Footprints className="h-4 w-4" />
-              Marche
+              {t('dashboard.walk')}
             </TabsTrigger>
             <TabsTrigger value="run" className="flex items-center gap-2">
               <Zap className="h-4 w-4" />
-              Course
+              {t('dashboard.run')}
             </TabsTrigger>
           </TabsList>
 
@@ -587,24 +587,24 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
         <Card className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border-blue-200">
           <CardContent className="p-6">
             <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-3">Planifications aujourd'hui</p>
+              <p className="text-sm text-muted-foreground mb-3">{t('dashboard.planning.todayPlanning')}</p>
               <div className="flex items-center justify-center gap-3 mb-3">
                 <div className="flex items-baseline gap-1">
                   <span className="text-4xl font-bold text-foreground">{remainingPlans}</span>
-                  <span className="text-lg text-muted-foreground font-medium">sur {dailyLimit}</span>
+                  <span className="text-lg text-muted-foreground font-medium">{t('dashboard.planning.remaining')} {dailyLimit}</span>
                 </div>
               </div>
               {bonusPlans > 0 && (
                 <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full border border-primary/20">
                   <Award className="h-4 w-4 text-primary" />
                   <span className="text-sm text-foreground font-medium">
-                    +{bonusPlans} bonus • Série {planningStreak}j
+                    +{bonusPlans} {t('dashboard.planning.bonus')} • {t('dashboard.planning.streak')} {planningStreak}j
                   </span>
                 </div>
               )}
               {!canPlan && (
                 <p className="text-sm text-destructive mt-3 font-medium">
-                  Limite atteinte - Complétez une activité pour maintenir votre série !
+                  {t('dashboard.planning.limitReached')}
                 </p>
               )}
             </div>

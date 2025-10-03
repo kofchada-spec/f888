@@ -49,7 +49,12 @@
       "remaining": "sur",
       "bonus": "bonus",
       "streak": "Série",
-      "limitReached": "Limite atteinte - Complétez une activité pour maintenir votre série !"
+      "limitReached": "Limite atteinte - Complétez une activité pour maintenir votre série !",
+      "startStreak": "Commence la série !",
+      "todayPlanning": "Planifications aujourd'hui"
+    },
+    "tabs": {
+      "all": "Tout"
     }
   },
   "menu": {
