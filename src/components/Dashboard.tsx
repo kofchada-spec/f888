@@ -379,7 +379,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
         <Card className="bg-white shadow-lg border-0">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-foreground">Mes paramètres</h2>
+              <h2 className="text-lg font-semibold text-foreground">💡</h2>
             </div>
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
