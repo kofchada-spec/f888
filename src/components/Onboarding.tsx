@@ -138,8 +138,8 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
 
           <div className="space-y-8 text-center px-4">
             <h1 className="font-inter text-2xl font-bold text-gray-900 leading-tight max-w-sm tracking-tight">
-              Planifie ta marche en fonction de ton{' '}
-              <span className="text-primary">objectif de pas</span>{' '}
+              Planifie ta marche/course en fonction de ton{' '}
+              <span className="text-primary">objectif</span>{' '}
               à atteindre.
             </h1>
 
