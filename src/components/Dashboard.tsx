@@ -257,7 +257,6 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
     }
     return t('common.greeting.morning');
   };
-  };
 
   return (
     <div className="min-h-screen bg-background">
