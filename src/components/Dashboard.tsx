@@ -356,7 +356,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                     
                     <button
                       onClick={() => {
-                        // TODO: Implémenter les paramètres
+                        navigate('/settings');
                         setIsAvatarMenuOpen(false);
                       }}
                       className="w-full flex items-center px-3 py-2 text-sm text-foreground hover:bg-gray-50 transition-colors"
