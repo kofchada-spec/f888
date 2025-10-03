@@ -555,22 +555,23 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
         <Card className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border-blue-200">
           <CardContent className="p-6">
             <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-2">Planifications aujourd'hui</p>
-              <div className="flex items-center justify-center gap-2 mb-3">
-                <span className="text-3xl font-bold text-foreground">{remainingPlans}</span>
-                <span className="text-xl text-muted-foreground">/</span>
-                <span className="text-2xl font-semibold text-muted-foreground">{dailyLimit}</span>
+              <p className="text-sm text-muted-foreground mb-3">Planifications aujourd'hui</p>
+              <div className="flex items-center justify-center gap-3 mb-3">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-bold text-foreground">{remainingPlans}</span>
+                  <span className="text-lg text-muted-foreground font-medium">sur {dailyLimit}</span>
+                </div>
               </div>
               {bonusPlans > 0 && (
-                <div className="flex items-center justify-center gap-2 text-sm">
-                  <Award className="h-4 w-4 text-yellow-500" />
-                  <span className="text-muted-foreground">
-                    +{bonusPlans} bonus (série de {planningStreak} jours)
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-yellow-500/10 rounded-full border border-yellow-500/20">
+                  <Award className="h-4 w-4 text-yellow-600" />
+                  <span className="text-sm text-yellow-700 font-medium">
+                    +{bonusPlans} bonus • Série {planningStreak}j
                   </span>
                 </div>
               )}
               {!canPlan && (
-                <p className="text-sm text-orange-600 mt-2">
+                <p className="text-sm text-orange-600 mt-3 font-medium">
                   Limite atteinte - Complétez une activité pour maintenir votre série !
                 </p>
               )}

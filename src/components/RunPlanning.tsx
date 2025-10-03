@@ -321,10 +321,17 @@ const RunPlanning = ({ onComplete, onBack, onGoToDashboard }: RunPlanningProps) 
         </div>
 
         {/* Limit indicator */}
-        <div className="mt-6 text-center">
-          <p className="text-sm text-muted-foreground">
-            <span className="font-semibold text-foreground">{remainingPlans}/{dailyLimit}</span> planifications restantes aujourd'hui
-          </p>
+        <div className="mt-6 p-4 bg-gradient-to-r from-orange-500/10 to-red-500/10 rounded-xl border border-orange-200">
+          <div className="flex items-center justify-center gap-3">
+            <div className="flex items-center gap-2">
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-bold text-orange-600">{remainingPlans}</span>
+                <span className="text-sm text-muted-foreground font-medium">sur {dailyLimit}</span>
+              </div>
+            </div>
+            <div className="h-8 w-px bg-border"></div>
+            <span className="text-sm text-muted-foreground">planifications disponibles</span>
+          </div>
         </div>
 
         {/* Bouton de validation */}
