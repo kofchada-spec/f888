@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, User, Target } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from '@/components/ui/carousel';
-import mapDestination from '@/assets/map-destination.png';
+import mapOnboarding from '@/assets/map-onboarding.png';
 const fitpasLogo = '/lovable-uploads/4c20a048-5819-4d0f-b867-b91d67ca59ee.png';
 
 interface OnboardingProps {
@@ -190,7 +190,7 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
           {/* Map/destination illustration */}
           <div className="mb-10 transform hover:scale-105 transition-all duration-500">
             <img 
-              src={mapDestination}
+              src={mapOnboarding}
               alt="Carte avec destinations"
               className="w-36 h-36 mx-auto drop-shadow-2xl"
             />
