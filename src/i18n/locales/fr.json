@@ -147,12 +147,12 @@
       "start": "Commencer"
     },
     "presentation": {
-      "title": "Ton compagnon santé",
-      "subtitle": "Découvre des parcours sur-mesure qui correspondent à tes objectifs de marche quotidiens."
+      "title": "Planifie ta marche en fonction de ton objectif de pas à atteindre.",
+      "subtitle": "Définis ton objectif et laisse Fitpas t'accompagner."
     },
     "goals": {
-      "title": "Tes objectifs",
-      "subtitle": "Définis tes objectifs de marche et suis tes progrès en temps réel."
+      "title": "Fitpas te propose des destinations selon tes objectifs à atteindre.",
+      "subtitle": "Fitpas estime l'heure et la distance à parcourir en fonction de ton allure et du nombre de pas."
     },
     "next": "Suivant",
     "skip": "Passer"
