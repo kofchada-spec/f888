@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, User, Target } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from '@/components/ui/carousel';
+import { useTranslation } from 'react-i18next';
 import mapOnboarding from '@/assets/map-onboarding.jpg';
 const fitpasLogo = '/lovable-uploads/4c20a048-5819-4d0f-b867-b91d67ca59ee.png';
 
@@ -66,6 +67,8 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
 };
 
 const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boolean }) => {
+  const { t } = useTranslation();
+  
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: '#27AE60' }}>
       <div className="bg-transparent rounded-3xl p-8 w-full max-w-sm h-[600px] flex flex-col items-center justify-between text-center relative overflow-hidden">
@@ -89,10 +92,10 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
           </div>
           <div className="space-y-6 text-center">
             <h1 className="font-raleway text-4xl font-black text-white mb-3 tracking-tight leading-none">
-              Bienvenue
+              {t('onboarding.welcome.title')}
             </h1>
             <p className="font-raleway text-white/95 text-lg font-light leading-relaxed px-6 tracking-wide">
-              Ta marche, ton rythme, ton objectif.
+              {t('onboarding.welcome.subtitle')}
             </p>
           </div>
         </div>
@@ -102,7 +105,7 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
           onClick={onNext}
           className="w-full py-4 text-lg font-semibold rounded-2xl bg-white text-green-700 hover:bg-white/90 border-0"
         >
-          Suivant
+          {t('onboarding.next')}
         </Button>
 
         {/* Bottom indicator */}
@@ -113,6 +116,8 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
 };
 
 const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack: () => void; showBack: boolean }) => {
+  const { t } = useTranslation();
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-white flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl p-8 w-full max-w-sm h-[600px] flex flex-col items-center justify-between text-center relative">
@@ -138,9 +143,7 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
 
           <div className="space-y-8 text-center px-4">
             <h1 className="font-raleway text-2xl font-bold text-gray-900 leading-tight max-w-sm tracking-tight">
-              Planifie ta marche/course en fonction de ton{' '}
-              <span className="text-primary">objectif</span>{' '}
-              à atteindre.
+              {t('onboarding.presentation.title')}
             </h1>
 
             <div className="flex items-center justify-center space-x-2">
@@ -150,9 +153,7 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
             </div>
 
             <p className="font-raleway text-base text-gray-600 max-w-sm leading-relaxed font-light">
-              Peu importe ta localisation définis ton <span className="font-semibold">objectif</span> et laisse{' '}
-              <span className="font-semibold text-primary">Fitpas</span>{' '}
-              t'accompagner.
+              {t('onboarding.presentation.subtitle')}
             </p>
           </div>
         </div>
@@ -162,7 +163,7 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
           onClick={onNext}
           className="w-full py-4 text-lg font-semibold rounded-2xl bg-secondary hover:bg-secondary/90 text-white border-0"
         >
-          Suivant
+          {t('onboarding.next')}
         </Button>
 
         {/* Bottom indicator */}
@@ -173,6 +174,8 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
 };
 
 const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack: () => void; showBack: boolean }) => {
+  const { t } = useTranslation();
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-white flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl p-8 w-full max-w-sm h-[600px] flex flex-col items-center justify-between text-center relative">
@@ -198,9 +201,7 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
 
           <div className="space-y-8 text-center">
             <h1 className="font-raleway text-2xl font-bold text-gray-900 max-w-sm leading-tight tracking-tight">
-              <span className="text-primary">Fitpas</span> te propose des{' '}
-              <span className="text-secondary">destinations</span>{' '}
-              selon tes objectifs à atteindre.
+              {t('onboarding.goals.title')}
             </h1>
 
             <div className="flex items-center justify-center space-x-2">
@@ -210,7 +211,7 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
             </div>
 
             <p className="font-raleway text-base text-gray-600 max-w-sm leading-relaxed font-light">
-              <span className="font-semibold text-primary">Fitpas</span> estime <span className="font-semibold">l'heure</span> et la <span className="font-semibold">distance</span> à parcourir en fonction de ta <span className="font-semibold">marche</span> ou ta <span className="font-semibold">course</span>.
+              {t('onboarding.goals.subtitle')}
             </p>
           </div>
         </div>
@@ -220,7 +221,7 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
           onClick={onNext}
           className="w-full py-4 text-lg font-semibold rounded-2xl bg-secondary hover:bg-secondary/90 text-white border-0"
         >
-          Commencer
+          {t('onboarding.welcome.start')}
         </Button>
 
         {/* Bottom indicator */}

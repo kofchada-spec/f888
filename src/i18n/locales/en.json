@@ -139,5 +139,78 @@
     "fr": "Français",
     "en": "English",
     "es": "Español"
+  },
+  "onboarding": {
+    "welcome": {
+      "title": "Welcome",
+      "subtitle": "Your walk, your pace, your goal.",
+      "start": "Get started"
+    },
+    "presentation": {
+      "title": "Your health companion",
+      "subtitle": "Discover custom routes that match your daily walking goals."
+    },
+    "goals": {
+      "title": "Your goals",
+      "subtitle": "Set your walking goals and track your progress in real time."
+    },
+    "next": "Next",
+    "skip": "Skip"
+  },
+  "profile": {
+    "completion": {
+      "title": "Complete my profile",
+      "subtitle": "For a personalized experience",
+      "firstName": "First name",
+      "firstNamePlaceholder": "Enter your first name",
+      "gender": "Gender",
+      "genderMale": "Male",
+      "genderFemale": "Female",
+      "genderOther": "Other",
+      "genderCustomPlaceholder": "Specify your gender",
+      "height": "Height",
+      "weight": "Weight",
+      "birthDate": "Date of birth",
+      "day": "Day",
+      "month": "Month",
+      "year": "Year",
+      "complete": "Complete",
+      "errors": {
+        "firstNameMin": "First name must be at least 2 characters",
+        "selectGender": "Please select your gender",
+        "specifyGender": "Please specify your gender",
+        "heightRange": "Enter a height between 1.00 and 2.30 m",
+        "weightRange": "Enter a weight between 30 and 250 kg"
+      }
+    }
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "signUp": "Sign up",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm password",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "forgotPassword": "Forgot password?",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "createAccount": "Create account",
+    "resetPassword": "Reset",
+    "backToLogin": "Back to login",
+    "skip": "Skip",
+    "errors": {
+      "resetError": "Error resetting password",
+      "passwordMismatch": "Passwords do not match",
+      "signUpError": "Error creating account",
+      "signInError": "Error signing in"
+    },
+    "success": {
+      "emailSent": "Email sent",
+      "emailSentDesc": "Check your email to reset your password",
+      "accountCreated": "Account created",
+      "accountCreatedDesc": "Your account has been created successfully"
+    }
   }
 }

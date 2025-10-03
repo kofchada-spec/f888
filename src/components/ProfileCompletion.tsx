@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -14,35 +15,35 @@ interface ProfileCompletionProps {
   onComplete: () => void;
 }
 
-const profileSchema = z.object({
-  firstName: z.string().min(2, "Le prénom doit contenir au moins 2 caractères"),
-  gender: z.string().min(1, "Veuillez sélectionner votre genre"),
-  customGender: z.string().optional(),
-  height: z.number()
-    .min(1.0, "Entrez une taille entre 1,00 et 2,30 m")
-    .max(2.3, "Entrez une taille entre 1,00 et 2,30 m"),
-  weight: z.number()
-    .min(30, "Entrez un poids entre 30 et 250 kg")
-    .max(250, "Entrez un poids entre 30 et 250 kg"),
-  day: z.number().min(1).max(31),
-  month: z.number().min(1).max(12),
-  year: z.number().min(1950).max(new Date().getFullYear() - 13)
-}).refine((data) => {
-  // Si "autre" est sélectionné, customGender doit être rempli
-  if (data.gender === "autre" && (!data.customGender || data.customGender.trim().length === 0)) {
-    return false;
-  }
-  return true;
-}, {
-  message: "Veuillez préciser votre genre",
-  path: ["customGender"]
-});
-
-type ProfileFormData = z.infer<typeof profileSchema>;
-
 const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const profileSchema = z.object({
+    firstName: z.string().min(2, t('profile.completion.errors.firstNameMin')),
+    gender: z.string().min(1, t('profile.completion.errors.selectGender')),
+    customGender: z.string().optional(),
+    height: z.number()
+      .min(1.0, t('profile.completion.errors.heightRange'))
+      .max(2.3, t('profile.completion.errors.heightRange')),
+    weight: z.number()
+      .min(30, t('profile.completion.errors.weightRange'))
+      .max(250, t('profile.completion.errors.weightRange')),
+    day: z.number().min(1).max(31),
+    month: z.number().min(1).max(12),
+    year: z.number().min(1950).max(new Date().getFullYear() - 13)
+  }).refine((data) => {
+    if (data.gender === "autre" && (!data.customGender || data.customGender.trim().length === 0)) {
+      return false;
+    }
+    return true;
+  }, {
+    message: t('profile.completion.errors.specifyGender'),
+    path: ["customGender"]
+  });
+
+  type ProfileFormData = z.infer<typeof profileSchema>;
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
@@ -141,9 +142,9 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
           <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <User className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground mb-2">Complétez votre profil</h1>
+          <h1 className="text-2xl font-bold text-foreground mb-2">{t('profile.completion.title')}</h1>
           <p className="text-muted-foreground text-sm">
-            Renseignez vos informations pour une expérience personnalisée
+            {t('profile.completion.subtitle')}
           </p>
         </div>
 
@@ -157,11 +158,11 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
                 <FormItem>
                   <FormLabel className="flex items-center gap-2">
                     <User className="w-4 h-4" />
-                    Prénom
+                    {t('profile.completion.firstName')}
                   </FormLabel>
                   <FormControl>
                     <Input 
-                      placeholder="Entrez votre prénom" 
+                      placeholder={t('profile.completion.firstNamePlaceholder')} 
                       {...field} 
                       className="bg-background"
                     />
@@ -178,19 +179,19 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="flex items-center gap-2">
-                    <User className="w-4 h-4" />
-                    Genre
+                    <User className="w-4 w-4" />
+                    {t('profile.completion.gender')}
                   </FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Sélectionnez votre genre" />
+                        <SelectValue placeholder={t('profile.completion.gender')} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="homme">Homme</SelectItem>
-                      <SelectItem value="femme">Femme</SelectItem>
-                      <SelectItem value="autre">Autre</SelectItem>
+                      <SelectItem value="homme">{t('profile.completion.genderMale')}</SelectItem>
+                      <SelectItem value="femme">{t('profile.completion.genderFemale')}</SelectItem>
+                      <SelectItem value="autre">{t('profile.completion.genderOther')}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -207,11 +208,11 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
                   <FormItem>
                     <FormLabel className="flex items-center gap-2">
                       <User className="w-4 h-4" />
-                      Précisez votre genre
+                      {t('profile.completion.genderCustomPlaceholder')}
                     </FormLabel>
                     <FormControl>
                       <Input 
-                        placeholder="Entrez votre genre" 
+                        placeholder={t('profile.completion.genderCustomPlaceholder')} 
                         {...field} 
                         className="bg-background"
                       />
@@ -230,7 +231,7 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
                 <FormItem>
                   <FormLabel className="flex items-center gap-2">
                     <Ruler className="w-4 h-4" />
-                    Taille : {field.value.toFixed(2)}m
+                    {t('profile.completion.height')} : {field.value.toFixed(2)}m
                   </FormLabel>
                   <FormControl>
                     <div className="px-3">
@@ -261,7 +262,7 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
                 <FormItem>
                   <FormLabel className="flex items-center gap-2">
                     <Scale className="w-4 h-4" />
-                    Poids : {field.value}kg
+                    {t('profile.completion.weight')} : {field.value}kg
                   </FormLabel>
                   <FormControl>
                     <div className="px-3">
@@ -288,7 +289,7 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
             <div className="space-y-4">
               <FormLabel className="flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
-                Date de naissance
+                {t('profile.completion.birthDate')}
               </FormLabel>
               
               <div className="grid grid-cols-3 gap-3">
@@ -301,7 +302,7 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
                       <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Jour" />
+                            <SelectValue placeholder={t('profile.completion.day')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent className="max-h-60">
@@ -326,7 +327,7 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
                       <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Mois" />
+                            <SelectValue placeholder={t('profile.completion.month')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent className="max-h-60">
@@ -351,7 +352,7 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
                       <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Année" />
+                            <SelectValue placeholder={t('profile.completion.year')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent className="max-h-60">
@@ -374,7 +375,7 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
               className="w-full mt-8" 
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Enregistrement...' : 'Compléter mon profil'}
+              {isSubmitting ? `${t('profile.completion.complete')}...` : t('profile.completion.complete')}
             </Button>
           </form>
         </Form>

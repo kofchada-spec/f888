@@ -139,5 +139,78 @@
     "fr": "Français",
     "en": "English",
     "es": "Español"
+  },
+  "onboarding": {
+    "welcome": {
+      "title": "Bienvenido",
+      "subtitle": "Tu caminata, tu ritmo, tu objetivo.",
+      "start": "Comenzar"
+    },
+    "presentation": {
+      "title": "Tu compañero de salud",
+      "subtitle": "Descubre rutas personalizadas que coincidan con tus objetivos diarios de caminata."
+    },
+    "goals": {
+      "title": "Tus objetivos",
+      "subtitle": "Establece tus objetivos de caminata y sigue tu progreso en tiempo real."
+    },
+    "next": "Siguiente",
+    "skip": "Omitir"
+  },
+  "profile": {
+    "completion": {
+      "title": "Completar mi perfil",
+      "subtitle": "Para una experiencia personalizada",
+      "firstName": "Nombre",
+      "firstNamePlaceholder": "Ingresa tu nombre",
+      "gender": "Género",
+      "genderMale": "Hombre",
+      "genderFemale": "Mujer",
+      "genderOther": "Otro",
+      "genderCustomPlaceholder": "Especifica tu género",
+      "height": "Altura",
+      "weight": "Peso",
+      "birthDate": "Fecha de nacimiento",
+      "day": "Día",
+      "month": "Mes",
+      "year": "Año",
+      "complete": "Completar",
+      "errors": {
+        "firstNameMin": "El nombre debe tener al menos 2 caracteres",
+        "selectGender": "Por favor selecciona tu género",
+        "specifyGender": "Por favor especifica tu género",
+        "heightRange": "Ingresa una altura entre 1,00 y 2,30 m",
+        "weightRange": "Ingresa un peso entre 30 y 250 kg"
+      }
+    }
+  },
+  "auth": {
+    "signIn": "Iniciar sesión",
+    "signOut": "Cerrar sesión",
+    "signUp": "Registrarse",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "confirmPassword": "Confirmar contraseña",
+    "firstName": "Nombre",
+    "lastName": "Apellido",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "noAccount": "¿No tienes cuenta?",
+    "hasAccount": "¿Ya tienes cuenta?",
+    "createAccount": "Crear cuenta",
+    "resetPassword": "Restablecer",
+    "backToLogin": "Volver al inicio de sesión",
+    "skip": "Omitir",
+    "errors": {
+      "resetError": "Error al restablecer la contraseña",
+      "passwordMismatch": "Las contraseñas no coinciden",
+      "signUpError": "Error al crear la cuenta",
+      "signInError": "Error al iniciar sesión"
+    },
+    "success": {
+      "emailSent": "Correo enviado",
+      "emailSentDesc": "Verifica tu correo para restablecer tu contraseña",
+      "accountCreated": "Cuenta creada",
+      "accountCreatedDesc": "Tu cuenta ha sido creada exitosamente"
+    }
   }
 }

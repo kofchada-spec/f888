@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from 'react-i18next';
 
 interface AuthProps {
   onComplete: () => void;
@@ -24,6 +25,7 @@ const Auth = ({ onComplete, onSkipAuth }: AuthProps) => {
   
   const { signIn, signUp, resetPassword, user } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   // Redirect authenticated users
   useEffect(() => {
@@ -42,13 +44,13 @@ const Auth = ({ onComplete, onSkipAuth }: AuthProps) => {
         if (error) {
           toast({
             variant: 'destructive',
-            title: 'Erreur',
-            description: error.message || 'Erreur lors de la réinitialisation du mot de passe',
+            title: t('auth.errors.resetError'),
+            description: error.message || t('auth.errors.resetError'),
           });
         } else {
           toast({
-            title: 'Email envoyé',
-            description: 'Vérifiez votre boîte email pour réinitialiser votre mot de passe',
+            title: t('auth.success.emailSent'),
+            description: t('auth.success.emailSentDesc'),
           });
           setIsResetMode(false);
           setIsLogin(true);
@@ -57,8 +59,8 @@ const Auth = ({ onComplete, onSkipAuth }: AuthProps) => {
         if (password !== confirmPassword) {
           toast({
             variant: 'destructive',
-            title: 'Erreur',
-            description: 'Les mots de passe ne correspondent pas',
+            title: t('settings.toast.error'),
+            description: t('auth.errors.passwordMismatch'),
           });
           return;
         }
@@ -67,13 +69,13 @@ const Auth = ({ onComplete, onSkipAuth }: AuthProps) => {
         if (error) {
           toast({
             variant: 'destructive',
-            title: 'Erreur',
-            description: error.message || 'Erreur lors de la création du compte',
+            title: t('settings.toast.error'),
+            description: error.message || t('auth.errors.signUpError'),
           });
         } else {
           toast({
-            title: 'Compte créé',
-            description: 'Votre compte a été créé avec succès',
+            title: t('auth.success.accountCreated'),
+            description: t('auth.success.accountCreatedDesc'),
           });
         }
       } else {
@@ -81,8 +83,8 @@ const Auth = ({ onComplete, onSkipAuth }: AuthProps) => {
         if (error) {
           toast({
             variant: 'destructive',
-            title: 'Erreur',
-            description: error.message || 'Erreur lors de la connexion',
+            title: t('settings.toast.error'),
+            description: error.message || t('auth.errors.signInError'),
           });
         }
         // User will be redirected automatically via useEffect if successful

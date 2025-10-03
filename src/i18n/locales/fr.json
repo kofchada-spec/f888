@@ -139,5 +139,78 @@
     "fr": "Français",
     "en": "English",
     "es": "Español"
+  },
+  "onboarding": {
+    "welcome": {
+      "title": "Bienvenue",
+      "subtitle": "Ta marche, ton rythme, ton objectif.",
+      "start": "Commencer"
+    },
+    "presentation": {
+      "title": "Ton compagnon santé",
+      "subtitle": "Découvre des parcours sur-mesure qui correspondent à tes objectifs de marche quotidiens."
+    },
+    "goals": {
+      "title": "Tes objectifs",
+      "subtitle": "Définis tes objectifs de marche et suis tes progrès en temps réel."
+    },
+    "next": "Suivant",
+    "skip": "Passer"
+  },
+  "profile": {
+    "completion": {
+      "title": "Compléter mon profil",
+      "subtitle": "Pour une expérience personnalisée",
+      "firstName": "Prénom",
+      "firstNamePlaceholder": "Entrez votre prénom",
+      "gender": "Genre",
+      "genderMale": "Homme",
+      "genderFemale": "Femme",
+      "genderOther": "Autre",
+      "genderCustomPlaceholder": "Précisez votre genre",
+      "height": "Taille",
+      "weight": "Poids",
+      "birthDate": "Date de naissance",
+      "day": "Jour",
+      "month": "Mois",
+      "year": "Année",
+      "complete": "Terminer",
+      "errors": {
+        "firstNameMin": "Le prénom doit contenir au moins 2 caractères",
+        "selectGender": "Veuillez sélectionner votre genre",
+        "specifyGender": "Veuillez préciser votre genre",
+        "heightRange": "Entrez une taille entre 1,00 et 2,30 m",
+        "weightRange": "Entrez un poids entre 30 et 250 kg"
+      }
+    }
+  },
+  "auth": {
+    "signIn": "Se connecter",
+    "signOut": "Se déconnecter",
+    "signUp": "Créer un compte",
+    "email": "Email",
+    "password": "Mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "forgotPassword": "Mot de passe oublié ?",
+    "noAccount": "Pas encore de compte ?",
+    "hasAccount": "Déjà un compte ?",
+    "createAccount": "Créer un compte",
+    "resetPassword": "Réinitialiser",
+    "backToLogin": "Retour à la connexion",
+    "skip": "Passer",
+    "errors": {
+      "resetError": "Erreur lors de la réinitialisation du mot de passe",
+      "passwordMismatch": "Les mots de passe ne correspondent pas",
+      "signUpError": "Erreur lors de la création du compte",
+      "signInError": "Erreur lors de la connexion"
+    },
+    "success": {
+      "emailSent": "Email envoyé",
+      "emailSentDesc": "Vérifiez votre boîte email pour réinitialiser votre mot de passe",
+      "accountCreated": "Compte créé",
+      "accountCreatedDesc": "Votre compte a été créé avec succès"
+    }
   }
 }
