@@ -18,7 +18,6 @@ const Index = () => {
   const [searchParams] = useSearchParams();
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [hasCompletedProfile, setHasCompletedProfile] = useState(false);
-  const [skipAuth, setSkipAuth] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [showWalkPlanning, setShowWalkPlanning] = useState(false);
   const [showRunPlanning, setShowRunPlanning] = useState(false);
@@ -45,14 +44,10 @@ const Index = () => {
   useEffect(() => {
     const onboardingComplete = localStorage.getItem('fitpas-onboarding-complete');
     const profileComplete = localStorage.getItem('fitpas-profile-complete');
-    const skipAuthSaved = localStorage.getItem('fitpas-skip-auth');
     
     // Set completion states based on localStorage
     setHasCompletedOnboarding(!!onboardingComplete);
     setHasCompletedProfile(!!profileComplete);
-    
-    // Set skipAuth based on localStorage (defaults to true if not set)
-    setSkipAuth(skipAuthSaved !== null ? skipAuthSaved === 'true' : true);
     
     // Mark as initialized after reading localStorage
     setIsInitialized(true);
@@ -69,10 +64,10 @@ const Index = () => {
       setShowDestinationSelection(false);
       setShowWalkTracking(false);
       setSelectedDestination(null);
-    } else if (destinationParam === 'true' && hasCompletedOnboarding && hasCompletedProfile && (user || skipAuth)) {
+    } else if (destinationParam === 'true' && hasCompletedOnboarding && hasCompletedProfile && user) {
       setShowDestinationSelection(true);
     }
-  }, [searchParams, hasCompletedOnboarding, hasCompletedProfile, user, skipAuth]);
+  }, [searchParams, hasCompletedOnboarding, hasCompletedProfile, user]);
 
   const handleOnboardingComplete = () => {
     setHasCompletedOnboarding(true);
@@ -81,10 +76,6 @@ const Index = () => {
 
   const handleAuthComplete = () => {
     // This will be handled by useAuth hook automatically
-  };
-
-  const handleSkipAuth = () => {
-    setSkipAuth(true);
   };
 
   const handleProfileComplete = () => {
@@ -168,13 +159,13 @@ const Index = () => {
     return <Onboarding onComplete={handleOnboardingComplete} />;
   }
 
-  // Show auth if user is not authenticated and auth is not skipped
-  if (!user && !skipAuth) {
-    return <Auth onComplete={handleAuthComplete} onSkipAuth={handleSkipAuth} />;
+  // Show auth if user is not authenticated
+  if (!user) {
+    return <Auth onComplete={handleAuthComplete} />;
   }
 
-  // Show profile completion if not completed (and user is authenticated OR auth is skipped)
-  if (!hasCompletedProfile && (user || skipAuth)) {
+  // Show profile completion if not completed (after authentication)
+  if (!hasCompletedProfile) {
     return <ProfileCompletion onComplete={handleProfileComplete} />;
   }
 

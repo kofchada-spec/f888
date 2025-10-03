@@ -10,10 +10,9 @@ import { useTranslation } from 'react-i18next';
 
 interface AuthProps {
   onComplete: () => void;
-  onSkipAuth?: () => void;
 }
 
-const Auth = ({ onComplete, onSkipAuth }: AuthProps) => {
+const Auth = ({ onComplete }: AuthProps) => {
   const [isLogin, setIsLogin] = useState(true);
   const [isResetMode, setIsResetMode] = useState(false);
   const [email, setEmail] = useState('');
@@ -252,16 +251,6 @@ const Auth = ({ onComplete, onSkipAuth }: AuthProps) => {
                     className="text-sm text-muted-foreground hover:underline block"
                   >
                     Mot de passe oublié ?
-                  </button>
-                )}
-
-                {onSkipAuth && (
-                  <button
-                    type="button"
-                    onClick={onSkipAuth}
-                    className="text-sm text-muted-foreground hover:underline block mt-4 border-t pt-4"
-                  >
-                    Continuer sans compte
                   </button>
                 )}
               </>
