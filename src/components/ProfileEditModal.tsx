@@ -136,7 +136,7 @@ export const ProfileEditModal = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Mes paramètres</DialogTitle>
+          <DialogTitle>Informations 💡</DialogTitle>
           <DialogDescription>
             Modifiez votre poids, âge et avatar de profil.
           </DialogDescription>
