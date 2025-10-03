@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
 
@@ -148,8 +148,22 @@ const Auth = ({ onComplete }: AuthProps) => {
     }
   };
 
+  const handleBackToOnboarding = () => {
+    localStorage.removeItem('fitpas-onboarding-complete');
+    localStorage.removeItem('fitpas-profile-complete');
+    window.location.reload();
+  };
+
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+    <div className="min-h-screen bg-background flex items-center justify-center p-6 relative">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleBackToOnboarding}
+        className="absolute top-6 left-6"
+      >
+        <ArrowLeft className="h-5 w-5" />
+      </Button>
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">
