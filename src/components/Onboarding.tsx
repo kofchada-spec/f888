@@ -210,9 +210,7 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
             </div>
 
             <p className="font-inter text-base text-gray-600 max-w-sm leading-relaxed font-light">
-              <span className="font-semibold text-primary">Fitpas</span> estime l'heure et la distance à parcourir en fonction de ton{' '}
-              <span className="font-medium">allure</span> et du{' '}
-              <span className="font-medium">nombre de pas</span>.
+              <span className="font-semibold text-primary">Fitpas</span> estime l'heure et la distance à parcourir en fonction de ta marche ou ta course.
             </p>
           </div>
         </div>
