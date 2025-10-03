@@ -18,8 +18,6 @@ const Auth = ({ onComplete }: AuthProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { signIn, signUp, resetPassword, user } = useAuth();
@@ -64,7 +62,7 @@ const Auth = ({ onComplete }: AuthProps) => {
           return;
         }
         
-        const { error } = await signUp(email, password, firstName, lastName);
+        const { error } = await signUp(email, password);
         if (error) {
           toast({
             variant: 'destructive',
@@ -147,31 +145,6 @@ const Auth = ({ onComplete }: AuthProps) => {
 
           {/* Manual Form */}
           <form className="space-y-4" onSubmit={handleSubmit}>
-            {!isLogin && !isResetMode && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">Prénom</Label>
-                  <Input
-                    id="firstName"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="Jean"
-                    required={!isLogin}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Nom</Label>
-                  <Input
-                    id="lastName"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Dupont"
-                    required={!isLogin}
-                  />
-                </div>
-              </div>
-            )}
-            
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
