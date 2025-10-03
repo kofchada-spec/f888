@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Moon, Sun, Bell, Globe, Ruler, Shield, Download, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -26,10 +27,17 @@ const Settings = () => {
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { t, i18n } = useTranslation();
   
   const [notifications, setNotifications] = useState(true);
-  const [language, setLanguage] = useState('fr');
+  const [language, setLanguage] = useState(i18n.language || 'fr');
   const [units, setUnits] = useState('metric');
+
+  const handleLanguageChange = (newLang: string) => {
+    setLanguage(newLang);
+    i18n.changeLanguage(newLang);
+    localStorage.setItem('fitpas-language', newLang);
+  };
 
   const handleExportData = async () => {
     try {
@@ -50,8 +58,8 @@ const Settings = () => {
         a.click();
         
         toast({
-          title: "Données exportées",
-          description: "Vos données ont été téléchargées avec succès.",
+          title: t('settings.toast.dataExported'),
+          description: t('settings.toast.dataExportedDesc'),
         });
         return;
       }
@@ -76,14 +84,14 @@ const Settings = () => {
       a.click();
 
       toast({
-        title: "Données exportées",
-        description: "Vos données ont été téléchargées avec succès.",
+        title: t('settings.toast.dataExported'),
+        description: t('settings.toast.dataExportedDesc'),
       });
     } catch (error) {
       console.error('Error exporting data:', error);
       toast({
-        title: "Erreur",
-        description: "Impossible d'exporter vos données.",
+        title: t('settings.toast.error'),
+        description: t('settings.toast.exportError'),
         variant: "destructive",
       });
     }
@@ -95,8 +103,8 @@ const Settings = () => {
         // Clear localStorage
         localStorage.clear();
         toast({
-          title: "Compte supprimé",
-          description: "Toutes vos données ont été supprimées.",
+          title: t('settings.toast.accountDeleted'),
+          description: t('settings.toast.accountDeletedDesc'),
         });
         navigate('/');
         return;
@@ -108,16 +116,16 @@ const Settings = () => {
       if (error) throw error;
 
       toast({
-        title: "Compte supprimé",
-        description: "Votre compte a été supprimé définitivement.",
+        title: t('settings.toast.accountDeleted'),
+        description: t('settings.toast.accountDeletedDesc'),
       });
       
       navigate('/');
     } catch (error) {
       console.error('Error deleting account:', error);
       toast({
-        title: "Erreur",
-        description: "Impossible de supprimer votre compte. Contactez le support.",
+        title: t('settings.toast.error'),
+        description: t('settings.toast.deleteError'),
         variant: "destructive",
       });
     }
@@ -136,7 +144,7 @@ const Settings = () => {
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-xl font-semibold text-foreground">Paramètres</h1>
+          <h1 className="text-xl font-semibold text-foreground">{t('settings.title')}</h1>
         </div>
       </header>
 
@@ -144,9 +152,9 @@ const Settings = () => {
         {/* Application Settings */}
         <Card>
           <CardHeader>
-            <CardTitle>Paramètres de l'application</CardTitle>
+            <CardTitle>{t('settings.app.title')}</CardTitle>
             <CardDescription>
-              Personnalisez votre expérience FitPaS
+              {t('settings.app.description')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -159,9 +167,9 @@ const Settings = () => {
                   <Sun className="h-5 w-5 text-muted-foreground" />
                 )}
                 <div>
-                  <p className="font-medium">Thème</p>
+                  <p className="font-medium">{t('settings.app.theme.title')}</p>
                   <p className="text-sm text-muted-foreground">
-                    Mode clair ou sombre
+                    {t('settings.app.theme.description')}
                   </p>
                 </div>
               </div>
@@ -170,9 +178,9 @@ const Settings = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="light">Clair</SelectItem>
-                  <SelectItem value="dark">Sombre</SelectItem>
-                  <SelectItem value="system">Système</SelectItem>
+                  <SelectItem value="light">{t('settings.app.theme.light')}</SelectItem>
+                  <SelectItem value="dark">{t('settings.app.theme.dark')}</SelectItem>
+                  <SelectItem value="system">{t('settings.app.theme.system')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -182,9 +190,9 @@ const Settings = () => {
               <div className="flex items-center gap-3">
                 <Bell className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <p className="font-medium">Notifications</p>
+                  <p className="font-medium">{t('settings.app.notifications.title')}</p>
                   <p className="text-sm text-muted-foreground">
-                    Recevoir des rappels d'activité
+                    {t('settings.app.notifications.description')}
                   </p>
                 </div>
               </div>
@@ -199,20 +207,20 @@ const Settings = () => {
               <div className="flex items-center gap-3">
                 <Globe className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <p className="font-medium">Langue</p>
+                  <p className="font-medium">{t('settings.app.language.title')}</p>
                   <p className="text-sm text-muted-foreground">
-                    Langue de l'application
+                    {t('settings.app.language.description')}
                   </p>
                 </div>
               </div>
-              <Select value={language} onValueChange={setLanguage}>
+              <Select value={language} onValueChange={handleLanguageChange}>
                 <SelectTrigger className="w-32">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="fr">Français</SelectItem>
-                  <SelectItem value="en">English</SelectItem>
-                  <SelectItem value="es">Español</SelectItem>
+                  <SelectItem value="fr">{t('languages.fr')}</SelectItem>
+                  <SelectItem value="en">{t('languages.en')}</SelectItem>
+                  <SelectItem value="es">{t('languages.es')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -222,9 +230,9 @@ const Settings = () => {
               <div className="flex items-center gap-3">
                 <Ruler className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <p className="font-medium">Unités</p>
+                  <p className="font-medium">{t('settings.app.units.title')}</p>
                   <p className="text-sm text-muted-foreground">
-                    Système de mesure
+                    {t('settings.app.units.description')}
                   </p>
                 </div>
               </div>
@@ -233,8 +241,8 @@ const Settings = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="metric">Métrique</SelectItem>
-                  <SelectItem value="imperial">Impérial</SelectItem>
+                  <SelectItem value="metric">{t('settings.app.units.metric')}</SelectItem>
+                  <SelectItem value="imperial">{t('settings.app.units.imperial')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -244,9 +252,9 @@ const Settings = () => {
         {/* Privacy Settings */}
         <Card>
           <CardHeader>
-            <CardTitle>Confidentialité et données</CardTitle>
+            <CardTitle>{t('settings.privacy.title')}</CardTitle>
             <CardDescription>
-              Gérez vos données personnelles
+              {t('settings.privacy.description')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -257,7 +265,7 @@ const Settings = () => {
               onClick={handleExportData}
             >
               <Download className="h-4 w-4 mr-3" />
-              Exporter mes données
+              {t('settings.privacy.exportData')}
             </Button>
 
             {/* Delete Account */}
@@ -268,24 +276,23 @@ const Settings = () => {
                   className="w-full justify-start text-destructive hover:bg-destructive/10"
                 >
                   <Trash2 className="h-4 w-4 mr-3" />
-                  Supprimer mon compte
+                  {t('settings.privacy.deleteAccount')}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
+                  <AlertDialogTitle>{t('settings.privacy.deleteConfirm.title')}</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Cette action est irréversible. Toutes vos données seront
-                    définitivement supprimées de nos serveurs.
+                    {t('settings.privacy.deleteConfirm.description')}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                  <AlertDialogCancel>{t('common.actions.cancel')}</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={handleDeleteAccount}
                     className="bg-destructive hover:bg-destructive/90"
                   >
-                    Supprimer définitivement
+                    {t('settings.privacy.deleteConfirm.confirm')}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -299,10 +306,9 @@ const Settings = () => {
             <div className="flex items-start gap-3">
               <Shield className="h-5 w-5 text-primary mt-0.5" />
               <div className="space-y-1">
-                <p className="text-sm font-medium text-foreground">Vos données sont protégées</p>
+                <p className="text-sm font-medium text-foreground">{t('settings.privacy.dataProtection.title')}</p>
                 <p className="text-sm text-muted-foreground">
-                  Nous utilisons des protocoles de sécurité avancés pour protéger
-                  vos informations personnelles et vos données d'activité.
+                  {t('settings.privacy.dataProtection.description')}
                 </p>
               </div>
             </div>

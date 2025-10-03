@@ -1,0 +1,138 @@
+{
+  "common": {
+    "greeting": {
+      "morning": "Buenos días",
+      "evening": "Buenas noches"
+    },
+    "actions": {
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "delete": "Eliminar",
+      "edit": "Editar",
+      "back": "Volver",
+      "continue": "Continuar",
+      "close": "Cerrar"
+    }
+  },
+  "auth": {
+    "signIn": "Iniciar sesión",
+    "signOut": "Cerrar sesión",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "noAccount": "¿No tienes cuenta?",
+    "createAccount": "Crear cuenta",
+    "skip": "Omitir"
+  },
+  "dashboard": {
+    "title": "Panel de control",
+    "premium": "Premium",
+    "freeTrial": "Prueba gratuita",
+    "subscribe": "Suscribirse",
+    "newDay": "☀️ ¡Nuevo día, nuevos objetivos!",
+    "walk": "Caminar",
+    "run": "Correr",
+    "dailyGoals": "Objetivos del día",
+    "stats": {
+      "steps": "Pasos",
+      "distance": "Distancia",
+      "calories": "Calorías",
+      "activeTime": "Tiempo activo"
+    },
+    "profile": {
+      "gender": "Género",
+      "height": "Altura",
+      "weight": "Peso",
+      "age": "Edad"
+    },
+    "planning": {
+      "remaining": "de",
+      "bonus": "bonus",
+      "streak": "Racha",
+      "limitReached": "¡Límite alcanzado - Completa una actividad para mantener tu racha!"
+    }
+  },
+  "menu": {
+    "editProfile": "Editar mi información",
+    "manageSubscriptions": "Gestionar suscripciones",
+    "customerService": "Servicio al cliente",
+    "settings": "Configuración"
+  },
+  "settings": {
+    "title": "Configuración",
+    "app": {
+      "title": "Configuración de la aplicación",
+      "description": "Personaliza tu experiencia FitPaS",
+      "theme": {
+        "title": "Tema",
+        "description": "Modo claro u oscuro",
+        "light": "Claro",
+        "dark": "Oscuro",
+        "system": "Sistema"
+      },
+      "notifications": {
+        "title": "Notificaciones",
+        "description": "Recibir recordatorios de actividad"
+      },
+      "language": {
+        "title": "Idioma",
+        "description": "Idioma de la aplicación"
+      },
+      "units": {
+        "title": "Unidades",
+        "description": "Sistema de medida",
+        "metric": "Métrico",
+        "imperial": "Imperial"
+      }
+    },
+    "privacy": {
+      "title": "Privacidad y datos",
+      "description": "Gestiona tus datos personales",
+      "exportData": "Exportar mis datos",
+      "deleteAccount": "Eliminar mi cuenta",
+      "deleteConfirm": {
+        "title": "¿Estás absolutamente seguro?",
+        "description": "Esta acción es irreversible. Todos tus datos se eliminarán permanentemente de nuestros servidores.",
+        "confirm": "Eliminar permanentemente"
+      },
+      "dataProtection": {
+        "title": "Tus datos están protegidos",
+        "description": "Utilizamos protocolos de seguridad avanzados para proteger tu información personal y datos de actividad."
+      }
+    },
+    "toast": {
+      "dataExported": "Datos exportados",
+      "dataExportedDesc": "Tus datos se han descargado correctamente.",
+      "accountDeleted": "Cuenta eliminada",
+      "accountDeletedDesc": "Tu cuenta ha sido eliminada permanentemente.",
+      "error": "Error",
+      "exportError": "No se pueden exportar tus datos.",
+      "deleteError": "No se puede eliminar tu cuenta. Contacta con soporte."
+    }
+  },
+  "planning": {
+    "walk": {
+      "title": "Planificar una caminata",
+      "steps": "Número de pasos",
+      "pace": "Ritmo"
+    },
+    "run": {
+      "title": "Planificar una carrera",
+      "distance": "Distancia"
+    },
+    "pace": {
+      "slow": "Lento",
+      "moderate": "Moderado",
+      "fast": "Rápido"
+    },
+    "tripType": {
+      "oneWay": "Ida",
+      "roundTrip": "Ida y vuelta"
+    }
+  },
+  "languages": {
+    "fr": "Français",
+    "en": "English",
+    "es": "Español"
+  }
+}

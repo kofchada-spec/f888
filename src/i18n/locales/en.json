@@ -1,0 +1,138 @@
+{
+  "common": {
+    "greeting": {
+      "morning": "Good morning",
+      "evening": "Good evening"
+    },
+    "actions": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "edit": "Edit",
+      "back": "Back",
+      "continue": "Continue",
+      "close": "Close"
+    }
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "noAccount": "Don't have an account?",
+    "createAccount": "Create account",
+    "skip": "Skip"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "premium": "Premium",
+    "freeTrial": "Free trial",
+    "subscribe": "Subscribe",
+    "newDay": "☀️ New day, new goals!",
+    "walk": "Walk",
+    "run": "Run",
+    "dailyGoals": "Daily goals",
+    "stats": {
+      "steps": "Steps",
+      "distance": "Distance",
+      "calories": "Calories",
+      "activeTime": "Active time"
+    },
+    "profile": {
+      "gender": "Gender",
+      "height": "Height",
+      "weight": "Weight",
+      "age": "Age"
+    },
+    "planning": {
+      "remaining": "of",
+      "bonus": "bonus",
+      "streak": "Streak",
+      "limitReached": "Limit reached - Complete an activity to maintain your streak!"
+    }
+  },
+  "menu": {
+    "editProfile": "Edit my information",
+    "manageSubscriptions": "Manage subscriptions",
+    "customerService": "Customer service",
+    "settings": "Settings"
+  },
+  "settings": {
+    "title": "Settings",
+    "app": {
+      "title": "Application settings",
+      "description": "Customize your FitPaS experience",
+      "theme": {
+        "title": "Theme",
+        "description": "Light or dark mode",
+        "light": "Light",
+        "dark": "Dark",
+        "system": "System"
+      },
+      "notifications": {
+        "title": "Notifications",
+        "description": "Receive activity reminders"
+      },
+      "language": {
+        "title": "Language",
+        "description": "Application language"
+      },
+      "units": {
+        "title": "Units",
+        "description": "Measurement system",
+        "metric": "Metric",
+        "imperial": "Imperial"
+      }
+    },
+    "privacy": {
+      "title": "Privacy and data",
+      "description": "Manage your personal data",
+      "exportData": "Export my data",
+      "deleteAccount": "Delete my account",
+      "deleteConfirm": {
+        "title": "Are you absolutely sure?",
+        "description": "This action is irreversible. All your data will be permanently deleted from our servers.",
+        "confirm": "Delete permanently"
+      },
+      "dataProtection": {
+        "title": "Your data is protected",
+        "description": "We use advanced security protocols to protect your personal information and activity data."
+      }
+    },
+    "toast": {
+      "dataExported": "Data exported",
+      "dataExportedDesc": "Your data has been successfully downloaded.",
+      "accountDeleted": "Account deleted",
+      "accountDeletedDesc": "Your account has been permanently deleted.",
+      "error": "Error",
+      "exportError": "Unable to export your data.",
+      "deleteError": "Unable to delete your account. Contact support."
+    }
+  },
+  "planning": {
+    "walk": {
+      "title": "Plan a walk",
+      "steps": "Number of steps",
+      "pace": "Pace"
+    },
+    "run": {
+      "title": "Plan a run",
+      "distance": "Distance"
+    },
+    "pace": {
+      "slow": "Slow",
+      "moderate": "Moderate",
+      "fast": "Fast"
+    },
+    "tripType": {
+      "oneWay": "One way",
+      "roundTrip": "Round trip"
+    }
+  },
+  "languages": {
+    "fr": "Français",
+    "en": "English",
+    "es": "Español"
+  }
+}

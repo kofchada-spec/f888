@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User, Edit3, Footprints, MapPin, Flame, Clock, LogOut, Crown, Settings, UserCircle, CreditCard, HelpCircle, Target, Award, Zap } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useWalkStats } from '@/hooks/useWalkStats';
 import { useRunStats } from '@/hooks/useRunStats';
 import { usePlanningLimiter } from '@/hooks/usePlanningLimiter';
@@ -28,6 +29,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
   const { signOut, user } = useAuth();
   const { subscriptionData } = useSubscription();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { getTodayStats: getWalkTodayStats, getWeeklyStats: getWalkWeeklyStats, walkSessions } = useWalkStats();
   const { getTodayStats: getRunTodayStats, getWeeklyStats: getRunWeeklyStats, runSessions } = useRunStats();
   const { canPlan, remainingPlans, dailyLimit, bonusPlans, currentStreak: planningStreak } = usePlanningLimiter();
@@ -251,9 +253,10 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour >= 18 || hour < 5) {
-      return "Bonsoir";
+      return t('common.greeting.evening');
     }
-    return "Bonjour";
+    return t('common.greeting.morning');
+  };
   };
 
   return (
@@ -290,17 +293,17 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                   {subscriptionData.subscribed ? (
                     <>
                       <Crown className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-medium">Premium</span>
+                      <span className="text-sm font-medium">{t('dashboard.premium')}</span>
                     </>
                   ) : subscriptionData.inFreeTrial ? (
                     <>
                       <Clock className="h-4 w-4 text-accent" />
-                      <span className="text-sm font-medium">Essai gratuit</span>
+                      <span className="text-sm font-medium">{t('dashboard.freeTrial')}</span>
                     </>
                   ) : (
                     <>
                       <Settings className="h-4 w-4" />
-                      <span className="text-sm font-medium">S'abonner</span>
+                      <span className="text-sm font-medium">{t('dashboard.subscribe')}</span>
                     </>
                   )}
                 </Button>
@@ -331,7 +334,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                       className="w-full flex items-center px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
                     >
                       <UserCircle className="h-4 w-4 mr-3" />
-                      Modifier mes informations
+                      {t('menu.editProfile')}
                     </button>
                     
                     <Link 
@@ -340,7 +343,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                       className="w-full flex items-center px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
                     >
                       <CreditCard className="h-4 w-4 mr-3" />
-                      Gérer mes abonnements
+                      {t('menu.manageSubscriptions')}
                     </Link>
                     
                     <button
@@ -351,7 +354,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                       className="w-full flex items-center px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
                     >
                       <HelpCircle className="h-4 w-4 mr-3" />
-                      Service client
+                      {t('menu.customerService')}
                     </button>
                     
                     <button
@@ -362,7 +365,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                       className="w-full flex items-center px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
                     >
                       <Settings className="h-4 w-4 mr-3" />
-                      Paramètres
+                      {t('menu.settings')}
                     </button>
                   </div>
                   
@@ -376,7 +379,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                       className="w-full flex items-center px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
                     >
                       <LogOut className="h-4 w-4 mr-3" />
-                      Se déconnecter
+                      {t('auth.signOut')}
                     </button>
                   </div>
                 </div>
@@ -396,23 +399,23 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center">
-                <p className="text-sm text-muted-foreground">Genre</p>
+                <p className="text-sm text-muted-foreground">{t('dashboard.profile.gender')}</p>
                 <p className="text-lg font-medium text-foreground">{userProfile.gender}</p>
               </div>
               <div className="text-center">
-                <p className="text-sm text-muted-foreground">Taille</p>
+                <p className="text-sm text-muted-foreground">{t('dashboard.profile.height')}</p>
                 <p className="text-lg font-medium text-foreground">
                   {userProfile.height > 0 ? `${userProfile.height}m` : '-'}
                 </p>
               </div>
               <div className="text-center">
-                <p className="text-sm text-muted-foreground">Poids</p>
+                <p className="text-sm text-muted-foreground">{t('dashboard.profile.weight')}</p>
                 <p className="text-lg font-medium text-foreground">
                   {userProfile.weight > 0 ? `${userProfile.weight}kg` : '-'}
                 </p>
               </div>
               <div className="text-center">
-                <p className="text-sm text-muted-foreground">Âge</p>
+                <p className="text-sm text-muted-foreground">{t('dashboard.profile.age')}</p>
                 <p className="text-lg font-medium text-foreground">
                   {userProfile.age > 0 ? `${userProfile.age} ans` : '-'}
                 </p>
@@ -439,7 +442,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
           {/* Choix d'activité */}
           <Card className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg border-0">
             <CardContent className="p-6">
-              <p className="text-center text-lg font-medium mb-4">☀️ Nouvelle journée, nouveaux objectifs !</p>
+              <p className="text-center text-lg font-medium mb-4">{t('dashboard.newDay')}</p>
               <div className="flex gap-3">
                 <Button
                   onClick={onPlanifyWalk}
@@ -447,7 +450,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                   className="flex-1 bg-white/20 hover:bg-white/30 text-white border-white/30 disabled:opacity-50"
                 >
                   <Footprints className="mr-2 h-4 w-4" />
-                  Marche
+                  {t('dashboard.walk')}
                 </Button>
                 <Button
                   onClick={onPlanifyRun}
@@ -455,7 +458,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                   className="flex-1 bg-white/20 hover:bg-white/30 text-white border-white/30 disabled:opacity-50"
                 >
                   <Zap className="mr-2 h-4 w-4" />
-                  Course
+                  {t('dashboard.run')}
                 </Button>
               </div>
             </CardContent>
@@ -468,7 +471,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-foreground flex items-center">
                 <Target className="h-5 w-5 mr-2 text-primary" />
-                Mes objectifs du jour
+                {t('dashboard.dailyGoals')}
               </h2>
               <div className="text-sm text-muted-foreground">
                 {Math.round((progress.steps + progress.distanceKm + progress.calories + progress.activeTime) / 4)}% complétés
