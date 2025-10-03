@@ -88,10 +88,10 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
             />
           </div>
           <div className="space-y-6 text-center">
-            <h1 className="font-poppins text-4xl font-black text-white mb-3 tracking-tight leading-none">
+            <h1 className="font-raleway text-4xl font-black text-white mb-3 tracking-tight leading-none">
               Bienvenue
             </h1>
-            <p className="font-poppins text-white/95 text-lg font-light leading-relaxed px-6 tracking-wide">
+            <p className="font-raleway text-white/95 text-lg font-light leading-relaxed px-6 tracking-wide">
               Ta marche, ton rythme, ton objectif.
             </p>
           </div>
@@ -137,7 +137,7 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
           </div>
 
           <div className="space-y-8 text-center px-4">
-            <h1 className="font-poppins text-2xl font-bold text-gray-900 leading-tight max-w-sm tracking-tight">
+            <h1 className="font-raleway text-2xl font-bold text-gray-900 leading-tight max-w-sm tracking-tight">
               Planifie ta marche/course en fonction de ton{' '}
               <span className="text-primary">objectif</span>{' '}
               à atteindre.
@@ -149,7 +149,7 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
               <div className="h-0.5 w-8 bg-gradient-to-l from-primary to-transparent"></div>
             </div>
 
-            <p className="font-poppins text-base text-gray-600 max-w-sm leading-relaxed font-light">
+            <p className="font-raleway text-base text-gray-600 max-w-sm leading-relaxed font-light">
               Peu importe ta localisation définis ton <span className="font-semibold">objectif</span> et laisse{' '}
               <span className="font-semibold text-primary">Fitpas</span>{' '}
               t'accompagner.
@@ -197,7 +197,7 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
           </div>
 
           <div className="space-y-8 text-center">
-            <h1 className="font-poppins text-2xl font-bold text-gray-900 max-w-sm leading-tight tracking-tight">
+            <h1 className="font-raleway text-2xl font-bold text-gray-900 max-w-sm leading-tight tracking-tight">
               <span className="text-primary">Fitpas</span> te propose des{' '}
               <span className="text-secondary">destinations</span>{' '}
               selon tes objectifs à atteindre.
@@ -209,7 +209,7 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
               <div className="h-0.5 w-10 bg-gradient-to-l from-secondary to-transparent"></div>
             </div>
 
-            <p className="font-poppins text-base text-gray-600 max-w-sm leading-relaxed font-light">
+            <p className="font-raleway text-base text-gray-600 max-w-sm leading-relaxed font-light">
               <span className="font-semibold text-primary">Fitpas</span> estime <span className="font-semibold">l'heure</span> et la <span className="font-semibold">distance</span> à parcourir en fonction de ta <span className="font-semibold">marche</span> ou ta <span className="font-semibold">course</span>.
             </p>
           </div>

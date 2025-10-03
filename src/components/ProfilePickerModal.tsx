@@ -64,10 +64,10 @@ export const ProfilePickerModal = ({
               height={280}
               className="w-28"
             />
-            <span className="ml-4 font-poppins text-2xl font-bold text-primary">cm</span>
+            <span className="ml-4 font-raleway text-2xl font-bold text-primary">cm</span>
           </div>
           <div className="text-center">
-            <p className="font-poppins text-sm text-muted-foreground">
+            <p className="font-raleway text-sm text-muted-foreground">
               Sélectionnez votre taille
             </p>
           </div>
@@ -88,10 +88,10 @@ export const ProfilePickerModal = ({
               height={280}
               className="w-28"
             />
-            <span className="ml-4 font-poppins text-2xl font-bold text-primary">kg</span>
+            <span className="ml-4 font-raleway text-2xl font-bold text-primary">kg</span>
           </div>
           <div className="text-center">
-            <p className="font-poppins text-sm text-muted-foreground">
+            <p className="font-raleway text-sm text-muted-foreground">
               Sélectionnez votre poids
             </p>
           </div>
@@ -119,7 +119,7 @@ export const ProfilePickerModal = ({
                 height={280}
                 className="w-20"
               />
-              <p className="font-poppins text-xs text-muted-foreground mt-2">Jour</p>
+              <p className="font-raleway text-xs text-muted-foreground mt-2">Jour</p>
             </div>
             <div className="text-center">
               <WheelPicker
@@ -132,7 +132,7 @@ export const ProfilePickerModal = ({
                 height={280}
                 className="w-36"
               />
-              <p className="font-poppins text-xs text-muted-foreground mt-2">Mois</p>
+              <p className="font-raleway text-xs text-muted-foreground mt-2">Mois</p>
             </div>
             <div className="text-center">
               <WheelPicker
@@ -142,11 +142,11 @@ export const ProfilePickerModal = ({
                 height={280}
                 className="w-24"
               />
-              <p className="font-poppins text-xs text-muted-foreground mt-2">Année</p>
+              <p className="font-raleway text-xs text-muted-foreground mt-2">Année</p>
             </div>
           </div>
           <div className="text-center">
-            <p className="font-poppins text-sm text-muted-foreground">
+            <p className="font-raleway text-sm text-muted-foreground">
               Sélectionnez votre date de naissance
             </p>
           </div>
@@ -168,7 +168,7 @@ export const ProfilePickerModal = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md mx-auto rounded-3xl p-0 overflow-hidden border-0 shadow-2xl">
         <div className="bg-card px-6 py-5 border-b border-border/50">
-          <h2 className="font-poppins text-xl font-bold text-foreground">{getTitle()}</h2>
+          <h2 className="font-raleway text-xl font-bold text-foreground">{getTitle()}</h2>
         </div>
         
         <div className="px-6 py-10 bg-gradient-to-br from-background via-background to-muted/10">
@@ -178,7 +178,7 @@ export const ProfilePickerModal = ({
         <div className="px-6 pb-6 bg-card">
           <Button
             onClick={handleConfirm}
-            className="font-poppins w-full h-14 text-lg font-bold rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
+            className="font-raleway w-full h-14 text-lg font-bold rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
           >
             Valider
           </Button>
