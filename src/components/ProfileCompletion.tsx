@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -14,6 +15,7 @@ interface ProfileCompletionProps {
 }
 
 const profileSchema = z.object({
+  firstName: z.string().min(2, "Le prénom doit contenir au moins 2 caractères"),
   gender: z.string().min(1, "Veuillez sélectionner votre genre"),
   height: z.number()
     .min(1.0, "Entrez une taille entre 1,00 et 2,30 m")
@@ -35,6 +37,7 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
+      firstName: '',
       gender: '',
       height: 1.7,
       weight: 70,
@@ -64,6 +67,7 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
         const { error: updateError } = await supabase
           .from('profiles')
           .update({
+            first_name: data.firstName,
             gender: data.gender,
             height_m: data.height,
             weight_kg: data.weight,
@@ -79,6 +83,7 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
       } else {
         // If no user (auth skipped), store in localStorage
         const profileData = {
+          first_name: data.firstName,
           gender: data.gender,
           height_m: data.height,
           weight_kg: data.weight,
@@ -126,6 +131,28 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Prénom */}
+            <FormField
+              control={form.control}
+              name="firstName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    Prénom
+                  </FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="Entrez votre prénom" 
+                      {...field} 
+                      className="bg-background"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             {/* Genre */}
             <FormField
               control={form.control}
