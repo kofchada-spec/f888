@@ -150,7 +150,7 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
             </div>
 
             <p className="font-inter text-base text-gray-600 max-w-sm leading-relaxed font-light">
-              Définis ton <span className="font-semibold">objectif</span> et laisse{' '}
+              Peu importe ta localisation définis ton <span className="font-semibold">objectif</span> et laisse{' '}
               <span className="font-semibold text-primary">Fitpas</span>{' '}
               t'accompagner.
             </p>
