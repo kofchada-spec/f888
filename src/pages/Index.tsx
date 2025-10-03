@@ -18,6 +18,7 @@ const Index = () => {
   const [searchParams] = useSearchParams();
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [hasCompletedProfile, setHasCompletedProfile] = useState(false);
+  const [hasSkippedAuth, setHasSkippedAuth] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [showWalkPlanning, setShowWalkPlanning] = useState(false);
   const [showRunPlanning, setShowRunPlanning] = useState(false);
@@ -44,10 +45,12 @@ const Index = () => {
   useEffect(() => {
     const onboardingComplete = localStorage.getItem('fitpas-onboarding-complete');
     const profileComplete = localStorage.getItem('fitpas-profile-complete');
+    const skipAuth = localStorage.getItem('fitpas-skip-auth');
     
     // Set completion states based on localStorage
     setHasCompletedOnboarding(!!onboardingComplete);
     setHasCompletedProfile(!!profileComplete);
+    setHasSkippedAuth(!!skipAuth);
     
     // Mark as initialized after reading localStorage
     setIsInitialized(true);
@@ -64,10 +67,10 @@ const Index = () => {
       setShowDestinationSelection(false);
       setShowWalkTracking(false);
       setSelectedDestination(null);
-    } else if (destinationParam === 'true' && hasCompletedOnboarding && hasCompletedProfile && user) {
+    } else if (destinationParam === 'true' && hasCompletedOnboarding && hasCompletedProfile && (user || hasSkippedAuth)) {
       setShowDestinationSelection(true);
     }
-  }, [searchParams, hasCompletedOnboarding, hasCompletedProfile, user]);
+  }, [searchParams, hasCompletedOnboarding, hasCompletedProfile, user, hasSkippedAuth]);
 
   const handleOnboardingComplete = () => {
     setHasCompletedOnboarding(true);
@@ -159,13 +162,13 @@ const Index = () => {
     return <Onboarding onComplete={handleOnboardingComplete} />;
   }
 
-  // Show auth if user is not authenticated
-  if (!user) {
+  // Show auth if user is not authenticated and hasn't skipped
+  if (!user && !hasSkippedAuth) {
     return <Auth onComplete={handleAuthComplete} />;
   }
 
-  // Show profile completion if not completed (after authentication)
-  if (!hasCompletedProfile) {
+  // Show profile completion if not completed (after authentication) - skip for non-authenticated users
+  if (!hasCompletedProfile && user) {
     return <ProfileCompletion onComplete={handleProfileComplete} />;
   }
 
