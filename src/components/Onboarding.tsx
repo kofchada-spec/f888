@@ -142,9 +142,7 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
           </div>
 
           <div className="space-y-8 text-center px-4">
-            <h1 className="font-raleway text-2xl font-bold text-gray-900 leading-tight max-w-sm tracking-tight">
-              {t('onboarding.presentation.title')}
-            </h1>
+            <h1 className="font-raleway text-2xl font-bold text-gray-900 leading-tight max-w-sm tracking-tight" dangerouslySetInnerHTML={{ __html: t('onboarding.presentation.title') }} />
 
             <div className="flex items-center justify-center space-x-2">
               <div className="h-0.5 w-8 bg-gradient-to-r from-primary to-transparent"></div>
@@ -210,9 +208,7 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
               <div className="h-0.5 w-10 bg-gradient-to-l from-secondary to-transparent"></div>
             </div>
 
-            <p className="font-raleway text-base text-gray-600 max-w-sm leading-relaxed font-light">
-              {t('onboarding.goals.subtitle')}
-            </p>
+            <p className="font-raleway text-base text-gray-600 max-w-sm leading-relaxed font-light" dangerouslySetInnerHTML={{ __html: t('onboarding.goals.subtitle') }} />
           </div>
         </div>
 
