@@ -257,9 +257,9 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-white">
+    <div className="min-h-screen bg-background">
       {/* En-tête */}
-      <header className="bg-white shadow-sm border-b border-gray-100">
+      <header className="bg-card shadow-sm border-b">
         <div className="px-6 py-4 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center space-x-3 cursor-pointer" onClick={() => navigate('/')}>
@@ -289,12 +289,12 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                 <Button variant="outline" size="sm" className="flex items-center gap-2">
                   {subscriptionData.subscribed ? (
                     <>
-                      <Crown className="h-4 w-4 text-yellow-500" />
+                      <Crown className="h-4 w-4 text-primary" />
                       <span className="text-sm font-medium">Premium</span>
                     </>
                   ) : subscriptionData.inFreeTrial ? (
                     <>
-                      <Clock className="h-4 w-4 text-blue-500" />
+                      <Clock className="h-4 w-4 text-accent" />
                       <span className="text-sm font-medium">Essai gratuit</span>
                     </>
                   ) : (
@@ -317,7 +317,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
               </PopoverTrigger>
               <PopoverContent className="w-56 p-0" align="end">
                 <div className="py-2">
-                  <div className="px-3 py-2 border-b border-gray-100">
+                  <div className="px-3 py-2 border-b">
                     <p className="font-medium text-sm text-foreground">{userProfile.firstName}</p>
                     <p className="text-xs text-muted-foreground">{user?.email}</p>
                   </div>
@@ -328,7 +328,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                         setIsEditModalOpen(true);
                         setIsAvatarMenuOpen(false);
                       }}
-                      className="w-full flex items-center px-3 py-2 text-sm text-foreground hover:bg-gray-50 transition-colors"
+                      className="w-full flex items-center px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
                     >
                       <UserCircle className="h-4 w-4 mr-3" />
                       Modifier mes informations
@@ -337,7 +337,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                     <Link 
                       to="/subscription"
                       onClick={() => setIsAvatarMenuOpen(false)}
-                      className="w-full flex items-center px-3 py-2 text-sm text-foreground hover:bg-gray-50 transition-colors"
+                      className="w-full flex items-center px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
                     >
                       <CreditCard className="h-4 w-4 mr-3" />
                       Gérer mes abonnements
@@ -348,7 +348,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                         navigate('/service-client');
                         setIsAvatarMenuOpen(false);
                       }}
-                      className="w-full flex items-center px-3 py-2 text-sm text-foreground hover:bg-gray-50 transition-colors"
+                      className="w-full flex items-center px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
                     >
                       <HelpCircle className="h-4 w-4 mr-3" />
                       Service client
@@ -359,21 +359,21 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                         navigate('/settings');
                         setIsAvatarMenuOpen(false);
                       }}
-                      className="w-full flex items-center px-3 py-2 text-sm text-foreground hover:bg-gray-50 transition-colors"
+                      className="w-full flex items-center px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
                     >
                       <Settings className="h-4 w-4 mr-3" />
                       Paramètres
                     </button>
                   </div>
                   
-                  <div className="border-t border-gray-100 py-1">
+                  <div className="border-t py-1">
                     <button
                       onClick={async () => {
                         await signOut();
                         navigate('/auth');
                         setIsAvatarMenuOpen(false);
                       }}
-                      className="w-full flex items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      className="w-full flex items-center px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
                     >
                       <LogOut className="h-4 w-4 mr-3" />
                       Se déconnecter
@@ -388,7 +388,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
 
       <div className="px-6 py-6 space-y-6 max-w-4xl mx-auto">
         {/* Carte Profil */}
-        <Card className="bg-white shadow-lg border-0">
+        <Card className="bg-card shadow-lg border">
           <CardContent className="p-6">
             <div className="flex items-center justify-center mb-4">
               <h2 className="text-lg font-semibold text-foreground">💡</h2>
@@ -480,7 +480,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <Footprints className="h-4 w-4 mr-2 text-green-500" />
+                    <Footprints className="h-4 w-4 mr-2 text-primary" />
                     <span className="text-sm font-medium">Pas</span>
                   </div>
                   <span className="text-sm text-muted-foreground">
@@ -494,7 +494,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <MapPin className="h-4 w-4 mr-2 text-blue-500" />
+                    <MapPin className="h-4 w-4 mr-2 text-secondary" />
                     <span className="text-sm font-medium">Distance</span>
                   </div>
                   <span className="text-sm text-muted-foreground">
@@ -508,7 +508,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <Flame className="h-4 w-4 mr-2 text-orange-500" />
+                    <Flame className="h-4 w-4 mr-2 text-destructive" />
                     <span className="text-sm font-medium">Calories</span>
                   </div>
                   <span className="text-sm text-muted-foreground">
@@ -522,7 +522,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <Clock className="h-4 w-4 mr-2 text-purple-500" />
+                    <Clock className="h-4 w-4 mr-2 text-accent" />
                     <span className="text-sm font-medium">Temps actif</span>
                   </div>
                   <span className="text-sm text-muted-foreground">
@@ -593,15 +593,15 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                 </div>
               </div>
               {bonusPlans > 0 && (
-                <div className="inline-flex items-center gap-2 px-3 py-1 bg-yellow-500/10 rounded-full border border-yellow-500/20">
-                  <Award className="h-4 w-4 text-yellow-600" />
-                  <span className="text-sm text-yellow-700 font-medium">
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full border border-primary/20">
+                  <Award className="h-4 w-4 text-primary" />
+                  <span className="text-sm text-foreground font-medium">
                     +{bonusPlans} bonus • Série {planningStreak}j
                   </span>
                 </div>
               )}
               {!canPlan && (
-                <p className="text-sm text-orange-600 mt-3 font-medium">
+                <p className="text-sm text-destructive mt-3 font-medium">
                   Limite atteinte - Complétez une activité pour maintenir votre série !
                 </p>
               )}

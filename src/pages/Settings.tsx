@@ -124,9 +124,9 @@ const Settings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-white">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-100">
+      <header className="bg-card shadow-sm border-b">
         <div className="px-6 py-4 flex items-center">
           <Button
             variant="ghost"
@@ -265,7 +265,7 @@ const Settings = () => {
               <AlertDialogTrigger asChild>
                 <Button
                   variant="outline"
-                  className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                  className="w-full justify-start text-destructive hover:bg-destructive/10"
                 >
                   <Trash2 className="h-4 w-4 mr-3" />
                   Supprimer mon compte
@@ -283,7 +283,7 @@ const Settings = () => {
                   <AlertDialogCancel>Annuler</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={handleDeleteAccount}
-                    className="bg-red-600 hover:bg-red-700"
+                    className="bg-destructive hover:bg-destructive/90"
                   >
                     Supprimer définitivement
                   </AlertDialogAction>
@@ -297,9 +297,9 @@ const Settings = () => {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
-              <Shield className="h-5 w-5 text-green-600 mt-0.5" />
+              <Shield className="h-5 w-5 text-primary mt-0.5" />
               <div className="space-y-1">
-                <p className="text-sm font-medium">Vos données sont protégées</p>
+                <p className="text-sm font-medium text-foreground">Vos données sont protégées</p>
                 <p className="text-sm text-muted-foreground">
                   Nous utilisons des protocoles de sécurité avancés pour protéger
                   vos informations personnelles et vos données d'activité.
