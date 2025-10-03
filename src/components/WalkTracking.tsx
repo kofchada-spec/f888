@@ -209,6 +209,9 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
     setIsMovementDetected(false);
     setLastStepCount(0);
     
+    // Validate activity start for streak
+    validateActivityCompletion();
+    
     toast.info("Timer started! Steps will count when movement is detected.");
   };
 
@@ -242,9 +245,6 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
       const existingSessions = JSON.parse(localStorage.getItem('walkSessions') || '[]');
       existingSessions.push(walkSession);
       localStorage.setItem('walkSessions', JSON.stringify(existingSessions));
-
-      // Validate activity completion for streak
-      validateActivityCompletion();
 
       console.log('Walk session saved:', walkSession);
       

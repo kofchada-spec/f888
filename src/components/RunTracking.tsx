@@ -197,6 +197,9 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
     setIsMovementDetected(false);
     setLastStepCount(0);
     
+    // Validate activity start for streak
+    validateActivityCompletion();
+    
     toast.info("Timer started! Steps will count when movement is detected.");
   };
 
@@ -232,9 +235,6 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
       const existingSessions = JSON.parse(localStorage.getItem('runSessions') || '[]');
       existingSessions.push(runSession);
       localStorage.setItem('runSessions', JSON.stringify(existingSessions));
-
-      // Validate activity completion for streak
-      validateActivityCompletion();
 
       console.log('Run session saved:', runSession);
       

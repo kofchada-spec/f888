@@ -424,10 +424,28 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
             </CardContent>
           </Card>
 
-          {/* Message Motivationnel */}
+          {/* Choix d'activité */}
           <Card className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg border-0">
-            <CardContent className="p-6 text-center flex flex-col justify-center">
-              <p className="text-lg font-medium">{getMotivationalMessage()}</p>
+            <CardContent className="p-6">
+              <p className="text-center text-lg font-medium mb-4">☀️ Nouvelle journée, nouveaux objectifs !</p>
+              <div className="flex gap-3">
+                <Button
+                  onClick={onPlanifyWalk}
+                  disabled={!canPlan}
+                  className="flex-1 bg-white/20 hover:bg-white/30 text-white border-white/30 disabled:opacity-50"
+                >
+                  <Footprints className="mr-2 h-4 w-4" />
+                  Marche
+                </Button>
+                <Button
+                  onClick={onPlanifyRun}
+                  disabled={!canPlan}
+                  className="flex-1 bg-white/20 hover:bg-white/30 text-white border-white/30 disabled:opacity-50"
+                >
+                  <Zap className="mr-2 h-4 w-4" />
+                  Course
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
