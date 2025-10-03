@@ -248,6 +248,14 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
     return `${mins}min`;
   };
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 18 || hour < 5) {
+      return "Bonsoir";
+    }
+    return "Bonjour";
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-white">
       {/* En-tête */}
@@ -266,8 +274,12 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
             />
           </div>
 
-          {/* Espace central */}
-          <div className="flex-1"></div>
+          {/* Message de salutation */}
+          <div className="flex-1 flex items-center justify-center">
+            <h1 className="text-lg font-semibold text-foreground">
+              {getGreeting()} {userProfile.firstName}
+            </h1>
+          </div>
 
           {/* Avatar et actions */}
           <div className="flex items-center space-x-3">
