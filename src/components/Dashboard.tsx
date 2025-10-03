@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { User, Edit3, Footprints, MapPin, Flame, Clock, LogOut, Crown, Settings, UserCircle, CreditCard, HelpCircle, Target, Award, Zap } from 'lucide-react';
 import { useWalkStats } from '@/hooks/useWalkStats';
 import { useRunStats } from '@/hooks/useRunStats';
+import { usePlanningLimiter } from '@/hooks/usePlanningLimiter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -29,6 +30,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
   const navigate = useNavigate();
   const { getTodayStats: getWalkTodayStats, getWeeklyStats: getWalkWeeklyStats, walkSessions } = useWalkStats();
   const { getTodayStats: getRunTodayStats, getWeeklyStats: getRunWeeklyStats, runSessions } = useRunStats();
+  const { canPlan, remainingPlans, dailyLimit, bonusPlans, currentStreak: planningStreak } = usePlanningLimiter();
   const [userProfile, setUserProfile] = useState({
     firstName: "Utilisateur",
     gender: "-",
@@ -549,11 +551,39 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
           </TabsContent>
         </Tabs>
 
+        {/* Planning limits info */}
+        <Card className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border-blue-200">
+          <CardContent className="p-6">
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground mb-2">Planifications aujourd'hui</p>
+              <div className="flex items-center justify-center gap-2 mb-3">
+                <span className="text-3xl font-bold text-foreground">{remainingPlans}</span>
+                <span className="text-xl text-muted-foreground">/</span>
+                <span className="text-2xl font-semibold text-muted-foreground">{dailyLimit}</span>
+              </div>
+              {bonusPlans > 0 && (
+                <div className="flex items-center justify-center gap-2 text-sm">
+                  <Award className="h-4 w-4 text-yellow-500" />
+                  <span className="text-muted-foreground">
+                    +{bonusPlans} bonus (série de {planningStreak} jours)
+                  </span>
+                </div>
+              )}
+              {!canPlan && (
+                <p className="text-sm text-orange-600 mt-2">
+                  Limite atteinte - Complétez une activité pour maintenir votre série !
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* CTA Principal */}
         <div className="flex flex-col items-center gap-4 pt-4">
           <Button
             onClick={onPlanifyWalk}
-            className="h-14 px-12 text-lg font-semibold rounded-[14px] bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200"
+            disabled={!canPlan}
+            className="h-14 px-12 text-lg font-semibold rounded-[14px] bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           >
             <Footprints className="mr-3 h-6 w-6" />
             Planifier ma marche
@@ -561,7 +591,8 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
           
           <Button
             onClick={onPlanifyRun}
-            className="h-14 px-12 text-lg font-semibold rounded-[14px] bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200"
+            disabled={!canPlan}
+            className="h-14 px-12 text-lg font-semibold rounded-[14px] bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           >
             <Zap className="mr-3 h-6 w-6" />
             Planifier ma course

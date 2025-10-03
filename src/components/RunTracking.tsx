@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Motion } from '@capacitor/motion';
 import { Capacitor } from '@capacitor/core';
+import { usePlanningLimiter } from '@/hooks/usePlanningLimiter';
 
 interface Destination {
   id: string;
@@ -37,6 +38,7 @@ interface RunTrackingProps {
 
 const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: RunTrackingProps) => {
   const navigate = useNavigate();
+  const { validateActivityCompletion } = usePlanningLimiter();
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [isTracking, setIsTracking] = useState(false);
   const [runStartTime, setRunStartTime] = useState<Date | null>(null);
@@ -230,6 +232,9 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
       const existingSessions = JSON.parse(localStorage.getItem('runSessions') || '[]');
       existingSessions.push(runSession);
       localStorage.setItem('runSessions', JSON.stringify(existingSessions));
+
+      // Validate activity completion for streak
+      validateActivityCompletion();
 
       console.log('Run session saved:', runSession);
       

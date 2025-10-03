@@ -7,6 +7,8 @@ import { ArrowLeft, User, Weight, Target, Timer, Zap } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { usePlanningLimiter } from '@/hooks/usePlanningLimiter';
+import { toast } from 'sonner';
 
 interface RunPlanningProps {
   onComplete: (data: {
@@ -26,6 +28,7 @@ type TripType = 'one-way' | 'round-trip';
 const RunPlanning = ({ onComplete, onBack, onGoToDashboard }: RunPlanningProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { canPlan, incrementPlanCount, remainingPlans, dailyLimit } = usePlanningLimiter();
   const [distance, setDistance] = useState(5);
   const [selectedPace, setSelectedPace] = useState<RunPace>('moderate');
   const [tripType, setTripType] = useState<TripType>('one-way');
@@ -81,6 +84,17 @@ const RunPlanning = ({ onComplete, onBack, onGoToDashboard }: RunPlanningProps) 
   }, [user]);
 
   const handleValidate = () => {
+    if (!canPlan) {
+      toast.error('Limite de planifications atteinte pour aujourd\'hui');
+      return;
+    }
+
+    const success = incrementPlanCount();
+    if (!success) {
+      toast.error('Impossible de créer une nouvelle planification');
+      return;
+    }
+
     onComplete({
       distance,
       pace: selectedPace,
@@ -306,14 +320,22 @@ const RunPlanning = ({ onComplete, onBack, onGoToDashboard }: RunPlanningProps) 
           </div>
         </div>
 
+        {/* Limit indicator */}
+        <div className="mt-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground">{remainingPlans}/{dailyLimit}</span> planifications restantes aujourd'hui
+          </p>
+        </div>
+
         {/* Bouton de validation */}
-        <div className="mt-8">
+        <div className="mt-4">
           <Button
             onClick={handleValidate}
             size="lg"
-            className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02]"
+            disabled={!canPlan}
+            className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           >
-            Trouver mes destinations
+            {canPlan ? 'Trouver mes destinations' : 'Limite atteinte'}
           </Button>
         </div>
       </div>
