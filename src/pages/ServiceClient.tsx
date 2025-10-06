@@ -2,9 +2,12 @@ import { ArrowLeft, MessageSquare, Book, Mail, Lightbulb, Star, FileText, Info }
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { useState } from 'react';
+import { SuggestionModal } from '@/components/SuggestionModal';
 
 const ServiceClient = () => {
   const navigate = useNavigate();
+  const [isSuggestionModalOpen, setIsSuggestionModalOpen] = useState(false);
 
   const handleContact = () => {
     toast.info("Contactez-nous à support@fitpas.com");
@@ -15,11 +18,7 @@ const ServiceClient = () => {
   };
 
   const handleSuggestion = () => {
-    // Ouvre un formulaire externe (Google Forms, Typeform, etc.)
-    // Remplacez cette URL par votre propre lien de formulaire
-    const formUrl = "https://forms.gle/votre-formulaire"; // À personnaliser
-    window.open(formUrl, '_blank');
-    toast.success("Ouverture du formulaire de suggestion");
+    setIsSuggestionModalOpen(true);
   };
 
   const handleRate = () => {
@@ -114,6 +113,11 @@ const ServiceClient = () => {
           </Card>
         ))}
       </div>
+
+      <SuggestionModal 
+        open={isSuggestionModalOpen}
+        onOpenChange={setIsSuggestionModalOpen}
+      />
     </div>
   );
 };
