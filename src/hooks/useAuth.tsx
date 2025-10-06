@@ -38,14 +38,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(session?.user ?? null);
         setLoading(false);
         
-        // Only show toast for manual sign-in, not for session restoration
-        if (event === 'SIGNED_IN' && !isInitialLoad.current) {
-          toast({
-            title: "Connexion réussie",
-            description: "Bienvenue dans Fitpas !",
-          });
-        }
-        
         if (event === 'SIGNED_OUT') {
           toast({
             title: "Déconnexion",
