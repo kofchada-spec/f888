@@ -15,7 +15,11 @@ const ServiceClient = () => {
   };
 
   const handleSuggestion = () => {
-    toast.info("Formulaire de suggestion en cours de développement");
+    // Ouvre un formulaire externe (Google Forms, Typeform, etc.)
+    // Remplacez cette URL par votre propre lien de formulaire
+    const formUrl = "https://forms.gle/votre-formulaire"; // À personnaliser
+    window.open(formUrl, '_blank');
+    toast.success("Ouverture du formulaire de suggestion");
   };
 
   const handleRate = () => {
