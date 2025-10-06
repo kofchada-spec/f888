@@ -278,7 +278,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
 
           {/* Message de salutation */}
           <div className="flex-1 flex items-center justify-center">
-            <h1 className="text-lg font-semibold text-foreground">
+            <h1 className="text-sm font-normal text-muted-foreground">
               {getGreeting()} {userProfile.firstName}
             </h1>
           </div>
@@ -288,21 +288,21 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
             {/* Status d'abonnement */}
             {user && subscriptionData && (
               <Link to="/subscription">
-                <Button variant="outline" size="sm" className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" className="flex items-center gap-1.5">
                   {subscriptionData.subscribed ? (
                     <>
-                      <Crown className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-medium">{t('dashboard.premium')}</span>
+                      <Crown className="h-3.5 w-3.5 text-primary" />
+                      <span className="text-xs font-normal text-muted-foreground">{t('dashboard.premium')}</span>
                     </>
                   ) : subscriptionData.inFreeTrial ? (
                     <>
-                      <Clock className="h-4 w-4 text-accent" />
-                      <span className="text-sm font-medium">{t('dashboard.freeTrial')}</span>
+                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-normal text-muted-foreground">{t('dashboard.freeTrial')}</span>
                     </>
                   ) : (
                     <>
-                      <Settings className="h-4 w-4" />
-                      <span className="text-sm font-medium">{t('dashboard.subscribe')}</span>
+                      <Settings className="h-3.5 w-3.5" />
+                      <span className="text-xs font-normal text-muted-foreground">{t('dashboard.subscribe')}</span>
                     </>
                   )}
                 </Button>
