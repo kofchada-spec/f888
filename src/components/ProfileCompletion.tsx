@@ -83,21 +83,24 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
         // Save to Supabase profiles table if user is authenticated
         const { supabase } = await import('@/integrations/supabase/client');
         
-        const { error: updateError } = await supabase
+        // Use upsert to insert if not exists, or update if exists
+        const { error: upsertError } = await supabase
           .from('profiles')
-          .update({
+          .upsert({
+            user_id: user.id,
             first_name: data.firstName,
             gender: finalGender,
             height_m: data.height,
             weight_kg: data.weight,
             birth_date: birthDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
             age_years: finalAge
-          })
-          .eq('user_id', user.id);
+          }, {
+            onConflict: 'user_id'
+          });
 
-        if (updateError) {
-          console.error('Error saving profile:', updateError);
-          throw updateError;
+        if (upsertError) {
+          console.error('Error saving profile:', upsertError);
+          throw upsertError;
         }
       } else {
         // If no user (auth skipped), store in localStorage

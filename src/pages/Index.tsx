@@ -40,18 +40,41 @@ const Index = () => {
     weight: 70
   });
 
-  // Check stored completion states on mount
+  // Check stored completion states on mount and verify profile in Supabase
   useEffect(() => {
-    const onboardingComplete = localStorage.getItem('fitpas-onboarding-complete');
-    const profileComplete = localStorage.getItem('fitpas-profile-complete');
+    const checkProfileCompletion = async () => {
+      const onboardingComplete = localStorage.getItem('fitpas-onboarding-complete');
+      setHasCompletedOnboarding(!!onboardingComplete);
+      
+      // If user is authenticated, check if profile exists in Supabase
+      if (user) {
+        const { supabase } = await import('@/integrations/supabase/client');
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (profile && !error) {
+          // Profile exists in database
+          setHasCompletedProfile(true);
+          localStorage.setItem('fitpas-profile-complete', 'true');
+        } else {
+          // No profile in database
+          setHasCompletedProfile(false);
+          localStorage.removeItem('fitpas-profile-complete');
+        }
+      } else {
+        // Not authenticated, check localStorage
+        const profileComplete = localStorage.getItem('fitpas-profile-complete');
+        setHasCompletedProfile(!!profileComplete);
+      }
+      
+      setIsInitialized(true);
+    };
     
-    // Set completion states based on localStorage
-    setHasCompletedOnboarding(!!onboardingComplete);
-    setHasCompletedProfile(!!profileComplete);
-    
-    // Mark as initialized after reading localStorage
-    setIsInitialized(true);
-  }, []);
+    checkProfileCompletion();
+  }, [user]);
 
   // Check for URL parameters
   useEffect(() => {
