@@ -5,11 +5,13 @@ import { toast } from 'sonner';
 import { useState } from 'react';
 import { SuggestionModal } from '@/components/SuggestionModal';
 import { TermsSheet } from '@/components/TermsSheet';
+import { AboutSheet } from '@/components/AboutSheet';
 
 const ServiceClient = () => {
   const navigate = useNavigate();
   const [isSuggestionModalOpen, setIsSuggestionModalOpen] = useState(false);
   const [isTermsSheetOpen, setIsTermsSheetOpen] = useState(false);
+  const [isAboutSheetOpen, setIsAboutSheetOpen] = useState(false);
 
   const handleContact = () => {
     toast.info("Contactez-nous à support@fitpas.com");
@@ -45,7 +47,7 @@ const ServiceClient = () => {
   };
 
   const handleAbout = () => {
-    toast.info("FitPas - Votre compagnon fitness quotidien");
+    setIsAboutSheetOpen(true);
   };
 
   const menuItems = [
@@ -137,6 +139,11 @@ const ServiceClient = () => {
       <TermsSheet 
         open={isTermsSheetOpen}
         onOpenChange={setIsTermsSheetOpen}
+      />
+
+      <AboutSheet 
+        open={isAboutSheetOpen}
+        onOpenChange={setIsAboutSheetOpen}
       />
     </div>
   );
