@@ -69,7 +69,20 @@ export const initializeMap = (
 export const getMapboxToken = async (): Promise<string | null> => {
   try {
     const { supabase } = await import('@/integrations/supabase/client');
-    const { data, error } = await supabase.functions.invoke('mapbox-token');
+    
+    // Get current session for authentication
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      console.error('No active session - authentication required');
+      return null;
+    }
+    
+    const { data, error } = await supabase.functions.invoke('mapbox-token', {
+      headers: {
+        Authorization: `Bearer ${session.access_token}`
+      }
+    });
     
     if (error) {
       console.error('Error calling mapbox-token function:', error);

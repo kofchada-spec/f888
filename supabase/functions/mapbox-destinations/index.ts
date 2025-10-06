@@ -1,10 +1,32 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import "https://deno.land/x/xhr@0.1.0/mod.ts"
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+// Input validation schema
+const inputSchema = z.object({
+  userLocation: z.object({
+    lat: z.number().min(-90).max(90),
+    lng: z.number().min(-180).max(180)
+  }),
+  planningData: z.object({
+    steps: z.union([z.number(), z.string()]).transform(val => typeof val === 'string' ? parseInt(val) : val).pipe(z.number().int().min(100).max(100000)).optional(),
+    distance: z.union([z.number(), z.string()]).transform(val => typeof val === 'string' ? parseFloat(val) : val).pipe(z.number().min(0.1).max(100)).optional(),
+    pace: z.enum(['slow', 'moderate', 'fast']),
+    tripType: z.enum(['one-way', 'round-trip']),
+    height: z.union([z.number(), z.string()]).transform(val => typeof val === 'string' ? parseFloat(val) : val).pipe(z.number().min(1.0).max(2.5)),
+    weight: z.union([z.number(), z.string()]).transform(val => typeof val === 'string' ? parseFloat(val) : val).pipe(z.number().min(30).max(300)).optional()
+  }),
+  profileData: z.object({
+    heightM: z.number().min(1.0).max(2.5).optional(),
+    weightKg: z.number().min(30).max(300).optional()
+  }).optional(),
+  generateThree: z.boolean().optional()
+});
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -13,7 +35,30 @@ serve(async (req) => {
   }
 
   try {
-    const { userLocation, planningData, profileData, generateThree = false } = await req.json();
+    // Parse and validate input
+    const rawInput = await req.json();
+    
+    let validatedInput;
+    try {
+      validatedInput = inputSchema.parse(rawInput);
+    } catch (error) {
+      console.error('Input validation error:', error);
+      if (error instanceof z.ZodError) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Invalid input parameters', 
+            details: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+      throw error;
+    }
+    
+    const { userLocation, planningData, profileData, generateThree = false } = validatedInput;
     
     // Get Mapbox token from environment
     const mapboxToken = Deno.env.get('MAPBOX_PUBLIC_TOKEN');

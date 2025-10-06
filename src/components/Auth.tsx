@@ -154,11 +154,6 @@ const Auth = ({ onComplete }: AuthProps) => {
     window.location.reload();
   };
 
-  const handleSkipAuth = () => {
-    localStorage.setItem('fitpas-skip-auth', 'true');
-    onComplete();
-  };
-
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6 relative">
       <Button
@@ -319,16 +314,6 @@ const Auth = ({ onComplete }: AuthProps) => {
                 className="text-sm text-secondary hover:underline"
               >
                 Retour à la connexion
-              </button>
-            )}
-            
-            {!isResetMode && (
-              <button
-                type="button"
-                onClick={handleSkipAuth}
-                className="text-sm text-muted-foreground hover:underline block mt-4"
-              >
-                Continuer sans connexion
               </button>
             )}
           </div>
