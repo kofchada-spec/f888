@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -28,6 +28,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const isInitialLoad = useRef(true);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -37,7 +38,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(session?.user ?? null);
         setLoading(false);
         
-        if (event === 'SIGNED_IN') {
+        // Only show toast for manual sign-in, not for session restoration
+        if (event === 'SIGNED_IN' && !isInitialLoad.current) {
           toast({
             title: "Connexion réussie",
             description: "Bienvenue dans Fitpas !",
@@ -58,6 +60,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      isInitialLoad.current = false;
     });
 
     return () => subscription.unsubscribe();
