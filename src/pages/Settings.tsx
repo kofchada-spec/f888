@@ -110,10 +110,13 @@ const Settings = () => {
         return;
       }
 
-      // Delete from Supabase
-      const { error } = await supabase.auth.admin.deleteUser(user.id);
+      // Call secure edge function to delete account
+      const { error } = await supabase.functions.invoke('delete-user-account');
       
       if (error) throw error;
+
+      // Sign out after successful deletion
+      await supabase.auth.signOut();
 
       toast({
         title: t('settings.toast.accountDeleted'),

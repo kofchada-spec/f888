@@ -7,10 +7,29 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Helper logging function for debugging
+// Helper function to redact PII in logs
+const redactEmail = (email: string): string => {
+  const [local, domain] = email.split('@');
+  if (local.length <= 2) return `**@${domain}`;
+  return `${local.substring(0, 2)}***@${domain}`;
+};
+
+const redactUserId = (userId: string): string => {
+  if (userId.length <= 8) return '****';
+  return `${userId.substring(0, 4)}...${userId.substring(userId.length - 4)}`;
+};
+
+// Helper logging function with PII redaction
 const logStep = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
-  console.log(`[CUSTOMER-PORTAL] ${step}${detailsStr}`);
+  // Redact sensitive fields before logging
+  if (details) {
+    const sanitized = { ...details };
+    if (sanitized.email) sanitized.email = redactEmail(sanitized.email);
+    if (sanitized.userId) sanitized.userId = redactUserId(sanitized.userId);
+    console.log(`[CUSTOMER-PORTAL] ${step} - ${JSON.stringify(sanitized)}`);
+  } else {
+    console.log(`[CUSTOMER-PORTAL] ${step}`);
+  }
 };
 
 serve(async (req) => {

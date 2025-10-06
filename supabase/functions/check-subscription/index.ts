@@ -7,10 +7,29 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Helper logging function for enhanced debugging
+// Helper function to redact PII in logs
+const redactEmail = (email: string): string => {
+  const [local, domain] = email.split('@');
+  if (local.length <= 2) return `**@${domain}`;
+  return `${local.substring(0, 2)}***@${domain}`;
+};
+
+const redactUserId = (userId: string): string => {
+  if (userId.length <= 8) return '****';
+  return `${userId.substring(0, 4)}...${userId.substring(userId.length - 4)}`;
+};
+
+// Helper logging function with PII redaction
 const logStep = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
-  console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
+  // Redact sensitive fields before logging
+  if (details) {
+    const sanitized = { ...details };
+    if (sanitized.email) sanitized.email = redactEmail(sanitized.email);
+    if (sanitized.userId) sanitized.userId = redactUserId(sanitized.userId);
+    console.log(`[CHECK-SUBSCRIPTION] ${step} - ${JSON.stringify(sanitized)}`);
+  } else {
+    console.log(`[CHECK-SUBSCRIPTION] ${step}`);
+  }
 };
 
 serve(async (req) => {
@@ -77,7 +96,7 @@ serve(async (req) => {
         subscription_end: null,
         trial_end: existingSubscriber?.trial_end || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'email' });
+      }, { onConflict: 'user_id' });
 
       return new Response(JSON.stringify({ 
         subscribed: false, 
@@ -133,7 +152,7 @@ serve(async (req) => {
       subscription_end: subscriptionEnd,
       trial_end: existingSubscriber?.trial_end || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
       updated_at: new Date().toISOString(),
-    }, { onConflict: 'email' });
+    }, { onConflict: 'user_id' });
 
     const hasAccess = hasActiveSub || isInFreeTrial;
     
