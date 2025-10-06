@@ -32,13 +32,6 @@ const ServiceClient = () => {
 
   const menuItems = [
     {
-      icon: MessageSquare,
-      title: "FAQ",
-      description: "Questions fréquentes",
-      color: "from-blue-500 to-cyan-500",
-      action: handleFAQ
-    },
-    {
       icon: Book,
       title: "Centre d'aide",
       description: "Articles et tutoriels",
