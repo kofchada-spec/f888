@@ -4,10 +4,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { useState } from 'react';
 import { SuggestionModal } from '@/components/SuggestionModal';
+import { TermsSheet } from '@/components/TermsSheet';
 
 const ServiceClient = () => {
   const navigate = useNavigate();
   const [isSuggestionModalOpen, setIsSuggestionModalOpen] = useState(false);
+  const [isTermsSheetOpen, setIsTermsSheetOpen] = useState(false);
 
   const handleContact = () => {
     toast.info("Contactez-nous à support@fitpas.com");
@@ -39,7 +41,7 @@ const ServiceClient = () => {
   };
 
   const handleTerms = () => {
-    toast.info("CGU en cours de rédaction");
+    setIsTermsSheetOpen(true);
   };
 
   const handleAbout = () => {
@@ -130,6 +132,11 @@ const ServiceClient = () => {
       <SuggestionModal 
         open={isSuggestionModalOpen}
         onOpenChange={setIsSuggestionModalOpen}
+      />
+      
+      <TermsSheet 
+        open={isTermsSheetOpen}
+        onOpenChange={setIsTermsSheetOpen}
       />
     </div>
   );
