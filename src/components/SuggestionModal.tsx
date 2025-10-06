@@ -111,7 +111,6 @@ export const SuggestionModal = ({ open, onOpenChange }: SuggestionModalProps) =>
                 <SelectItem value="feature">Nouvelle fonctionnalité</SelectItem>
                 <SelectItem value="improvement">Amélioration</SelectItem>
                 <SelectItem value="bug">Problème technique</SelectItem>
-                <SelectItem value="design">Design / Interface</SelectItem>
                 <SelectItem value="other">Autre</SelectItem>
               </SelectContent>
             </Select>
