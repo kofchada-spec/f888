@@ -22,7 +22,20 @@ const ServiceClient = () => {
   };
 
   const handleRate = () => {
-    toast.success("Merci de votre intérêt ! Redirection vers le store...");
+    const userAgent = navigator.userAgent || navigator.vendor;
+    
+    // Detect iOS
+    if (/iPad|iPhone|iPod/.test(userAgent)) {
+      window.open('https://apps.apple.com/app/fitpas', '_blank');
+    }
+    // Detect Android
+    else if (/android/i.test(userAgent)) {
+      window.open('https://play.google.com/store/apps/details?id=com.fitpas.app', '_blank');
+    }
+    // Web fallback
+    else {
+      toast.info("Veuillez évaluer FitPas sur votre store mobile (App Store ou Google Play)");
+    }
   };
 
   const handleTerms = () => {
