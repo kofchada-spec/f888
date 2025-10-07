@@ -1,13 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ArrowLeft, Play, Pause, Square, Clock, MapPin, Zap, Target, Timer } from 'lucide-react';
+import { ArrowLeft, Play, Pause, Square, Clock, MapPin, Zap, Target, Timer, Navigation } from 'lucide-react';
 import Map, { MapRef } from './Map';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Motion } from '@capacitor/motion';
 import { Capacitor } from '@capacitor/core';
 import { usePlanningLimiter } from '@/hooks/usePlanningLimiter';
+import { useGPSTracking } from '@/hooks/useGPSTracking';
+import { useLiveMetrics } from '@/hooks/useLiveMetrics';
+import { useTrackingFeedback } from '@/hooks/useTrackingFeedback';
 
 interface Destination {
   id: string;
@@ -48,6 +51,42 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
   const [lastStepCount, setLastStepCount] = useState(0);
   const mapRef = useRef<MapRef>(null);
   const motionListenerId = useRef<(() => void) | null>(null);
+
+  // GPS Tracking with real-time path recording
+  const { 
+    currentPosition, 
+    pathCoordinates, 
+    totalDistance, 
+    currentSpeed,
+    resetTracking: resetGPS
+  } = useGPSTracking({
+    isTracking,
+    onPositionUpdate: (position) => {
+      setUserLocation({ lat: position.lat, lng: position.lng });
+    }
+  });
+
+  // Live metrics calculation
+  const liveMetrics = useLiveMetrics({
+    totalDistance,
+    currentSpeed,
+    elapsedTime,
+    weight: planningData.weight,
+    activityType: 'walk',
+    pace: planningData.pace
+  });
+
+  // Calculate progress percentage
+  const currentProgress = planningData.steps ? Math.min((currentSteps / planningData.steps) * 100, 100) : 0;
+
+  // Tracking feedback (milestones, alerts)
+  const { resetFeedback, getRemainingDistance } = useTrackingFeedback({
+    currentProgress,
+    isTracking,
+    currentPosition: currentPosition ? { lat: currentPosition.lat, lng: currentPosition.lng } : null,
+    destinationCoords: destination.coordinates,
+    totalDistance
+  });
 
   // Real step detection using device motion sensors
   useEffect(() => {
@@ -203,16 +242,17 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
 
   const handleStartWalk = () => {
     setIsTracking(true);
-    setWalkStartTime(new Date()); // Timer starts immediately
+    setWalkStartTime(new Date());
     setCurrentSteps(0);
     setElapsedTime(0);
     setIsMovementDetected(false);
     setLastStepCount(0);
+    resetGPS();
+    resetFeedback();
     
-    // Validate activity start for streak
     validateActivityCompletion();
     
-    toast.info("Timer started! Steps will count when movement is detected.");
+    toast.info("🚶 Marche démarrée ! GPS activé.");
   };
 
   const handlePauseWalk = () => {
@@ -220,13 +260,10 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
   };
 
   const handleStopWalk = () => {
-    // Save walk session data before resetting
     if (walkStartTime && elapsedTime > 0) {
-      const heightM = planningData.height || 1.75;
-      const weightKg = planningData.weight || 70;
-      const strideM = 0.415 * heightM;
-      const distanceKm = (currentSteps * strideM) / 1000;
-      const calories = Math.round(distanceKm * weightKg * 0.9); // Walking calories formula
+      // Use real GPS distance instead of step-based estimation
+      const distanceKm = totalDistance > 0 ? totalDistance : (currentSteps * 0.415 * planningData.height) / 1000;
+      const calories = liveMetrics.calories;
       const durationMin = Math.round(elapsedTime / 60);
 
       // Save to localStorage for now - can be enhanced to sync with database later
@@ -248,14 +285,15 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
 
       console.log('Walk session saved:', walkSession);
       
-      // Show success toast
-      toast.success(`Marche terminée ! ${currentSteps} pas, ${distanceKm.toFixed(1)} km, ${calories} kcal`);
+      toast.success(`🎉 Marche terminée ! ${distanceKm.toFixed(1)} km, ${calories} kcal`);
     }
 
     setIsTracking(false);
     setWalkStartTime(null);
     setElapsedTime(0);
     setCurrentSteps(0);
+    resetGPS();
+    resetFeedback();
   };
 
   const formatTime = (seconds: number) => {
@@ -317,7 +355,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
           </h2>
         </div>
 
-        {/* Stats de marche actuelles */}
+        {/* Stats de marche actuelles - LIVE */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <Card className="p-4 text-center">
             <div className="flex items-center justify-center mb-2">
@@ -327,34 +365,53 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
             <div className="text-sm text-muted-foreground">Temps</div>
           </Card>
           
-          <Card className="p-4 text-center">
+          <Card className="p-4 text-center bg-gradient-to-br from-primary/5 to-primary/10">
             <div className="flex items-center justify-center mb-2">
-              <Target size={20} className={isMovementDetected ? "text-secondary" : "text-muted-foreground"} />
+              <MapPin size={20} className="text-primary" />
             </div>
-            <div className="text-2xl font-bold text-foreground">{currentSteps}</div>
-            <div className="text-sm text-muted-foreground">
-              {isTracking && !isMovementDetected ? "En attente du mouvement..." : "Pas actuels"}
+            <div className="text-2xl font-bold text-foreground">
+              {totalDistance > 0 ? totalDistance.toFixed(2) : "0.0"}
             </div>
+            <div className="text-sm text-muted-foreground">km (GPS réel)</div>
           </Card>
           
           <Card className="p-4 text-center">
             <div className="flex items-center justify-center mb-2">
-              <MapPin size={20} className={isMovementDetected ? "text-orange-500" : "text-muted-foreground"} />
+              <Zap size={20} className="text-secondary" />
             </div>
             <div className="text-2xl font-bold text-foreground">
-              {isMovementDetected ? ((currentSteps * 0.415 * planningData.height) / 1000).toFixed(1) : "0.0"}
+              {currentSpeed > 0 ? currentSpeed.toFixed(1) : "0.0"}
             </div>
-            <div className="text-sm text-muted-foreground">km parcourus</div>
+            <div className="text-sm text-muted-foreground">km/h</div>
           </Card>
           
           <Card className="p-4 text-center">
             <div className="flex items-center justify-center mb-2">
-              <Zap size={20} className="text-green-500" />
+              <Target size={20} className="text-green-500" />
             </div>
             <div className="text-2xl font-bold text-foreground">
-              {Math.floor(getProgress())}%
+              {liveMetrics.calories}
             </div>
-            <div className="text-sm text-muted-foreground">Progression</div>
+            <div className="text-sm text-muted-foreground">kcal</div>
+          </Card>
+        </div>
+
+        {/* Additional Live Metrics */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <Card className="p-3 text-center">
+            <div className="text-lg font-bold text-primary">{liveMetrics.currentPace}</div>
+            <div className="text-xs text-muted-foreground">Allure (min/km)</div>
+          </Card>
+          <Card className="p-3 text-center">
+            <div className="text-lg font-bold text-secondary">{currentSteps}</div>
+            <div className="text-xs text-muted-foreground">Pas détectés</div>
+          </Card>
+          <Card className="p-3 text-center bg-gradient-to-br from-orange-500/10 to-orange-500/20">
+            <div className="flex items-center justify-center mb-1">
+              <Navigation size={16} className="text-orange-500" />
+            </div>
+            <div className="text-lg font-bold text-foreground">{getRemainingDistance()}</div>
+            <div className="text-xs text-muted-foreground">Restant</div>
           </Card>
         </div>
 

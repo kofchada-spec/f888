@@ -1,13 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ArrowLeft, Play, Pause, Square, Clock, MapPin, Zap, Target, Timer } from 'lucide-react';
+import { ArrowLeft, Play, Pause, Square, Clock, MapPin, Zap, Target, Timer, Navigation } from 'lucide-react';
 import Map, { MapRef } from './Map';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Motion } from '@capacitor/motion';
 import { Capacitor } from '@capacitor/core';
 import { usePlanningLimiter } from '@/hooks/usePlanningLimiter';
+import { useGPSTracking } from '@/hooks/useGPSTracking';
+import { useLiveMetrics } from '@/hooks/useLiveMetrics';
+import { useTrackingFeedback } from '@/hooks/useTrackingFeedback';
 
 interface Destination {
   id: string;
@@ -48,6 +51,21 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
   const [lastStepCount, setLastStepCount] = useState(0);
   const mapRef = useRef<MapRef>(null);
   const motionListenerId = useRef<(() => void) | null>(null);
+
+  const { currentPosition, pathCoordinates, totalDistance, currentSpeed, resetTracking: resetGPS } = useGPSTracking({
+    isTracking,
+    onPositionUpdate: (position) => setUserLocation({ lat: position.lat, lng: position.lng })
+  });
+
+  const liveMetrics = useLiveMetrics({
+    totalDistance, currentSpeed, elapsedTime, weight: planningData.weight, activityType: 'run', pace: planningData.pace
+  });
+
+  const currentProgress = planningData.steps ? Math.min((currentSteps / planningData.steps) * 100, 100) : 0;
+  const { resetFeedback, getRemainingDistance } = useTrackingFeedback({
+    currentProgress, isTracking, currentPosition: currentPosition ? { lat: currentPosition.lat, lng: currentPosition.lng } : null,
+    destinationCoords: destination.coordinates, totalDistance
+  });
 
   // Real step detection using device motion sensors
   useEffect(() => {
@@ -196,11 +214,10 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
     setElapsedTime(0);
     setIsMovementDetected(false);
     setLastStepCount(0);
-    
-    // Validate activity start for streak
+    resetGPS();
+    resetFeedback();
     validateActivityCompletion();
-    
-    toast.info("Timer started! Steps will count when movement is detected.");
+    toast.info("🏃 Course démarrée ! GPS activé.");
   };
 
   const handlePauseRun = () => {
@@ -209,15 +226,8 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
 
   const handleStopRun = () => {
     if (runStartTime && elapsedTime > 0) {
-      const heightM = planningData.height || 1.75;
-      const weightKg = planningData.weight || 70;
-      const strideM = 0.5 * heightM; // Running stride
-      const distanceKm = (currentSteps * strideM) / 1000;
-      
-      // Running calories formula (higher burn rate)
-      const pace = planningData.pace;
-      const coefficient = pace === 'slow' ? 0.75 : pace === 'moderate' ? 1.00 : 1.30;
-      const calories = Math.round(distanceKm * weightKg * coefficient);
+      const distanceKm = totalDistance > 0 ? totalDistance : (currentSteps * 0.5 * planningData.height) / 1000;
+      const calories = liveMetrics.calories;
       const durationMin = Math.round(elapsedTime / 60);
 
       const runSession = {
@@ -237,14 +247,14 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
       localStorage.setItem('runSessions', JSON.stringify(existingSessions));
 
       console.log('Run session saved:', runSession);
-      
-      toast.success(`Course terminée ! ${currentSteps} foulées, ${distanceKm.toFixed(1)} km, ${calories} kcal`);
+      toast.success(`🎉 Course terminée ! ${distanceKm.toFixed(1)} km, ${calories} kcal`);
     }
-
     setIsTracking(false);
     setRunStartTime(null);
     setElapsedTime(0);
     setCurrentSteps(0);
+    resetGPS();
+    resetFeedback();
   };
 
   const formatTime = (seconds: number) => {
@@ -304,7 +314,7 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
           </h2>
         </div>
 
-        {/* Running stats */}
+        {/* Running stats - LIVE */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <Card className="p-4 text-center">
             <div className="flex items-center justify-center mb-2">
@@ -314,34 +324,53 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
             <div className="text-sm text-muted-foreground">Temps</div>
           </Card>
           
-          <Card className="p-4 text-center">
+          <Card className="p-4 text-center bg-gradient-to-br from-orange-500/5 to-orange-500/10">
             <div className="flex items-center justify-center mb-2">
-              <Target size={20} className={isMovementDetected ? "text-red-600" : "text-muted-foreground"} />
+              <MapPin size={20} className="text-orange-600" />
             </div>
-            <div className="text-2xl font-bold text-foreground">{currentSteps}</div>
-            <div className="text-sm text-muted-foreground">
-              {isTracking && !isMovementDetected ? "En attente du mouvement..." : "Foulées actuelles"}
+            <div className="text-2xl font-bold text-foreground">
+              {totalDistance > 0 ? totalDistance.toFixed(2) : "0.0"}
             </div>
+            <div className="text-sm text-muted-foreground">km (GPS réel)</div>
           </Card>
           
           <Card className="p-4 text-center">
             <div className="flex items-center justify-center mb-2">
-              <MapPin size={20} className={isMovementDetected ? "text-amber-500" : "text-muted-foreground"} />
+              <Zap size={20} className="text-red-600" />
             </div>
             <div className="text-2xl font-bold text-foreground">
-              {isMovementDetected ? ((currentSteps * 0.5 * planningData.height) / 1000).toFixed(1) : "0.0"}
+              {currentSpeed > 0 ? currentSpeed.toFixed(1) : "0.0"}
             </div>
-            <div className="text-sm text-muted-foreground">km parcourus</div>
+            <div className="text-sm text-muted-foreground">km/h</div>
           </Card>
           
           <Card className="p-4 text-center">
             <div className="flex items-center justify-center mb-2">
-              <Zap size={20} className="text-green-500" />
+              <Target size={20} className="text-green-500" />
             </div>
             <div className="text-2xl font-bold text-foreground">
-              {Math.floor(getProgress())}%
+              {liveMetrics.calories}
             </div>
-            <div className="text-sm text-muted-foreground">Progression</div>
+            <div className="text-sm text-muted-foreground">kcal</div>
+          </Card>
+        </div>
+
+        {/* Additional Live Metrics */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <Card className="p-3 text-center">
+            <div className="text-lg font-bold text-orange-600">{liveMetrics.currentPace}</div>
+            <div className="text-xs text-muted-foreground">Allure (min/km)</div>
+          </Card>
+          <Card className="p-3 text-center">
+            <div className="text-lg font-bold text-red-600">{currentSteps}</div>
+            <div className="text-xs text-muted-foreground">Foulées</div>
+          </Card>
+          <Card className="p-3 text-center bg-gradient-to-br from-amber-500/10 to-amber-500/20">
+            <div className="flex items-center justify-center mb-1">
+              <Navigation size={16} className="text-amber-500" />
+            </div>
+            <div className="text-lg font-bold text-foreground">{getRemainingDistance()}</div>
+            <div className="text-xs text-muted-foreground">Restant</div>
           </Card>
         </div>
 
