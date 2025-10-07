@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
@@ -43,7 +43,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
   });
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'all' | 'walk' | 'run'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'walk' | 'run' | null>(null);
 
   // Load user profile from Supabase or localStorage
   useEffect(() => {
@@ -147,6 +147,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
         stats: { ...runTodayStats, walkTime: runTodayStats.runTime }
       };
     } else {
+      // Default to combined stats when no tab is selected or 'all' is selected
       return {
         steps: Math.min((todayStats.steps / dailyGoals.steps) * 100, 100),
         distanceKm: Math.min((todayStats.distanceKm / dailyGoals.distanceKm) * 100, 100),
@@ -204,7 +205,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
 
   const currentStreak = calculateStreak(
     activeTab === 'walk' ? walkWeeklyStats : activeTab === 'run' ? runWeeklyStats : walkWeeklyStats,
-    activeTab
+    activeTab || 'all'
   );
 
   // Calculate badge stats
@@ -538,50 +539,68 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
         </Card>
 
         {/* Onglets Activités avec statistiques */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'all' | 'walk' | 'run')} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
-            <TabsTrigger value="all" className="flex items-center gap-2">
+        <div className="w-full">
+          <div className="grid w-full grid-cols-3 gap-2 mb-6 bg-muted p-1 rounded-lg">
+            <Button
+              variant={activeTab === 'all' ? 'default' : 'ghost'}
+              onClick={() => setActiveTab(activeTab === 'all' ? null : 'all')}
+              className="flex items-center gap-2 transition-all"
+            >
               <Target className="h-4 w-4" />
               {t('dashboard.tabs.all')}
-            </TabsTrigger>
-            <TabsTrigger value="walk" className="flex items-center gap-2">
+            </Button>
+            <Button
+              variant={activeTab === 'walk' ? 'default' : 'ghost'}
+              onClick={() => setActiveTab(activeTab === 'walk' ? null : 'walk')}
+              className="flex items-center gap-2 transition-all"
+            >
               <Footprints className="h-4 w-4" />
               {t('dashboard.walk')}
-            </TabsTrigger>
-            <TabsTrigger value="run" className="flex items-center gap-2">
+            </Button>
+            <Button
+              variant={activeTab === 'run' ? 'default' : 'ghost'}
+              onClick={() => setActiveTab(activeTab === 'run' ? null : 'run')}
+              className="flex items-center gap-2 transition-all"
+            >
               <Zap className="h-4 w-4" />
               {t('dashboard.run')}
-            </TabsTrigger>
-          </TabsList>
+            </Button>
+          </div>
 
-          <TabsContent value="all" className="space-y-6">
-            <WeeklyStats userProfile={{ height: userProfile.height, weight: userProfile.weight }} />
-            <RunWeeklyStats userProfile={{ height: userProfile.height, weight: userProfile.weight }} />
-            <BadgeSystem 
-              walkStats={walkBadgeStats} 
-              runStats={runBadgeStats}
-              activityType="all"
-            />
-          </TabsContent>
+          {activeTab === 'all' && (
+            <div className="space-y-6 animate-in fade-in-50 duration-300">
+              <WeeklyStats userProfile={{ height: userProfile.height, weight: userProfile.weight }} />
+              <RunWeeklyStats userProfile={{ height: userProfile.height, weight: userProfile.weight }} />
+              <BadgeSystem 
+                walkStats={walkBadgeStats} 
+                runStats={runBadgeStats}
+                activityType="all"
+              />
+            </div>
+          )}
 
-          <TabsContent value="walk" className="space-y-6">
-            <WeeklyStats userProfile={{ height: userProfile.height, weight: userProfile.weight }} />
-            <BadgeSystem 
-              walkStats={walkBadgeStats} 
-              runStats={runBadgeStats}
-              activityType="walk"
-            />
-          </TabsContent>
+          {activeTab === 'walk' && (
+            <div className="space-y-6 animate-in fade-in-50 duration-300">
+              <WeeklyStats userProfile={{ height: userProfile.height, weight: userProfile.weight }} />
+              <BadgeSystem 
+                walkStats={walkBadgeStats} 
+                runStats={runBadgeStats}
+                activityType="walk"
+              />
+            </div>
+          )}
 
-          <TabsContent value="run" className="space-y-6">
-            <RunWeeklyStats userProfile={{ height: userProfile.height, weight: userProfile.weight }} />
-            <BadgeSystem 
-              walkStats={walkBadgeStats} 
-              runStats={runBadgeStats}
-              activityType="run"
-            />
-          </TabsContent>
-        </Tabs>
+          {activeTab === 'run' && (
+            <div className="space-y-6 animate-in fade-in-50 duration-300">
+              <RunWeeklyStats userProfile={{ height: userProfile.height, weight: userProfile.weight }} />
+              <BadgeSystem 
+                walkStats={walkBadgeStats} 
+                runStats={runBadgeStats}
+                activityType="run"
+              />
+            </div>
+          )}
+        </div>
 
         {/* Planning limits info */}
         <Card className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border-blue-200">
