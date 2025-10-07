@@ -23,6 +23,14 @@ export const WeeklyCalendarModal = ({ isOpen, onClose, weeklyStats }: WeeklyCale
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null);
 
+  // Helper to get local date string
+  const getLocalDateString = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Get current month info
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -43,7 +51,7 @@ export const WeeklyCalendarModal = ({ isOpen, onClose, weeklyStats }: WeeklyCale
   // Add days of current month
   for (let day = 1; day <= daysInMonth; day++) {
     const date = new Date(year, month, day);
-    const dateISO = date.toISOString().split('T')[0];
+    const dateISO = getLocalDateString(date);
     const dayData = weeklyStats.find(stat => stat.dateISO === dateISO);
     
     calendarDays.push({

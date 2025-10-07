@@ -41,6 +41,13 @@ export const useWalkStats = () => {
     localStorage.setItem('walkSessions', JSON.stringify(walkSessions));
   }, [walkSessions]);
 
+  const getLocalDateString = (date: Date = new Date()): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const saveWalkSession = (sessionData: {
     steps: number;
     distanceKm: number;
@@ -51,7 +58,7 @@ export const useWalkStats = () => {
   }) => {
     const session: WalkSession = {
       id: `walk_${Date.now()}`,
-      date: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD format
+      date: getLocalDateString(), // Today's date in YYYY-MM-DD format (local time)
       ...sessionData
     };
 
@@ -61,7 +68,7 @@ export const useWalkStats = () => {
 
   // Get today's total stats
   const getTodayStats = () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const todaySessions = walkSessions.filter(session => session.date === today);
     
     return todaySessions.reduce(
@@ -85,7 +92,7 @@ export const useWalkStats = () => {
     for (let i = 0; i < 7; i++) {
       const date = new Date(startOfWeek);
       date.setDate(startOfWeek.getDate() + i);
-      const dateISO = date.toISOString().split('T')[0];
+      const dateISO = getLocalDateString(date);
       
       const daySessions = walkSessions.filter(session => session.date === dateISO);
       const dayTotals = daySessions.reduce(

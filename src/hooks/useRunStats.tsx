@@ -42,6 +42,13 @@ export const useRunStats = () => {
     localStorage.setItem('runSessions', JSON.stringify(runSessions));
   }, [runSessions]);
 
+  const getLocalDateString = (date: Date = new Date()): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const saveRunSession = (sessionData: {
     distanceKm: number;
     calories: number;
@@ -53,7 +60,7 @@ export const useRunStats = () => {
   }) => {
     const session: RunSession = {
       id: `run_${Date.now()}`,
-      date: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD format
+      date: getLocalDateString(), // Today's date in YYYY-MM-DD format (local time)
       ...sessionData
     };
 
@@ -63,7 +70,7 @@ export const useRunStats = () => {
 
   // Get today's total stats
   const getTodayStats = () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const todaySessions = runSessions.filter(session => session.date === today);
     
     return todaySessions.reduce(
@@ -87,7 +94,7 @@ export const useRunStats = () => {
     for (let i = 0; i < 7; i++) {
       const date = new Date(startOfWeek);
       date.setDate(startOfWeek.getDate() + i);
-      const dateISO = date.toISOString().split('T')[0];
+      const dateISO = getLocalDateString(date);
       
       const daySessions = runSessions.filter(session => session.date === dateISO);
       const dayTotals = daySessions.reduce(
