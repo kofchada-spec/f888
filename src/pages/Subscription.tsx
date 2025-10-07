@@ -142,50 +142,50 @@ const Subscription = () => {
             </p>
           </div>
 
-          {/* Current Status */}
+          {/* Current Status - Compact Version */}
           {subscriptionData && (
-            <Card className="mb-8">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5" />
+            <Card className="mb-6">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Sparkles className="h-4 w-4" />
                   Statut actuel
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 <div className="flex items-center justify-between">
                   <div>
                     {subscriptionData.subscribed ? (
-                      <div className="space-y-2">
-                        <Badge variant="default" className="bg-green-500">
+                      <div className="space-y-1">
+                        <Badge variant="default" className="bg-green-500 text-xs">
                           <Crown className="h-3 w-3 mr-1" />
                           Abonné {subscriptionData.subscription_tier}
                         </Badge>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           Renouvellement le {subscriptionData.subscription_end && formatDate(subscriptionData.subscription_end)}
                         </p>
                       </div>
                     ) : subscriptionData.inFreeTrial ? (
-                      <div className="space-y-2">
-                        <Badge variant="secondary">
+                      <div className="space-y-1">
+                        <Badge variant="secondary" className="text-xs">
                           <Clock className="h-3 w-3 mr-1" />
                           Essai gratuit
                         </Badge>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           {subscriptionData.trialEnd && getDaysLeft(subscriptionData.trialEnd)} jours restants
                         </p>
                       </div>
                     ) : (
-                      <div className="space-y-2">
-                        <Badge variant="outline">Période d'essai expirée</Badge>
-                        <p className="text-sm text-muted-foreground">
+                      <div className="space-y-1">
+                        <Badge variant="outline" className="text-xs">Période d'essai expirée</Badge>
+                        <p className="text-xs text-muted-foreground">
                           Abonnez-vous pour continuer à utiliser Fitpas
                         </p>
                       </div>
                     )}
                   </div>
                   {subscriptionData.subscribed && (
-                    <Button onClick={handleManageSubscription} variant="outline">
-                      Gérer mon abonnement
+                    <Button onClick={handleManageSubscription} variant="outline" size="sm">
+                      Gérer
                     </Button>
                   )}
                 </div>
