@@ -326,12 +326,12 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
           
           <Card className="p-4 text-center bg-gradient-to-br from-orange-500/5 to-orange-500/10">
             <div className="flex items-center justify-center mb-2">
-              <MapPin size={20} className="text-orange-600" />
+              <Target size={20} className={isMovementDetected ? "text-red-600" : "text-muted-foreground"} />
             </div>
-            <div className="text-2xl font-bold text-foreground">
-              {totalDistance > 0 ? totalDistance.toFixed(2) : "0.0"}
+            <div className="text-2xl font-bold text-foreground">{currentSteps}</div>
+            <div className="text-sm text-muted-foreground">
+              {isTracking && !isMovementDetected ? "En attente..." : "Foulées détectées"}
             </div>
-            <div className="text-sm text-muted-foreground">km (GPS réel)</div>
           </Card>
           
           <Card className="p-4 text-center">
@@ -352,25 +352,6 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
               {liveMetrics.calories}
             </div>
             <div className="text-sm text-muted-foreground">kcal</div>
-          </Card>
-        </div>
-
-        {/* Additional Live Metrics */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <Card className="p-3 text-center">
-            <div className="text-lg font-bold text-orange-600">{liveMetrics.currentPace}</div>
-            <div className="text-xs text-muted-foreground">Allure (min/km)</div>
-          </Card>
-          <Card className="p-3 text-center">
-            <div className="text-lg font-bold text-red-600">{currentSteps}</div>
-            <div className="text-xs text-muted-foreground">Foulées</div>
-          </Card>
-          <Card className="p-3 text-center bg-gradient-to-br from-amber-500/10 to-amber-500/20">
-            <div className="flex items-center justify-center mb-1">
-              <Navigation size={16} className="text-amber-500" />
-            </div>
-            <div className="text-lg font-bold text-foreground">{getRemainingDistance()}</div>
-            <div className="text-xs text-muted-foreground">Restant</div>
           </Card>
         </div>
 
