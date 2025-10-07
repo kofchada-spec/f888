@@ -34,7 +34,7 @@ export const WeeklyStats = ({ userProfile }: WeeklyStatsProps) => {
     <Card className="bg-card shadow-lg border-0">
       <CardContent className="p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-foreground">Cette semaine</h2>
+          <h2 className="text-lg font-semibold text-foreground">Cette semaine - Marche</h2>
           <Button 
             variant="ghost" 
             size="sm" 
