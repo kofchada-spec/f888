@@ -201,7 +201,7 @@ const Subscription = () => {
                 <CardTitle className="text-2xl">Mensuel</CardTitle>
                 <CardDescription>Parfait pour commencer</CardDescription>
                 <div className="text-3xl font-bold">
-                  9,99€<span className="text-lg font-normal text-muted-foreground">/mois</span>
+                  8,99€<span className="text-lg font-normal text-muted-foreground">/mois</span>
                 </div>
               </CardHeader>
               <CardContent>
@@ -239,7 +239,7 @@ const Subscription = () => {
             <Card className="relative border-primary">
               <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
                 <Badge className="bg-primary text-primary-foreground">
-                  33% de remise
+                  44% de remise
                 </Badge>
               </div>
               <CardHeader>
@@ -249,10 +249,10 @@ const Subscription = () => {
                 </CardTitle>
                 <CardDescription>Le meilleur rapport qualité-prix</CardDescription>
                 <div className="text-3xl font-bold">
-                  79,99€<span className="text-lg font-normal text-muted-foreground">/an</span>
+                  59,99€<span className="text-lg font-normal text-muted-foreground">/an</span>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Soit 6,67€/mois (au lieu de 119,88€/an)
+                  Soit 5€/mois (au lieu de 107,88€/an)
                 </p>
               </CardHeader>
               <CardContent>
