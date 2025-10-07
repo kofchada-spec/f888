@@ -42,38 +42,51 @@ const Index = () => {
 
   // Check stored completion states on mount and verify profile in Supabase
   useEffect(() => {
-    const checkProfileCompletion = async () => {
-      const onboardingComplete = localStorage.getItem('fitpas-onboarding-complete');
-      setHasCompletedOnboarding(!!onboardingComplete);
-      
-      // If user is authenticated, check if profile exists in Supabase
+    const checkCompletionStatus = async () => {
       if (user) {
-        const { supabase } = await import('@/integrations/supabase/client');
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-        
-        if (profile && !error) {
-          // Profile exists in database
-          setHasCompletedProfile(true);
-          localStorage.setItem('fitpas-profile-complete', 'true');
-        } else {
-          // No profile in database
-          setHasCompletedProfile(false);
-          localStorage.removeItem('fitpas-profile-complete');
+        // If user is authenticated, check Supabase
+        try {
+          const { supabase } = await import('@/integrations/supabase/client');
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('onboarding_complete, profile_complete')
+            .eq('user_id', user.id)
+            .single();
+
+          if (profile && !error) {
+            // Use values from database
+            setHasCompletedOnboarding(profile.onboarding_complete || false);
+            setHasCompletedProfile(profile.profile_complete || false);
+            
+            // Sync with localStorage for consistency
+            if (profile.onboarding_complete) {
+              localStorage.setItem('fitpas-onboarding-complete', 'true');
+            }
+            if (profile.profile_complete) {
+              localStorage.setItem('fitpas-profile-complete', 'true');
+            }
+          } else {
+            // No profile in database, fallback to localStorage
+            setHasCompletedOnboarding(localStorage.getItem('fitpas-onboarding-complete') === 'true');
+            setHasCompletedProfile(false);
+            localStorage.removeItem('fitpas-profile-complete');
+          }
+        } catch (error) {
+          console.error('Error checking completion status:', error);
+          // Fallback to localStorage if Supabase fails
+          setHasCompletedOnboarding(localStorage.getItem('fitpas-onboarding-complete') === 'true');
+          setHasCompletedProfile(localStorage.getItem('fitpas-profile-complete') === 'true');
         }
       } else {
         // Not authenticated, check localStorage
-        const profileComplete = localStorage.getItem('fitpas-profile-complete');
-        setHasCompletedProfile(!!profileComplete);
+        setHasCompletedOnboarding(localStorage.getItem('fitpas-onboarding-complete') === 'true');
+        setHasCompletedProfile(localStorage.getItem('fitpas-profile-complete') === 'true');
       }
       
       setIsInitialized(true);
     };
     
-    checkProfileCompletion();
+    checkCompletionStatus();
   }, [user]);
 
   // Check for URL parameters

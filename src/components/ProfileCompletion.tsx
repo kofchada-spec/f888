@@ -93,7 +93,8 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
             height_m: data.height,
             weight_kg: data.weight,
             birth_date: birthDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
-            age_years: finalAge
+            age_years: finalAge,
+            profile_complete: true
           }, {
             onConflict: 'user_id'
           });
@@ -113,6 +114,7 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
           age_years: finalAge
         };
         localStorage.setItem('userProfile', JSON.stringify(profileData));
+        localStorage.setItem('fitpas-profile-complete', 'true');
       }
       
       onComplete();

@@ -70,6 +70,8 @@ export type Database = {
           height_m: number | null
           id: string
           last_name: string | null
+          onboarding_complete: boolean | null
+          profile_complete: boolean | null
           updated_at: string
           user_id: string
           weight_kg: number | null
@@ -84,6 +86,8 @@ export type Database = {
           height_m?: number | null
           id?: string
           last_name?: string | null
+          onboarding_complete?: boolean | null
+          profile_complete?: boolean | null
           updated_at?: string
           user_id: string
           weight_kg?: number | null
@@ -98,6 +102,8 @@ export type Database = {
           height_m?: number | null
           id?: string
           last_name?: string | null
+          onboarding_complete?: boolean | null
+          profile_complete?: boolean | null
           updated_at?: string
           user_id?: string
           weight_kg?: number | null

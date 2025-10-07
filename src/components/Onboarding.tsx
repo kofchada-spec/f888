@@ -26,7 +26,31 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
     }
   };
 
-  const goToComplete = () => {
+  const goToComplete = async () => {
+    // Save onboarding completion to Supabase if user is authenticated
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        await supabase
+          .from('profiles')
+          .upsert({
+            user_id: user.id,
+            onboarding_complete: true
+          }, {
+            onConflict: 'user_id'
+          });
+      } else {
+        // Fallback to localStorage if not authenticated
+        localStorage.setItem('fitpas-onboarding-complete', 'true');
+      }
+    } catch (error) {
+      console.error('Error saving onboarding status:', error);
+      // Fallback to localStorage on error
+      localStorage.setItem('fitpas-onboarding-complete', 'true');
+    }
+    
     onComplete();
   };
 
