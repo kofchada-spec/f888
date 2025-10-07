@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ArrowLeft, Play, Pause, Square, Clock, MapPin, Zap, Target, Timer, Navigation } from 'lucide-react';
 import Map, { MapRef } from './Map';
 import { useNavigate } from 'react-router-dom';
@@ -52,6 +53,7 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
   const [currentSteps, setCurrentSteps] = useState(0);
   const [isMovementDetected, setIsMovementDetected] = useState(false);
   const [lastStepCount, setLastStepCount] = useState(0);
+  const [showExitDialog, setShowExitDialog] = useState(false);
   const mapRef = useRef<MapRef>(null);
   const motionListenerId = useRef<(() => void) | null>(null);
 
@@ -291,12 +293,25 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
     return Math.round(distanceM / strideM);
   };
 
+  const handleLogoClick = () => {
+    if (isTracking || runStartTime) {
+      setShowExitDialog(true);
+    } else {
+      onGoToDashboard();
+    }
+  };
+
+  const handleConfirmExit = () => {
+    setShowExitDialog(false);
+    onGoToDashboard();
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-500/5 via-background to-red-500/5">
       {/* Header */}
       <div className="bg-card shadow-sm">
         <div className="px-6 py-4 flex items-center justify-end">
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={onGoToDashboard}>
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={handleLogoClick}>
             <img 
               src="/lovable-uploads/5216fdd6-d0d7-446b-9260-86d15d06f4ba.png" 
               alt="Fitpas" 
@@ -491,6 +506,26 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
           )}
         </div>
       </div>
+
+      {/* Dialog de confirmation de sortie */}
+      <Dialog open={showExitDialog} onOpenChange={setShowExitDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Arrêter l'activité ?</DialogTitle>
+            <DialogDescription>
+              Votre course est en cours. Êtes-vous sûr de vouloir quitter ? Vos données ne seront pas sauvegardées si vous n'avez pas terminé l'activité.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowExitDialog(false)}>
+              Continuer la course
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmExit}>
+              Quitter
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ArrowLeft, Play, Pause, Square, Clock, MapPin, Zap, Target, Timer, Navigation } from 'lucide-react';
 import Map, { MapRef } from './Map';
 import { useNavigate } from 'react-router-dom';
@@ -52,6 +53,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
   const [currentSteps, setCurrentSteps] = useState(0);
   const [isMovementDetected, setIsMovementDetected] = useState(false);
   const [lastStepCount, setLastStepCount] = useState(0);
+  const [showExitDialog, setShowExitDialog] = useState(false);
   const mapRef = useRef<MapRef>(null);
   const motionListenerId = useRef<(() => void) | null>(null);
 
@@ -328,12 +330,26 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
     return Math.round(distanceM / strideM);
   };
 
+  const handleLogoClick = () => {
+    // Si une activité est en cours, afficher le dialog de confirmation
+    if (isTracking || walkStartTime) {
+      setShowExitDialog(true);
+    } else {
+      onGoToDashboard();
+    }
+  };
+
+  const handleConfirmExit = () => {
+    setShowExitDialog(false);
+    onGoToDashboard();
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
       {/* Header */}
       <div className="bg-card shadow-sm">
         <div className="px-6 py-4 flex items-center justify-end">
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={onGoToDashboard}>
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={handleLogoClick}>
             <img 
               src="/lovable-uploads/5216fdd6-d0d7-446b-9260-86d15d06f4ba.png" 
               alt="Fitpas" 
@@ -529,6 +545,26 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
           )}
         </div>
       </div>
+
+      {/* Dialog de confirmation de sortie */}
+      <Dialog open={showExitDialog} onOpenChange={setShowExitDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Arrêter l'activité ?</DialogTitle>
+            <DialogDescription>
+              Votre activité est en cours. Êtes-vous sûr de vouloir quitter ? Vos données ne seront pas sauvegardées si vous n'avez pas terminé l'activité.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowExitDialog(false)}>
+              Continuer l'activité
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmExit}>
+              Quitter
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
