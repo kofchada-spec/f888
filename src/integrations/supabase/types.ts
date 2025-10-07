@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      activities: {
+        Row: {
+          activity_type: string
+          calories: number
+          created_at: string
+          date: string
+          distance_km: number
+          duration_min: number
+          end_time: string | null
+          id: string
+          start_time: string | null
+          steps: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_type: string
+          calories?: number
+          created_at?: string
+          date?: string
+          distance_km?: number
+          duration_min?: number
+          end_time?: string | null
+          id?: string
+          start_time?: string | null
+          steps?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          calories?: number
+          created_at?: string
+          date?: string
+          distance_km?: number
+          duration_min?: number
+          end_time?: string | null
+          id?: string
+          start_time?: string | null
+          steps?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           age_years: number | null

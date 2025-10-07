@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './useAuth';
 
 export interface RunSession {
   id: string;
@@ -21,26 +23,44 @@ export interface RunDayStats {
 }
 
 export const useRunStats = () => {
+  const { user } = useAuth();
   const [runSessions, setRunSessions] = useState<RunSession[]>([]);
 
-  // Load saved run sessions on mount
+  // Load run sessions from Supabase
   useEffect(() => {
-    const savedSessions = localStorage.getItem('runSessions');
-    if (savedSessions) {
-      try {
-        const parsed = JSON.parse(savedSessions);
-        setRunSessions(parsed);
-      } catch (error) {
-        console.error('Error loading run sessions:', error);
-        setRunSessions([]);
-      }
-    }
-  }, []);
+    if (!user) return;
 
-  // Save run sessions to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('runSessions', JSON.stringify(runSessions));
-  }, [runSessions]);
+    const loadActivities = async () => {
+      const { data, error } = await supabase
+        .from('activities')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('activity_type', 'run')
+        .order('date', { ascending: false });
+
+      if (error) {
+        console.error('Error loading run sessions:', error);
+        return;
+      }
+
+      if (data) {
+        const sessions: RunSession[] = data.map(activity => ({
+          id: activity.id,
+          date: activity.date,
+          distanceKm: activity.distance_km,
+          calories: activity.calories,
+          durationMin: activity.duration_min,
+          steps: activity.steps,
+          pace: 'moderate' as 'slow' | 'moderate' | 'fast',
+          startTime: new Date(activity.start_time),
+          endTime: new Date(activity.end_time)
+        }));
+        setRunSessions(sessions);
+      }
+    };
+
+    loadActivities();
+  }, [user]);
 
   const getLocalDateString = (date: Date = new Date()): string => {
     const year = date.getFullYear();
@@ -49,7 +69,7 @@ export const useRunStats = () => {
     return `${year}-${month}-${day}`;
   };
 
-  const saveRunSession = (sessionData: {
+  const saveRunSession = async (sessionData: {
     distanceKm: number;
     calories: number;
     durationMin: number;
@@ -58,14 +78,49 @@ export const useRunStats = () => {
     startTime: Date;
     endTime: Date;
   }) => {
-    const session: RunSession = {
-      id: `run_${Date.now()}`,
-      date: getLocalDateString(), // Today's date in YYYY-MM-DD format (local time)
-      ...sessionData
-    };
+    if (!user) {
+      console.error('User not authenticated');
+      return null;
+    }
 
-    setRunSessions(prev => [...prev, session]);
-    return session;
+    const { data, error } = await supabase
+      .from('activities')
+      .insert({
+        user_id: user.id,
+        activity_type: 'run',
+        date: getLocalDateString(),
+        steps: sessionData.steps,
+        distance_km: sessionData.distanceKm,
+        calories: sessionData.calories,
+        duration_min: sessionData.durationMin,
+        start_time: sessionData.startTime.toISOString(),
+        end_time: sessionData.endTime.toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error saving run session:', error);
+      return null;
+    }
+
+    if (data) {
+      const newSession: RunSession = {
+        id: data.id,
+        date: data.date,
+        distanceKm: data.distance_km,
+        calories: data.calories,
+        durationMin: data.duration_min,
+        steps: data.steps,
+        pace: sessionData.pace,
+        startTime: new Date(data.start_time),
+        endTime: new Date(data.end_time)
+      };
+      setRunSessions(prev => [newSession, ...prev]);
+      return newSession;
+    }
+
+    return null;
   };
 
   // Get today's total stats

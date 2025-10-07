@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './useAuth';
 
 export interface WalkSession {
   id: string;
@@ -20,26 +22,43 @@ export interface DayStats {
 }
 
 export const useWalkStats = () => {
+  const { user } = useAuth();
   const [walkSessions, setWalkSessions] = useState<WalkSession[]>([]);
 
-  // Load saved walk sessions on mount
+  // Load walk sessions from Supabase
   useEffect(() => {
-    const savedSessions = localStorage.getItem('walkSessions');
-    if (savedSessions) {
-      try {
-        const parsed = JSON.parse(savedSessions);
-        setWalkSessions(parsed);
-      } catch (error) {
-        console.error('Error loading walk sessions:', error);
-        setWalkSessions([]);
-      }
-    }
-  }, []);
+    if (!user) return;
 
-  // Save walk sessions to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('walkSessions', JSON.stringify(walkSessions));
-  }, [walkSessions]);
+    const loadActivities = async () => {
+      const { data, error } = await supabase
+        .from('activities')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('activity_type', 'walk')
+        .order('date', { ascending: false });
+
+      if (error) {
+        console.error('Error loading walk sessions:', error);
+        return;
+      }
+
+      if (data) {
+        const sessions: WalkSession[] = data.map(activity => ({
+          id: activity.id,
+          date: activity.date,
+          steps: activity.steps,
+          distanceKm: activity.distance_km,
+          calories: activity.calories,
+          durationMin: activity.duration_min,
+          startTime: new Date(activity.start_time),
+          endTime: new Date(activity.end_time)
+        }));
+        setWalkSessions(sessions);
+      }
+    };
+
+    loadActivities();
+  }, [user]);
 
   const getLocalDateString = (date: Date = new Date()): string => {
     const year = date.getFullYear();
@@ -48,7 +67,7 @@ export const useWalkStats = () => {
     return `${year}-${month}-${day}`;
   };
 
-  const saveWalkSession = (sessionData: {
+  const saveWalkSession = async (sessionData: {
     steps: number;
     distanceKm: number;
     calories: number;
@@ -56,14 +75,48 @@ export const useWalkStats = () => {
     startTime: Date;
     endTime: Date;
   }) => {
-    const session: WalkSession = {
-      id: `walk_${Date.now()}`,
-      date: getLocalDateString(), // Today's date in YYYY-MM-DD format (local time)
-      ...sessionData
-    };
+    if (!user) {
+      console.error('User not authenticated');
+      return null;
+    }
 
-    setWalkSessions(prev => [...prev, session]);
-    return session;
+    const { data, error } = await supabase
+      .from('activities')
+      .insert({
+        user_id: user.id,
+        activity_type: 'walk',
+        date: getLocalDateString(),
+        steps: sessionData.steps,
+        distance_km: sessionData.distanceKm,
+        calories: sessionData.calories,
+        duration_min: sessionData.durationMin,
+        start_time: sessionData.startTime.toISOString(),
+        end_time: sessionData.endTime.toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error saving walk session:', error);
+      return null;
+    }
+
+    if (data) {
+      const newSession: WalkSession = {
+        id: data.id,
+        date: data.date,
+        steps: data.steps,
+        distanceKm: data.distance_km,
+        calories: data.calories,
+        durationMin: data.duration_min,
+        startTime: new Date(data.start_time),
+        endTime: new Date(data.end_time)
+      };
+      setWalkSessions(prev => [newSession, ...prev]);
+      return newSession;
+    }
+
+    return null;
   };
 
   // Get today's total stats

@@ -11,6 +11,8 @@ import { usePlanningLimiter } from '@/hooks/usePlanningLimiter';
 import { useGPSTracking } from '@/hooks/useGPSTracking';
 import { useLiveMetrics } from '@/hooks/useLiveMetrics';
 import { useTrackingFeedback } from '@/hooks/useTrackingFeedback';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Destination {
   id: string;
@@ -41,6 +43,7 @@ interface WalkTrackingProps {
 
 const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: WalkTrackingProps) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { validateActivityCompletion } = usePlanningLimiter();
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [isTracking, setIsTracking] = useState(false);
@@ -259,33 +262,34 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
     setIsTracking(false);
   };
 
-  const handleStopWalk = () => {
-    if (walkStartTime && elapsedTime > 0) {
-      // Use real GPS distance instead of step-based estimation
+  const handleStopWalk = async () => {
+    if (walkStartTime && elapsedTime > 0 && user) {
       const distanceKm = totalDistance > 0 ? totalDistance : (currentSteps * 0.415 * planningData.height) / 1000;
       const calories = liveMetrics.calories;
       const durationMin = Math.round(elapsedTime / 60);
 
-      // Save to localStorage for now - can be enhanced to sync with database later
-      const walkSession = {
-        id: `walk_${Date.now()}`,
-        date: new Date().toISOString().split('T')[0],
-        steps: currentSteps,
-        distanceKm: Number(distanceKm.toFixed(2)),
-        calories,
-        durationMin,
-        startTime: walkStartTime,
-        endTime: new Date()
-      };
+      // Save to Supabase
+      const { error } = await supabase
+        .from('activities')
+        .insert({
+          user_id: user.id,
+          activity_type: 'walk',
+          date: new Date().toISOString().split('T')[0],
+          steps: currentSteps,
+          distance_km: Number(distanceKm.toFixed(2)),
+          calories,
+          duration_min: durationMin,
+          start_time: walkStartTime.toISOString(),
+          end_time: new Date().toISOString()
+        });
 
-      // Get existing sessions and add new one
-      const existingSessions = JSON.parse(localStorage.getItem('walkSessions') || '[]');
-      existingSessions.push(walkSession);
-      localStorage.setItem('walkSessions', JSON.stringify(existingSessions));
-
-      console.log('Walk session saved:', walkSession);
-      
-      toast.success(`🎉 Marche terminée ! ${distanceKm.toFixed(1)} km, ${calories} kcal`);
+      if (error) {
+        console.error('Error saving walk session:', error);
+        toast.error('Erreur lors de la sauvegarde');
+      } else {
+        console.log('Walk session saved');
+        toast.success(`🎉 Marche terminée ! ${distanceKm.toFixed(1)} km, ${calories} kcal`);
+      }
     }
 
     setIsTracking(false);

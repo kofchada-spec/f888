@@ -11,6 +11,8 @@ import { usePlanningLimiter } from '@/hooks/usePlanningLimiter';
 import { useGPSTracking } from '@/hooks/useGPSTracking';
 import { useLiveMetrics } from '@/hooks/useLiveMetrics';
 import { useTrackingFeedback } from '@/hooks/useTrackingFeedback';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Destination {
   id: string;
@@ -41,6 +43,7 @@ interface RunTrackingProps {
 
 const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: RunTrackingProps) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { validateActivityCompletion } = usePlanningLimiter();
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [isTracking, setIsTracking] = useState(false);
@@ -224,30 +227,34 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
     setIsTracking(false);
   };
 
-  const handleStopRun = () => {
-    if (runStartTime && elapsedTime > 0) {
+  const handleStopRun = async () => {
+    if (runStartTime && elapsedTime > 0 && user) {
       const distanceKm = totalDistance > 0 ? totalDistance : (currentSteps * 0.5 * planningData.height) / 1000;
       const calories = liveMetrics.calories;
       const durationMin = Math.round(elapsedTime / 60);
 
-      const runSession = {
-        id: `run_${Date.now()}`,
-        date: new Date().toISOString().split('T')[0],
-        steps: currentSteps,
-        distanceKm: Number(distanceKm.toFixed(2)),
-        calories,
-        durationMin,
-        startTime: runStartTime,
-        endTime: new Date(),
-        activityType: 'run'
-      };
+      // Save to Supabase
+      const { error } = await supabase
+        .from('activities')
+        .insert({
+          user_id: user.id,
+          activity_type: 'run',
+          date: new Date().toISOString().split('T')[0],
+          steps: currentSteps,
+          distance_km: Number(distanceKm.toFixed(2)),
+          calories,
+          duration_min: durationMin,
+          start_time: runStartTime.toISOString(),
+          end_time: new Date().toISOString()
+        });
 
-      const existingSessions = JSON.parse(localStorage.getItem('runSessions') || '[]');
-      existingSessions.push(runSession);
-      localStorage.setItem('runSessions', JSON.stringify(existingSessions));
-
-      console.log('Run session saved:', runSession);
-      toast.success(`🎉 Course terminée ! ${distanceKm.toFixed(1)} km, ${calories} kcal`);
+      if (error) {
+        console.error('Error saving run session:', error);
+        toast.error('Erreur lors de la sauvegarde');
+      } else {
+        console.log('Run session saved');
+        toast.success(`🎉 Course terminée ! ${distanceKm.toFixed(1)} km, ${calories} kcal`);
+      }
     }
     setIsTracking(false);
     setRunStartTime(null);
