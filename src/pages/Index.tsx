@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import Onboarding from '@/components/Onboarding';
 import Auth from '@/components/Auth';
 import ProfileCompletion from '@/components/ProfileCompletion';
@@ -11,10 +11,14 @@ import RunMapScreen from '@/components/RunMapScreen';
 import WalkTracking from '@/components/WalkTracking';
 import RunTracking from '@/components/RunTracking';
 import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
 import { Loader2 } from 'lucide-react';
 
 const Index = () => {
   const { user, loading } = useAuth();
+  const { subscriptionData, loading: subscriptionLoading } = useSubscription();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [hasCompletedProfile, setHasCompletedProfile] = useState(false);
@@ -178,8 +182,18 @@ const Index = () => {
     setShowDestinationSelection(true);
   };
 
+  // Check subscription status and redirect if expired
+  useEffect(() => {
+    if (user && subscriptionData && !subscriptionLoading && hasCompletedProfile) {
+      // If trial expired and not subscribed, redirect to subscription page
+      if (!subscriptionData.hasAccess && location.pathname !== '/subscription') {
+        navigate('/subscription', { replace: true });
+      }
+    }
+  }, [user, subscriptionData, subscriptionLoading, hasCompletedProfile, navigate, location.pathname]);
+
   // Show loading while auth or initialization is loading
-  if (loading || !isInitialized) {
+  if (loading || !isInitialized || subscriptionLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
