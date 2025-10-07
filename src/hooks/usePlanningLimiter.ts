@@ -11,6 +11,9 @@ const STORAGE_KEY = 'planning_limiter_data';
 const BASE_DAILY_LIMIT = 3;
 const MAX_DAILY_LIMIT = 6;
 
+// 🧪 MODE TEST: Désactive temporairement les limites de planification pour les tests
+const TEST_MODE = true;
+
 export const usePlanningLimiter = () => {
   const [dailyPlansUsed, setDailyPlansUsed] = useState(0);
   const [currentStreak, setCurrentStreak] = useState(0);
@@ -24,9 +27,9 @@ export const usePlanningLimiter = () => {
     return 0;
   }, []);
 
-  const dailyLimit = BASE_DAILY_LIMIT + getBonusPlans(currentStreak);
-  const remainingPlans = Math.max(0, dailyLimit - dailyPlansUsed);
-  const canPlan = remainingPlans > 0;
+  const dailyLimit = TEST_MODE ? 999 : BASE_DAILY_LIMIT + getBonusPlans(currentStreak);
+  const remainingPlans = TEST_MODE ? 999 : Math.max(0, dailyLimit - dailyPlansUsed);
+  const canPlan = TEST_MODE ? true : remainingPlans > 0;
 
   // Load data from localStorage
   useEffect(() => {
@@ -83,6 +86,8 @@ export const usePlanningLimiter = () => {
 
   // Increment plan count
   const incrementPlanCount = useCallback(() => {
+    // En mode test, toujours permettre la planification
+    if (TEST_MODE) return true;
     if (!canPlan) return false;
 
     const today = new Date().toDateString();
