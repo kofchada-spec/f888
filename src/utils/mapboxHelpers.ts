@@ -19,8 +19,8 @@ export const initializeMap = (
   const map = new mapboxgl.Map({
     container,
     style: 'mapbox://styles/mapbox/streets-v12',
-    zoom: zoom || 14,
-    center: center || [2.3522, 48.8566], // Default to Paris
+    zoom: zoom || 6,
+    center: center || [2.5, 46.5], // Default to France center
   });
   console.log('🗺️ [initializeMap] Instance Map créée:', !!map);
 
