@@ -183,14 +183,15 @@ const Index = () => {
   };
 
   // Check subscription status and redirect if expired
-  useEffect(() => {
-    if (user && subscriptionData && !subscriptionLoading && hasCompletedProfile) {
-      // If trial expired and not subscribed, redirect to subscription page
-      if (!subscriptionData.hasAccess && location.pathname !== '/subscription') {
-        navigate('/subscription', { replace: true });
-      }
-    }
-  }, [user, subscriptionData, subscriptionLoading, hasCompletedProfile, navigate, location.pathname]);
+  // TEMPORARILY DISABLED - Subscription check for testing
+  // useEffect(() => {
+  //   if (user && subscriptionData && !subscriptionLoading && hasCompletedProfile) {
+  //     // If trial expired and not subscribed, redirect to subscription page
+  //     if (!subscriptionData.hasAccess && location.pathname !== '/subscription') {
+  //       navigate('/subscription', { replace: true });
+  //     }
+  //   }
+  // }, [user, subscriptionData, subscriptionLoading, hasCompletedProfile, navigate, location.pathname]);
 
   // Show loading while auth or initialization is loading
   if (loading || !isInitialized || subscriptionLoading) {

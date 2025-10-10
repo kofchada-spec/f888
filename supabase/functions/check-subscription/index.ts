@@ -100,7 +100,7 @@ serve(async (req) => {
 
       return new Response(JSON.stringify({ 
         subscribed: false, 
-        hasAccess: isInFreeTrial,
+        hasAccess: true, // TEMPORARILY DISABLED - Always true for testing
         inFreeTrial: isInFreeTrial,
         trialEnd: existingSubscriber?.trial_end 
       }), {
@@ -154,7 +154,8 @@ serve(async (req) => {
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' });
 
-    const hasAccess = hasActiveSub || isInFreeTrial;
+    // TEMPORARILY DISABLED FOR TESTING - Always grant access
+    const hasAccess = true; // hasActiveSub || isInFreeTrial;
     
     logStep("Updated database with subscription info", { 
       subscribed: hasActiveSub, 
@@ -167,7 +168,7 @@ serve(async (req) => {
       subscribed: hasActiveSub,
       subscription_tier: subscriptionTier,
       subscription_end: subscriptionEnd,
-      hasAccess: hasAccess,
+      hasAccess: true, // TEMPORARILY DISABLED - Always true for testing
       inFreeTrial: isInFreeTrial,
       trialEnd: existingSubscriber?.trial_end
     }), {
