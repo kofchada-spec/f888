@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Moon, Sun, Bell, Globe, Ruler, Shield, Download, Trash2 } from 'lucide-react';
+import { ArrowLeft, Moon, Sun, Bell, Globe, Ruler, Shield, Download, Trash2, Volume2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,6 +32,22 @@ const Settings = () => {
   const [notifications, setNotifications] = useState(true);
   const [language, setLanguage] = useState(i18n.language || 'fr');
   const [units, setUnits] = useState('metric');
+  const [voiceGuidanceEnabled, setVoiceGuidanceEnabled] = useState(() => {
+    const stored = localStorage.getItem('voiceGuidanceEnabled');
+    return stored !== null ? stored === 'true' : true;
+  });
+  const [announcementInterval, setAnnouncementInterval] = useState(() => {
+    const stored = localStorage.getItem('announcementInterval');
+    return stored || '500';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('voiceGuidanceEnabled', String(voiceGuidanceEnabled));
+  }, [voiceGuidanceEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('announcementInterval', announcementInterval);
+  }, [announcementInterval]);
 
   const handleLanguageChange = (newLang: string) => {
     setLanguage(newLang);
@@ -246,6 +262,62 @@ const Settings = () => {
                 <SelectContent>
                   <SelectItem value="metric">{t('settings.app.units.metric')}</SelectItem>
                   <SelectItem value="imperial">{t('settings.app.units.imperial')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Voice Guidance Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('settings.voice.title')}</CardTitle>
+            <CardDescription>
+              {t('settings.voice.description')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Enable Voice Guidance */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Volume2 className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="font-medium">{t('settings.voice.enabled.title')}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {t('settings.voice.enabled.description')}
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={voiceGuidanceEnabled}
+                onCheckedChange={setVoiceGuidanceEnabled}
+              />
+            </div>
+
+            {/* Announcement Interval */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Bell className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="font-medium">{t('settings.voice.interval.title')}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {t('settings.voice.interval.description')}
+                  </p>
+                </div>
+              </div>
+              <Select 
+                value={announcementInterval} 
+                onValueChange={setAnnouncementInterval}
+                disabled={!voiceGuidanceEnabled}
+              >
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="250">{t('settings.voice.interval.250m')}</SelectItem>
+                  <SelectItem value="500">{t('settings.voice.interval.500m')}</SelectItem>
+                  <SelectItem value="1000">{t('settings.voice.interval.1km')}</SelectItem>
+                  <SelectItem value="2000">{t('settings.voice.interval.2km')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

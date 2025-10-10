@@ -12,6 +12,7 @@ import { usePlanningLimiter } from '@/hooks/usePlanningLimiter';
 import { useGPSTracking } from '@/hooks/useGPSTracking';
 import { useLiveMetrics } from '@/hooks/useLiveMetrics';
 import { useTrackingFeedback } from '@/hooks/useTrackingFeedback';
+import { useVoiceGuidance } from '@/hooks/useVoiceGuidance';
 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -54,6 +55,16 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
   const [showExitDialog, setShowExitDialog] = useState(false);
   const mapRef = useRef<MapRef>(null);
 
+  // Voice guidance settings
+  const voiceGuidanceEnabled = localStorage.getItem('voiceGuidanceEnabled') !== 'false';
+  const announcementInterval = parseInt(localStorage.getItem('announcementInterval') || '500');
+  
+  // Voice guidance hook
+  const voiceGuidance = useVoiceGuidance({
+    enabled: voiceGuidanceEnabled,
+    announcementInterval
+  });
+
   const { currentPosition, pathCoordinates, totalDistance, currentSpeed, resetTracking: resetGPS } = useGPSTracking({
     isTracking,
     onPositionUpdate: (position) => setUserLocation({ lat: position.lat, lng: position.lng })
@@ -77,6 +88,14 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
     currentProgress, isTracking, currentPosition: currentPosition ? { lat: currentPosition.lat, lng: currentPosition.lng } : null,
     destinationCoords: destination.coordinates, totalDistance
   });
+
+  // Voice guidance - announce distance
+  useEffect(() => {
+    if (isTracking && totalDistance > 0) {
+      const distanceInMeters = totalDistance * 1000;
+      voiceGuidance.announceDistance(distanceInMeters);
+    }
+  }, [totalDistance, isTracking]);
 
   // Step detection is now handled by useStepDetection hook
 
@@ -167,11 +186,13 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
     resetGPS();
     resetFeedback();
     validateActivityCompletion();
+    voiceGuidance.announceStart();
     toast.info("🏃 Course démarrée ! GPS activé.");
   };
 
   const handlePauseRun = () => {
     setIsTracking(false);
+    voiceGuidance.announcePause();
   };
 
   const handleStopRun = async () => {
@@ -179,6 +200,8 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
       const distanceKm = totalDistance > 0 ? totalDistance : (currentSteps * 0.5 * planningData.height) / 1000;
       const calories = liveMetrics.calories;
       const durationMin = Math.round(elapsedTime / 60);
+
+      voiceGuidance.announceComplete(totalDistance * 1000, elapsedTime);
 
       // Save to Supabase
       const { error } = await supabase
@@ -424,7 +447,10 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
           
           {!isTracking && runStartTime && (
             <Button
-              onClick={handleStartRun}
+              onClick={() => {
+                handleStartRun();
+                voiceGuidance.announceResume();
+              }}
               size="lg"
               className="bg-orange-600 hover:bg-orange-700 text-white px-8 py-3 text-lg font-semibold"
             >

@@ -90,6 +90,22 @@
         "imperial": "Imperial"
       }
     },
+    "voice": {
+      "title": "Voice Guidance",
+      "description": "Configure audio announcements during your activities",
+      "enabled": {
+        "title": "Enable voice guidance",
+        "description": "Voice instructions and distance announcements"
+      },
+      "interval": {
+        "title": "Announcement frequency",
+        "description": "How often to announce distance",
+        "250m": "250 m",
+        "500m": "500 m",
+        "1km": "1 km",
+        "2km": "2 km"
+      }
+    },
     "privacy": {
       "title": "Privacy and data",
       "description": "Manage your personal data",

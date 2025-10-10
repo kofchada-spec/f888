@@ -90,6 +90,22 @@
         "imperial": "Impérial"
       }
     },
+    "voice": {
+      "title": "Guidages vocaux",
+      "description": "Configurer les annonces audio pendant vos activités",
+      "enabled": {
+        "title": "Activer les guidages vocaux",
+        "description": "Instructions vocales et annonces de distance"
+      },
+      "interval": {
+        "title": "Fréquence d'annonce",
+        "description": "À quelle fréquence annoncer la distance",
+        "250m": "250 m",
+        "500m": "500 m",
+        "1km": "1 km",
+        "2km": "2 km"
+      }
+    },
     "privacy": {
       "title": "Confidentialité et données",
       "description": "Gérez vos données personnelles",
