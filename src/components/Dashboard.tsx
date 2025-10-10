@@ -264,52 +264,52 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* En-tête */}
+      {/* En-tête optimisé mobile */}
       <header className="bg-card shadow-sm border-b">
-        <div className="px-6 py-4 flex items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center space-x-2 cursor-pointer" onClick={() => navigate('/')}>
+        <div className="px-3 py-3 flex items-center justify-between gap-2">
+          {/* Logo + Badge */}
+          <div className="flex items-center gap-1.5 cursor-pointer shrink-0" onClick={() => navigate('/')}>
             <img 
               src="/lovable-uploads/5216fdd6-d0d7-446b-9260-86d15d06f4ba.png" 
               alt="Fitpas" 
-              className="h-8 w-auto hover:scale-105 transition-transform"
+              className="h-7 w-auto hover:scale-105 transition-transform"
               style={{ 
                 filter: 'invert(0) sepia(1) saturate(5) hue-rotate(120deg) brightness(0.8)',
                 color: '#10b981' 
               }}
             />
-            <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100 text-xs">
+            <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100 text-[10px] px-1.5 py-0.5">
               Bêta
             </Badge>
           </div>
 
-          {/* Message de salutation */}
-          <div className="flex-1 flex items-center justify-center">
-            <h1 className="text-sm font-normal text-muted-foreground">
+          {/* Message de salutation - centré */}
+          <div className="flex-1 flex items-center justify-center min-w-0">
+            <h1 className="text-xs font-normal text-muted-foreground truncate">
               {getGreeting()} {userProfile.firstName}
             </h1>
           </div>
 
-          {/* Avatar et actions */}
-          <div className="flex items-center space-x-3">
-            {/* Status d'abonnement */}
+          {/* Avatar et actions - compact */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Status d'abonnement - mobile optimized */}
             {user && subscriptionData && (
               <Link to="/subscription">
-                <Button variant="ghost" size="sm" className="flex items-center gap-1.5">
+                <Button variant="ghost" size="sm" className="flex items-center gap-1 px-2 h-8">
                   {subscriptionData.subscribed ? (
                     <>
                       <Crown className="h-3.5 w-3.5 text-primary" />
-                      <span className="text-xs font-normal text-muted-foreground">{t('dashboard.premium')}</span>
+                      <span className="text-[10px] font-normal text-muted-foreground hidden sm:inline">{t('dashboard.premium')}</span>
                     </>
                   ) : subscriptionData.inFreeTrial ? (
                     <>
                       <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-xs font-normal text-muted-foreground">{t('dashboard.freeTrial')}</span>
+                      <span className="text-[10px] font-normal text-muted-foreground hidden sm:inline">{t('dashboard.freeTrial')}</span>
                     </>
                   ) : (
                     <>
                       <Settings className="h-3.5 w-3.5" />
-                      <span className="text-xs font-normal text-muted-foreground">{t('dashboard.subscribe')}</span>
+                      <span className="text-[10px] font-normal text-muted-foreground hidden sm:inline">{t('dashboard.subscribe')}</span>
                     </>
                   )}
                 </Button>
@@ -317,9 +317,9 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
             )}
             <Popover open={isAvatarMenuOpen} onOpenChange={setIsAvatarMenuOpen}>
               <PopoverTrigger asChild>
-                <Avatar className="h-10 w-10 cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all">
+                <Avatar className="h-8 w-8 cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all">
                   <AvatarImage src={userProfile.avatar || undefined} />
-                  <AvatarFallback className="bg-gradient-to-r from-green-500 to-blue-500 text-white font-semibold">
+                  <AvatarFallback className="bg-gradient-to-r from-green-500 to-blue-500 text-white font-semibold text-sm">
                     {userProfile.firstName.charAt(0)}
                   </AvatarFallback>
                 </Avatar>
@@ -395,7 +395,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
         </div>
       </header>
 
-      <div className="px-6 py-6 space-y-6 max-w-4xl mx-auto">
+      <div className="px-4 py-4 space-y-4 max-w-4xl mx-auto">
         {/* Beta Banner */}
         <BetaBanner />
         
@@ -675,13 +675,13 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
         onProfileUpdate={handleProfileUpdate}
       />
 
-      {/* Floating Feedback Button */}
+      {/* Floating Feedback Button - mobile optimized */}
       <Button
         onClick={() => setIsFeedbackModalOpen(true)}
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:scale-110 transition-transform z-50"
+        className="fixed bottom-4 right-4 h-12 w-12 sm:h-14 sm:w-14 sm:bottom-6 sm:right-6 rounded-full shadow-lg hover:scale-110 transition-transform z-50"
         size="icon"
       >
-        <MessageSquare className="h-6 w-6" />
+        <MessageSquare className="h-5 w-5 sm:h-6 sm:w-6" />
       </Button>
 
       {/* Beta Feedback Modal */}
