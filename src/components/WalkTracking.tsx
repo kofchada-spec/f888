@@ -313,7 +313,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
         </div>
 
         {/* Stats de marche actuelles - LIVE */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <Card className="p-4 text-center">
             <div className="flex items-center justify-center mb-2">
               <Timer size={20} className="text-primary" />
@@ -346,16 +346,6 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
               {currentSpeed > 0 ? currentSpeed.toFixed(1) : "0.0"}
             </div>
             <div className="text-sm text-muted-foreground">km/h</div>
-          </Card>
-          
-          <Card className="p-4 text-center">
-            <div className="flex items-center justify-center mb-2">
-              <Target size={20} className="text-green-500" />
-            </div>
-            <div className="text-2xl font-bold text-foreground">
-              {liveMetrics.calories}
-            </div>
-            <div className="text-sm text-muted-foreground">kcal</div>
           </Card>
         </div>
 
