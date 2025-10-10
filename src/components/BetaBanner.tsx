@@ -31,7 +31,7 @@ export const BetaBanner = ({ forceShow = false, onClose }: BetaBannerProps = {})
 
   return (
     <Alert className="relative border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 mb-4 rounded-xl pr-12">
-      <AlertDescription className="text-sm text-amber-800 dark:text-amber-200">
+      <AlertDescription className="text-sm text-amber-800 dark:text-amber-200 text-center">
         <strong>Version Bêta :</strong> Cette application est en phase de test. 
         Des bugs peuvent survenir. Votre feedback nous aide à l'améliorer ! 🚀
       </AlertDescription>
