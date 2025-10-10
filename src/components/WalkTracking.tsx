@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowLeft, Play, Pause, Square, Clock, MapPin, Zap, Target, Timer, Navigation } from 'lucide-react';
+import { ArrowLeft, Play, Pause, Square, Clock, MapPin, Zap, Target, Timer, Navigation, Volume2, VolumeX } from 'lucide-react';
 import Map, { MapRef } from './Map';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -53,6 +53,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
   const [walkStartTime, setWalkStartTime] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showExitDialog, setShowExitDialog] = useState(false);
+  const [isVoiceMuted, setIsVoiceMuted] = useState(false);
   const mapRef = useRef<MapRef>(null);
 
   // Voice guidance settings
@@ -61,7 +62,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
   
   // Voice guidance hook
   const voiceGuidance = useVoiceGuidance({
-    enabled: voiceGuidanceEnabled,
+    enabled: voiceGuidanceEnabled && !isVoiceMuted,
     announcementInterval
   });
 
@@ -308,7 +309,20 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
       {/* Header */}
       <div className="bg-card shadow-sm">
-        <div className="px-6 py-4 flex items-center justify-end">
+        <div className="px-6 py-4 flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsVoiceMuted(!isVoiceMuted)}
+            className="relative"
+            title={isVoiceMuted ? "Activer le son" : "Couper le son"}
+          >
+            {isVoiceMuted ? (
+              <VolumeX className="h-5 w-5 text-muted-foreground" />
+            ) : (
+              <Volume2 className="h-5 w-5 text-primary" />
+            )}
+          </Button>
           <div className="flex items-center space-x-3 cursor-pointer" onClick={handleLogoClick}>
             <img 
               src="/lovable-uploads/5216fdd6-d0d7-446b-9260-86d15d06f4ba.png" 
