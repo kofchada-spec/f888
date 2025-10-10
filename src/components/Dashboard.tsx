@@ -447,7 +447,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                 <Button
                   onClick={onPlanifyWalk}
                   disabled={!canPlan}
-                  className="flex-1 bg-white/20 hover:bg-white/30 text-white border-white/30 disabled:opacity-50"
+                  className="flex-1 bg-white/20 active:bg-white/40 text-white border-white/30 disabled:opacity-50 touch-manipulation transition-colors duration-150"
                 >
                   <Footprints className="mr-2 h-4 w-4" />
                   {t('dashboard.walk')}
@@ -455,7 +455,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                 <Button
                   onClick={onPlanifyRun}
                   disabled={!canPlan}
-                  className="flex-1 bg-white/20 hover:bg-white/30 text-white border-white/30 disabled:opacity-50"
+                  className="flex-1 bg-white/20 active:bg-white/40 text-white border-white/30 disabled:opacity-50 touch-manipulation transition-colors duration-150"
                 >
                   <Zap className="mr-2 h-4 w-4" />
                   {t('dashboard.run')}
@@ -635,7 +635,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
           <Button
             onClick={onPlanifyWalk}
             disabled={!canPlan}
-            className="h-14 px-12 text-lg font-semibold rounded-[14px] bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+            className="w-full max-w-md h-14 px-12 text-lg font-semibold rounded-[14px] bg-gradient-to-r from-primary to-secondary active:from-primary/90 active:to-secondary/90 text-white shadow-lg active:shadow-md touch-manipulation transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Footprints className="mr-3 h-6 w-6" />
             Planifier ma marche
@@ -644,7 +644,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
           <Button
             onClick={onPlanifyRun}
             disabled={!canPlan}
-            className="h-14 px-12 text-lg font-semibold rounded-[14px] bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+            className="w-full max-w-md h-14 px-12 text-lg font-semibold rounded-[14px] bg-gradient-to-r from-orange-500 to-red-500 active:from-orange-600 active:to-red-600 text-white shadow-lg active:shadow-md touch-manipulation transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Zap className="mr-3 h-6 w-6" />
             Planifier ma course

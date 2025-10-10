@@ -153,7 +153,7 @@ export const ProfileEditModal = ({
                   key={avatar.id}
                   type="button"
                   onClick={() => setSelectedAvatar(avatar.src)}
-                  className={`relative w-16 h-16 rounded-full overflow-hidden border-2 transition-all hover:scale-105 ${
+                  className={`relative w-16 h-16 rounded-full overflow-hidden border-2 touch-manipulation transition-all duration-150 ${
                     selectedAvatar === avatar.src
                       ? 'border-primary shadow-lg ring-2 ring-primary/20'
                       : 'border-muted hover:border-primary/50'

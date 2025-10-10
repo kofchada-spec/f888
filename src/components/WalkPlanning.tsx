@@ -352,7 +352,7 @@ const WalkPlanning = ({ onComplete, onBack, onGoToDashboard }: WalkPlanningProps
             onClick={handleValidate}
             size="lg"
             disabled={!canPlan}
-            className="w-full h-14 text-lg font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+            className="w-full h-14 text-lg font-semibold bg-primary active:bg-primary/90 text-primary-foreground shadow-lg active:shadow-md touch-manipulation transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {canPlan ? 'Trouver mes destinations' : 'Limite atteinte'}
           </Button>

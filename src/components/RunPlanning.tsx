@@ -340,7 +340,7 @@ const RunPlanning = ({ onComplete, onBack, onGoToDashboard }: RunPlanningProps) 
             onClick={handleValidate}
             size="lg"
             disabled={!canPlan}
-            className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+            className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-orange-500 to-red-500 active:from-orange-600 active:to-red-600 text-white shadow-lg active:shadow-md touch-manipulation transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {canPlan ? 'Trouver mes destinations' : 'Limite atteinte'}
           </Button>

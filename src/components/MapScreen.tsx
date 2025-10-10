@@ -232,7 +232,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData, activity
             onClick={handleStartWalk}
             disabled={!isReadyToStart}
             size="lg"
-            className="w-full max-w-md h-14 text-lg font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-50"
+            className="w-full max-w-md h-14 text-lg font-semibold bg-primary active:bg-primary/90 text-primary-foreground shadow-lg active:shadow-md touch-manipulation transition-all duration-150 disabled:opacity-50"
           >
             {isReadyToStart ? `Commencer la ${activityType === 'walk' ? 'marche' : 'course'}` : 'Calcul de l\'itinéraire...'}
           </Button>

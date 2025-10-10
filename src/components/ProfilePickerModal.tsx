@@ -178,7 +178,7 @@ export const ProfilePickerModal = ({
         <div className="px-6 pb-6 bg-card">
           <Button
             onClick={handleConfirm}
-            className="font-raleway w-full h-14 text-lg font-bold rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
+            className="font-raleway w-full h-14 text-lg font-bold rounded-xl bg-primary active:bg-primary/90 text-primary-foreground touch-manipulation transition-all duration-150 shadow-lg active:shadow-md"
           >
             Valider
           </Button>

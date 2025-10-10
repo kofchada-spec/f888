@@ -406,7 +406,7 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
             <Button
               onClick={handleStartRun}
               size="lg"
-              className="bg-orange-600 hover:bg-orange-700 text-white px-8 py-3 text-lg font-semibold shadow-lg hover:shadow-xl transition-all transform hover:scale-105"
+              className="bg-orange-600 active:bg-orange-700 text-white px-8 py-3 text-lg font-semibold shadow-lg active:shadow-md touch-manipulation transition-all duration-150"
             >
               <Play size={20} className="mr-2" />
               Go!

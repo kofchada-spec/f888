@@ -230,7 +230,7 @@ const RunMapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: Run
             onClick={handleStartRun}
             disabled={!isReadyToStart}
             size="lg"
-            className="w-full max-w-md h-14 text-lg font-semibold bg-orange-600 hover:bg-orange-700 text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-50"
+            className="w-full max-w-md h-14 text-lg font-semibold bg-orange-600 active:bg-orange-700 text-white shadow-lg active:shadow-md touch-manipulation transition-all duration-150 disabled:opacity-50"
           >
             {isReadyToStart ? 'Commencer la course' : 'Calcul de l\'itinéraire...'}
           </Button>
