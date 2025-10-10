@@ -303,7 +303,7 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
               <Target size={20} className="text-red-600" />
             </div>
             <div className="text-2xl font-bold text-foreground">{currentSteps}</div>
-            <div className="text-sm text-muted-foreground">Foulées calculées</div>
+            <div className="text-sm text-muted-foreground">Foulées réelles</div>
           </Card>
           
           <Card className="p-4 text-center">

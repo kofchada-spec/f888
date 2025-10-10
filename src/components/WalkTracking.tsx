@@ -335,7 +335,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
               <Target size={20} className="text-secondary" />
             </div>
             <div className="text-2xl font-bold text-foreground">{currentSteps}</div>
-            <div className="text-sm text-muted-foreground">Pas calculés</div>
+            <div className="text-sm text-muted-foreground">Pas réels</div>
           </Card>
           
           <Card className="p-4 text-center">
