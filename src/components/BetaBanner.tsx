@@ -1,16 +1,30 @@
 import { AlertCircle, X } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 
-export const BetaBanner = () => {
+interface BetaBannerProps {
+  forceShow?: boolean;
+  onClose?: () => void;
+}
+
+export const BetaBanner = ({ forceShow = false, onClose }: BetaBannerProps = {}) => {
   const [isVisible, setIsVisible] = useState(
-    !localStorage.getItem('beta-banner-dismissed')
+    forceShow || !localStorage.getItem('beta-banner-dismissed')
   );
 
+  useEffect(() => {
+    if (forceShow) {
+      setIsVisible(true);
+    }
+  }, [forceShow]);
+
   const handleDismiss = () => {
-    localStorage.setItem('beta-banner-dismissed', 'true');
+    if (!forceShow) {
+      localStorage.setItem('beta-banner-dismissed', 'true');
+    }
     setIsVisible(false);
+    onClose?.();
   };
 
   if (!isVisible) return null;

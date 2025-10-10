@@ -47,6 +47,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
   const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'walk' | 'run' | null>(null);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const [showBetaBanner, setShowBetaBanner] = useState(false);
 
   // Load user profile from Supabase or localStorage
   useEffect(() => {
@@ -278,7 +279,14 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                 color: '#10b981' 
               }}
             />
-            <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100 text-[10px] px-1.5 py-0.5">
+            <Badge 
+              variant="secondary" 
+              className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100 text-[10px] px-1.5 py-0.5 cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-800 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowBetaBanner(true);
+              }}
+            >
               Bêta
             </Badge>
           </div>
@@ -397,7 +405,10 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
 
       <div className="px-4 py-4 space-y-4 max-w-4xl mx-auto">
         {/* Beta Banner */}
-        <BetaBanner />
+        <BetaBanner 
+          forceShow={showBetaBanner} 
+          onClose={() => setShowBetaBanner(false)} 
+        />
         
         {/* Carte Profil */}
         <Card className="bg-card shadow-lg border">
