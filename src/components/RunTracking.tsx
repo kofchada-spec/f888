@@ -12,7 +12,7 @@ import { usePlanningLimiter } from '@/hooks/usePlanningLimiter';
 import { useGPSTracking } from '@/hooks/useGPSTracking';
 import { useLiveMetrics } from '@/hooks/useLiveMetrics';
 import { useTrackingFeedback } from '@/hooks/useTrackingFeedback';
-import { useStepDetection } from '@/hooks/useStepDetection';
+
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -54,16 +54,19 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
   const [showExitDialog, setShowExitDialog] = useState(false);
   const mapRef = useRef<MapRef>(null);
 
-  // Enhanced step detection
-  const { currentSteps, isMovementDetected, resetStepDetection } = useStepDetection({
-    isTracking,
-    activityType: 'run'
-  });
-
   const { currentPosition, pathCoordinates, totalDistance, currentSpeed, resetTracking: resetGPS } = useGPSTracking({
     isTracking,
     onPositionUpdate: (position) => setUserLocation({ lat: position.lat, lng: position.lng })
   });
+
+  // Calculate steps from GPS distance (no sensor-based step detection)
+  const calculateStepsFromDistance = (distanceKm: number): number => {
+    const strideM = 0.5 * planningData.height; // Running stride
+    const distanceM = distanceKm * 1000;
+    return Math.round(distanceM / strideM);
+  };
+
+  const currentSteps = calculateStepsFromDistance(totalDistance);
 
   const liveMetrics = useLiveMetrics({
     totalDistance, currentSpeed, elapsedTime, weight: planningData.weight, activityType: 'run', pace: planningData.pace
@@ -161,7 +164,6 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
     setIsTracking(true);
     setRunStartTime(new Date());
     setElapsedTime(0);
-    resetStepDetection();
     resetGPS();
     resetFeedback();
     validateActivityCompletion();
@@ -204,7 +206,6 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
     setIsTracking(false);
     setRunStartTime(null);
     setElapsedTime(0);
-    resetStepDetection();
     resetGPS();
     resetFeedback();
   };
@@ -280,7 +281,7 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
         </div>
 
         {/* Running stats - LIVE */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <Card className="p-4 text-center">
             <div className="flex items-center justify-center mb-2">
               <Timer size={20} className="text-orange-600" />
@@ -291,12 +292,18 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
           
           <Card className="p-4 text-center bg-gradient-to-br from-orange-500/5 to-orange-500/10">
             <div className="flex items-center justify-center mb-2">
-              <Target size={20} className={isMovementDetected ? "text-red-600" : "text-muted-foreground"} />
+              <Navigation size={20} className="text-orange-600" />
+            </div>
+            <div className="text-2xl font-bold text-foreground">{totalDistance.toFixed(2)}</div>
+            <div className="text-sm text-muted-foreground">km parcourus (GPS)</div>
+          </Card>
+          
+          <Card className="p-4 text-center">
+            <div className="flex items-center justify-center mb-2">
+              <Target size={20} className="text-red-600" />
             </div>
             <div className="text-2xl font-bold text-foreground">{currentSteps}</div>
-            <div className="text-sm text-muted-foreground">
-              {isTracking && !isMovementDetected ? "En attente..." : "Foulées détectées"}
-            </div>
+            <div className="text-sm text-muted-foreground">Foulées calculées</div>
           </Card>
           
           <Card className="p-4 text-center">

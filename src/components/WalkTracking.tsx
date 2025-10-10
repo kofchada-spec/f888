@@ -12,7 +12,7 @@ import { usePlanningLimiter } from '@/hooks/usePlanningLimiter';
 import { useGPSTracking } from '@/hooks/useGPSTracking';
 import { useLiveMetrics } from '@/hooks/useLiveMetrics';
 import { useTrackingFeedback } from '@/hooks/useTrackingFeedback';
-import { useStepDetection } from '@/hooks/useStepDetection';
+
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -54,12 +54,6 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
   const [showExitDialog, setShowExitDialog] = useState(false);
   const mapRef = useRef<MapRef>(null);
 
-  // Enhanced step detection
-  const { currentSteps, isMovementDetected, resetStepDetection } = useStepDetection({
-    isTracking,
-    activityType: 'walk'
-  });
-
   // GPS Tracking with real-time path recording
   const { 
     currentPosition, 
@@ -73,6 +67,15 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
       setUserLocation({ lat: position.lat, lng: position.lng });
     }
   });
+
+  // Calculate steps from GPS distance (no sensor-based step detection)
+  const calculateStepsFromDistance = (distanceKm: number): number => {
+    const strideM = 0.415 * planningData.height; // Walking stride
+    const distanceM = distanceKm * 1000;
+    return Math.round(distanceM / strideM);
+  };
+
+  const currentSteps = calculateStepsFromDistance(totalDistance);
 
   // Live metrics calculation
   const liveMetrics = useLiveMetrics({
@@ -187,7 +190,6 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
     setIsTracking(true);
     setWalkStartTime(new Date());
     setElapsedTime(0);
-    resetStepDetection();
     resetGPS();
     resetFeedback();
     
@@ -233,7 +235,6 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
     setIsTracking(false);
     setWalkStartTime(null);
     setElapsedTime(0);
-    resetStepDetection();
     resetGPS();
     resetFeedback();
   };
@@ -312,7 +313,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
         </div>
 
         {/* Stats de marche actuelles - LIVE */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <Card className="p-4 text-center">
             <div className="flex items-center justify-center mb-2">
               <Timer size={20} className="text-primary" />
@@ -323,12 +324,18 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
           
           <Card className="p-4 text-center bg-gradient-to-br from-primary/5 to-primary/10">
             <div className="flex items-center justify-center mb-2">
-              <Target size={20} className={isMovementDetected ? "text-secondary" : "text-muted-foreground"} />
+              <Navigation size={20} className="text-primary" />
+            </div>
+            <div className="text-2xl font-bold text-foreground">{totalDistance.toFixed(2)}</div>
+            <div className="text-sm text-muted-foreground">km parcourus (GPS)</div>
+          </Card>
+          
+          <Card className="p-4 text-center">
+            <div className="flex items-center justify-center mb-2">
+              <Target size={20} className="text-secondary" />
             </div>
             <div className="text-2xl font-bold text-foreground">{currentSteps}</div>
-            <div className="text-sm text-muted-foreground">
-              {isTracking && !isMovementDetected ? "En attente..." : "Pas détectés"}
-            </div>
+            <div className="text-sm text-muted-foreground">Pas calculés</div>
           </Card>
           
           <Card className="p-4 text-center">
