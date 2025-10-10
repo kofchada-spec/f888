@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, Edit3, Footprints, MapPin, Flame, Clock, LogOut, Crown, Settings, UserCircle, CreditCard, HelpCircle, Target, Award, Zap } from 'lucide-react';
+import { User, Edit3, Footprints, MapPin, Flame, Clock, LogOut, Crown, Settings, UserCircle, CreditCard, HelpCircle, Target, Award, Zap, MessageSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useWalkStats } from '@/hooks/useWalkStats';
 import { useRunStats } from '@/hooks/useRunStats';
@@ -18,6 +18,8 @@ import { ProfileEditModal } from '@/components/ProfileEditModal';
 import { WeeklyStats } from '@/components/WeeklyStats';
 import { RunWeeklyStats } from '@/components/RunWeeklyStats';
 import { BadgeSystem } from '@/components/BadgeSystem';
+import { BetaBanner } from '@/components/BetaBanner';
+import { BetaFeedbackModal } from '@/components/BetaFeedbackModal';
 import { Link, useNavigate } from 'react-router-dom';
 
 interface DashboardProps {
@@ -44,6 +46,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'walk' | 'run' | null>(null);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
 
   // Load user profile from Supabase or localStorage
   useEffect(() => {
@@ -265,7 +268,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
       <header className="bg-card shadow-sm border-b">
         <div className="px-6 py-4 flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => navigate('/')}>
+          <div className="flex items-center space-x-2 cursor-pointer" onClick={() => navigate('/')}>
             <img 
               src="/lovable-uploads/5216fdd6-d0d7-446b-9260-86d15d06f4ba.png" 
               alt="Fitpas" 
@@ -275,6 +278,9 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
                 color: '#10b981' 
               }}
             />
+            <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100 text-xs">
+              Bêta
+            </Badge>
           </div>
 
           {/* Message de salutation */}
@@ -390,6 +396,9 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
       </header>
 
       <div className="px-6 py-6 space-y-6 max-w-4xl mx-auto">
+        {/* Beta Banner */}
+        <BetaBanner />
+        
         {/* Carte Profil */}
         <Card className="bg-card shadow-lg border">
           <CardContent className="p-6">
@@ -664,6 +673,21 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
           avatar: userProfile.avatar
         }}
         onProfileUpdate={handleProfileUpdate}
+      />
+
+      {/* Floating Feedback Button */}
+      <Button
+        onClick={() => setIsFeedbackModalOpen(true)}
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:scale-110 transition-transform z-50"
+        size="icon"
+      >
+        <MessageSquare className="h-6 w-6" />
+      </Button>
+
+      {/* Beta Feedback Modal */}
+      <BetaFeedbackModal 
+        isOpen={isFeedbackModalOpen} 
+        onClose={() => setIsFeedbackModalOpen(false)} 
       />
     </div>
   );
