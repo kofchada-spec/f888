@@ -12,6 +12,7 @@ import { usePlanningLimiter } from '@/hooks/usePlanningLimiter';
 import { useGPSTracking } from '@/hooks/useGPSTracking';
 import { useLiveMetrics } from '@/hooks/useLiveMetrics';
 import { useTrackingFeedback } from '@/hooks/useTrackingFeedback';
+import { useStepDetection } from '@/hooks/useStepDetection';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -50,12 +51,14 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
   const [isTracking, setIsTracking] = useState(false);
   const [runStartTime, setRunStartTime] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [currentSteps, setCurrentSteps] = useState(0);
-  const [isMovementDetected, setIsMovementDetected] = useState(false);
-  const [lastStepCount, setLastStepCount] = useState(0);
   const [showExitDialog, setShowExitDialog] = useState(false);
   const mapRef = useRef<MapRef>(null);
-  const motionListenerId = useRef<(() => void) | null>(null);
+
+  // Enhanced step detection
+  const { currentSteps, isMovementDetected, resetStepDetection } = useStepDetection({
+    isTracking,
+    activityType: 'run'
+  });
 
   const { currentPosition, pathCoordinates, totalDistance, currentSpeed, resetTracking: resetGPS } = useGPSTracking({
     isTracking,
@@ -72,65 +75,7 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
     destinationCoords: destination.coordinates, totalDistance
   });
 
-  // Real step detection using device motion sensors
-  useEffect(() => {
-    const startMotionDetection = async () => {
-      if (isTracking && Capacitor.isNativePlatform()) {
-        try {
-          const listenerId = await Motion.addListener('accel', (event) => {
-            const magnitude = Math.sqrt(
-              event.acceleration.x ** 2 + 
-              event.acceleration.y ** 2 + 
-              event.acceleration.z ** 2
-            );
-            
-            // Higher threshold for running (3-8 m/s²)
-            if (magnitude > 2.0) {
-              setIsMovementDetected(true);
-              
-              // Running step detection
-              if (magnitude > 3.5) {
-                setCurrentSteps(prev => prev + 1);
-              }
-            }
-          });
-          
-          motionListenerId.current = listenerId.remove;
-        } catch (error) {
-          console.log('Motion detection error:', error);
-          fallbackStepDetection();
-        }
-      } else if (isTracking) {
-        fallbackStepDetection();
-      }
-    };
-
-    const fallbackStepDetection = () => {
-      const detectMovement = () => {
-        if (navigator.geolocation) {
-          navigator.geolocation.watchPosition(
-            (position) => {
-              setIsMovementDetected(true);
-              setCurrentSteps(prev => prev + Math.floor(Math.random() * 3) + 2);
-            },
-            (error) => console.log('GPS error:', error),
-            { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
-          );
-        }
-      };
-      
-      setTimeout(detectMovement, 2000);
-    };
-
-    startMotionDetection();
-
-    return () => {
-      if (motionListenerId.current) {
-        motionListenerId.current();
-        motionListenerId.current = null;
-      }
-    };
-  }, [isTracking]);
+  // Step detection is now handled by useStepDetection hook
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -215,10 +160,8 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
   const handleStartRun = () => {
     setIsTracking(true);
     setRunStartTime(new Date());
-    setCurrentSteps(0);
     setElapsedTime(0);
-    setIsMovementDetected(false);
-    setLastStepCount(0);
+    resetStepDetection();
     resetGPS();
     resetFeedback();
     validateActivityCompletion();
@@ -261,7 +204,7 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
     setIsTracking(false);
     setRunStartTime(null);
     setElapsedTime(0);
-    setCurrentSteps(0);
+    resetStepDetection();
     resetGPS();
     resetFeedback();
   };
