@@ -13,7 +13,6 @@ import { useGPSTracking } from '@/hooks/useGPSTracking';
 import { useLiveMetrics } from '@/hooks/useLiveMetrics';
 import { useTrackingFeedback } from '@/hooks/useTrackingFeedback';
 import { useVoiceGuidance } from '@/hooks/useVoiceGuidance';
-import { useSmartStepCounting } from '@/hooks/useSmartStepCounting';
 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -82,18 +81,16 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
     }
   });
 
-  // Smart step counting with calibration at 0.5 km
-  const { 
-    displayedSteps: currentSteps, 
-    isUsingRealSteps,
-    estimatedSteps,
-    realSteps 
-  } = useSmartStepCounting({
-    totalDistance,
-    height: planningData.height,
-    activityType: 'walk',
-    isTracking
-  });
+  // Calculate steps from GPS distance
+  const calculateStepsFromDistance = (distanceKm: number): number => {
+    const strideM = 0.415 * planningData.height; // Walking stride
+    const distanceM = distanceKm * 1000;
+    return Math.round(distanceM / strideM);
+  };
+
+  const currentSteps = calculateStepsFromDistance(totalDistance);
+  const CALIBRATION_DISTANCE = 0.5; // km
+  const showSteps = totalDistance >= CALIBRATION_DISTANCE;
 
   // Live metrics calculation
   const liveMetrics = useLiveMetrics({
@@ -374,9 +371,11 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
             <div className="flex items-center justify-center mb-2">
               <Target size={20} className="text-secondary" />
             </div>
-            <div className="text-2xl font-bold text-foreground">{currentSteps}</div>
+            <div className="text-2xl font-bold text-foreground">
+              {showSteps ? currentSteps : '--'}
+            </div>
             <div className="text-sm text-muted-foreground">
-              {isUsingRealSteps ? '✓ Pas réels' : 'Pas estimés'}
+              {showSteps ? 'Pas' : 'Calibration...'}
             </div>
           </Card>
           
