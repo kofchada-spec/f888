@@ -300,26 +300,12 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
 
           {/* Avatar et actions - compact */}
           <div className="flex items-center gap-2 shrink-0">
-            {/* Status d'abonnement - mobile optimized */}
+            {/* Gérer mes abonnements */}
             {user && subscriptionData && (
               <Link to="/subscription">
                 <Button variant="ghost" size="sm" className="flex items-center gap-1 px-2 h-8">
-                  {subscriptionData.subscribed ? (
-                    <>
-                      <Crown className="h-3.5 w-3.5 text-primary" />
-                      <span className="text-[10px] font-normal text-muted-foreground hidden sm:inline">{t('dashboard.premium')}</span>
-                    </>
-                  ) : subscriptionData.inFreeTrial ? (
-                    <>
-                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-[10px] font-normal text-muted-foreground hidden sm:inline">{t('dashboard.freeTrial')}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Settings className="h-3.5 w-3.5" />
-                      <span className="text-[10px] font-normal text-muted-foreground hidden sm:inline">{t('dashboard.subscribe')}</span>
-                    </>
-                  )}
+                  <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-[10px] font-normal text-muted-foreground hidden sm:inline">Gérer mes abonnements</span>
                 </Button>
               </Link>
             )}
