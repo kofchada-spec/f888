@@ -274,6 +274,10 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
               src="/lovable-uploads/5216fdd6-d0d7-446b-9260-86d15d06f4ba.png" 
               alt="Fitpas" 
               className="h-7 w-auto hover:scale-105 transition-transform"
+              style={{ 
+                filter: 'invert(0) sepia(1) saturate(5) hue-rotate(120deg) brightness(0.8)',
+                color: '#10b981' 
+              }}
             />
             <Badge 
               variant="secondary" 
