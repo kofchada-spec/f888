@@ -652,32 +652,6 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
         style={{ width: '100%', height: '100%' }}
         className="absolute inset-0 rounded-lg" 
       />
-      
-      {/* Légende */}
-      <div className="absolute top-4 left-4 bg-white/95 dark:bg-black/95 rounded-lg p-3 text-xs shadow-lg border">
-        <div className="flex items-center space-x-2 mb-2">
-          <div className="w-4 h-4 bg-blue-500 rounded-full border border-white"></div>
-          <span>{planningData.tripType === 'round-trip' ? 'Point de départ/arrivée' : 'Point de départ'}</span>
-        </div>
-        <div className="flex items-center space-x-2 mb-2">
-          <div className="w-4 h-4 bg-gray-500 rounded-full border border-white"></div>
-          <span>{planningData.tripType === 'round-trip' ? 'Points de passage' : 'Destinations'}</span>
-        </div>
-        {/* Route legend for round-trip */}
-        {planningData.tripType === 'round-trip' && selectedDestination && destinations.length > 0 && destinations[0].route?.outboundCoordinates && (
-          <>
-            <div className="border-t border-border my-2"></div>
-            <div className="flex items-center space-x-2 mb-1">
-              <div className="w-4 h-0.5 bg-emerald-500"></div>
-              <span className="text-muted-foreground">Aller</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-0.5 bg-blue-500 border-dashed border-t border-blue-500" style={{borderTopStyle: 'dashed'}}></div>
-              <span className="text-muted-foreground">Retour</span>
-            </div>
-          </>
-        )}
-      </div>
 
       {/* Info trajet */}
       <div className="absolute top-4 right-4 bg-primary/90 text-primary-foreground rounded-lg p-3 text-sm shadow-lg">
