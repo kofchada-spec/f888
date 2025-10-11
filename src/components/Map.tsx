@@ -654,7 +654,7 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
       />
 
       {/* Info trajet */}
-      <div className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-primary/90 text-primary-foreground rounded-lg p-2 sm:p-3 shadow-lg max-w-[140px] sm:max-w-none">
+      <div className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-primary/90 text-primary-foreground rounded-lg p-2 sm:p-3 shadow-lg max-w-[140px] sm:max-w-none z-10">
         <div className="font-semibold text-xs sm:text-sm whitespace-nowrap">
           {planningData.tripType === 'round-trip' ? '🔄 Aller-Retour' : '➡️ Aller Simple'}
         </div>
