@@ -251,59 +251,11 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
     markers.current.forEach(marker => marker.remove());
     markers.current = [];
 
-    // Add user location marker (custom "Départ" marker with tracking animation)
-    const userLocationEl = document.createElement('div');
-    userLocationEl.className = 'user-location-marker';
-    userLocationEl.innerHTML = `
-      <div style="
-        width: ${isTracking ? '32px' : '24px'};
-        height: ${isTracking ? '32px' : '24px'};
-        background: ${isTracking ? '#f97316' : '#ef4444'};
-        border: 3px solid white;
-        border-radius: 50%;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.3), ${isTracking ? '0 0 0 10px rgba(249, 115, 22, 0.2)' : 'none'};
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: ${isTracking ? '16px' : '12px'};
-        animation: ${isTracking ? 'pulse 2s infinite' : 'none'};
-      ">
-        ${isTracking ? '🏃' : '📍'}
-        <div style="
-          position: absolute;
-          top: -${isTracking ? '40px' : '35px'};
-          left: 50%;
-          transform: translateX(-50%);
-          background: ${isTracking ? '#f97316' : '#ef4444'};
-          color: white;
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 12px;
-          font-weight: 600;
-          white-space: nowrap;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        ">
-          ${isTracking ? 'En course...' : 'Départ'}
-        </div>
-      </div>
-      <style>
-        @keyframes pulse {
-          0%, 100% { box-shadow: 0 2px 10px rgba(0,0,0,0.3), 0 0 0 10px rgba(249, 115, 22, 0.2); }
-          50% { box-shadow: 0 2px 10px rgba(0,0,0,0.3), 0 0 0 20px rgba(249, 115, 22, 0); }
-        }
-      </style>
-    `;
+    // Markers removed - no user location or destination markers displayed
 
-    const userMarker = new mapboxgl.Marker(userLocationEl)
-      .setLngLat([userLocation.lng, userLocation.lat])
-      .addTo(map.current);
-    
-    markers.current.push(userMarker);
-
-    // Add destination markers
+    // Add destination markers (commented out - no markers displayed)
     destinations.forEach((destination, index) => {
-      console.log(`Adding destination ${index + 1}:`, {
+      console.log(`Processing destination ${index + 1}:`, {
         id: destination.id,
         name: destination.name,
         coordinates: destination.coordinates,
@@ -326,62 +278,11 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
         console.log(`Using calculated coordinates for ${destination.name}:`, { lat: destLat, lng: destLng });
       }
 
-      const markerEl = document.createElement('div');
-      markerEl.className = 'destination-marker';
+      // Variables needed for route rendering (markers removed but routes stay)
       const isSelected = selectedDestination === destination.id;
       const isRoundTrip = planningData.tripType === 'round-trip';
-      
-      markerEl.innerHTML = `
-        <div style="
-          width: 40px;
-          height: 40px;
-          background: ${isSelected ? '#10b981' : '#6b7280'};
-          border: 3px solid white;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: bold;
-          color: white;
-          cursor: pointer;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-          transform: ${isSelected ? 'scale(1.1)' : 'scale(1)'};
-          font-size: 18px;
-        ">
-          🎯
-        </div>
-        <div style="
-          position: absolute;
-          top: 45px;
-          left: 50%;
-          transform: translateX(-50%);
-          background: white;
-          color: black;
-          padding: 6px 10px;
-          border-radius: 6px;
-          font-size: 12px;
-          font-weight: 500;
-          white-space: nowrap;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-          border: ${isSelected ? '2px solid #10b981' : '1px solid #e5e7eb'};
-          opacity: ${isSelected ? '1' : '0.8'};
-          max-width: 150px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        ">
-          ${destination.name}
-        </div>
-      `;
 
-      markerEl.addEventListener('click', () => {
-        onDestinationSelect(destination);
-      });
-
-      const marker = new mapboxgl.Marker(markerEl)
-        .setLngLat([destLng, destLat])
-        .addTo(map.current!);
-
-      markers.current.push(marker);
+      // Marker creation commented out - no markers displayed anymore
 
       // Add route immediately - stable rendering for navigation screen
       const mapStyleLoaded = map.current?.isStyleLoaded();

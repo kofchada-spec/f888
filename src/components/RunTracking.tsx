@@ -262,13 +262,6 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
     return Math.round(distanceM / strideM);
   };
 
-  const handleRecenterMap = () => {
-    if (mapRef.current) {
-      mapRef.current.fitToRoute();
-      toast.info("📍 Carte recentrée");
-    }
-  };
-
   const handleLogoClick = () => {
     if (isTracking || runStartTime) {
       setShowExitDialog(true);
@@ -409,18 +402,7 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
         </div>
 
         {/* Map */}
-        <div className="relative bg-card rounded-2xl shadow-lg overflow-hidden mb-6" style={{ height: '400px' }}>
-          {userLocation && (
-            <Button
-              onClick={handleRecenterMap}
-              size="sm"
-              className="absolute top-4 right-4 z-10 bg-card/90 hover:bg-card shadow-md"
-              variant="outline"
-            >
-              <Navigation className="h-4 w-4 mr-2" />
-              Me localiser
-            </Button>
-          )}
+        <div className="bg-card rounded-2xl shadow-lg overflow-hidden mb-6" style={{ height: '400px' }}>
           {userLocation ? (
             <Map
               ref={mapRef}
