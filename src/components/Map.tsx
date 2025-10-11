@@ -653,8 +653,8 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
         className="absolute inset-0 rounded-lg" 
       />
 
-      {/* Info trajet - positioned below zoom controls */}
-      <div className="absolute top-[120px] right-2 sm:right-4 bg-primary/90 text-primary-foreground rounded-lg p-2 sm:p-3 shadow-lg z-10">
+      {/* Info trajet - positioned on the left */}
+      <div className="absolute top-4 left-4 bg-primary/90 text-primary-foreground rounded-lg p-2 sm:p-3 shadow-lg z-10">
         <div className="font-semibold text-xs sm:text-sm whitespace-nowrap">
           {planningData.tripType === 'round-trip' ? '🔄 Aller-Retour' : '➡️ Aller Simple'}
         </div>
