@@ -251,9 +251,41 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
     markers.current.forEach(marker => marker.remove());
     markers.current = [];
 
-    // Markers removed - no user location or destination markers displayed
+    // Add user location marker (without label text)
+    const userLocationEl = document.createElement('div');
+    userLocationEl.className = 'user-location-marker';
+    userLocationEl.innerHTML = `
+      <div style="
+        width: ${isTracking ? '32px' : '24px'};
+        height: ${isTracking ? '32px' : '24px'};
+        background: ${isTracking ? '#f97316' : '#ef4444'};
+        border: 3px solid white;
+        border-radius: 50%;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3), ${isTracking ? '0 0 0 10px rgba(249, 115, 22, 0.2)' : 'none'};
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: ${isTracking ? '16px' : '12px'};
+        animation: ${isTracking ? 'pulse 2s infinite' : 'none'};
+      ">
+        ${isTracking ? '🏃' : '📍'}
+      </div>
+      <style>
+        @keyframes pulse {
+          0%, 100% { box-shadow: 0 2px 10px rgba(0,0,0,0.3), 0 0 0 10px rgba(249, 115, 22, 0.2); }
+          50% { box-shadow: 0 2px 10px rgba(0,0,0,0.3), 0 0 0 20px rgba(249, 115, 22, 0); }
+        }
+      </style>
+    `;
 
-    // Add destination markers (commented out - no markers displayed)
+    const userMarker = new mapboxgl.Marker(userLocationEl)
+      .setLngLat([userLocation.lng, userLocation.lat])
+      .addTo(map.current);
+    
+    markers.current.push(userMarker);
+
+    // Add destination markers (without label text)
     destinations.forEach((destination, index) => {
       console.log(`Processing destination ${index + 1}:`, {
         id: destination.id,
@@ -278,11 +310,44 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
         console.log(`Using calculated coordinates for ${destination.name}:`, { lat: destLat, lng: destLng });
       }
 
-      // Variables needed for route rendering (markers removed but routes stay)
+      // Variables needed for route rendering
       const isSelected = selectedDestination === destination.id;
       const isRoundTrip = planningData.tripType === 'round-trip';
 
-      // Marker creation commented out - no markers displayed anymore
+      // Create destination marker without label
+      const markerEl = document.createElement('div');
+      markerEl.className = 'destination-marker';
+      
+      markerEl.innerHTML = `
+        <div style="
+          width: 40px;
+          height: 40px;
+          background: ${isSelected ? '#10b981' : '#6b7280'};
+          border: 3px solid white;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: bold;
+          color: white;
+          cursor: pointer;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+          transform: ${isSelected ? 'scale(1.1)' : 'scale(1)'};
+          font-size: 18px;
+        ">
+          🎯
+        </div>
+      `;
+
+      markerEl.addEventListener('click', () => {
+        onDestinationSelect(destination);
+      });
+
+      const marker = new mapboxgl.Marker(markerEl)
+        .setLngLat([destLng, destLat])
+        .addTo(map.current!);
+
+      markers.current.push(marker);
 
       // Add route immediately - stable rendering for navigation screen
       const mapStyleLoaded = map.current?.isStyleLoaded();
