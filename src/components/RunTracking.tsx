@@ -13,6 +13,7 @@ import { useGPSTracking } from '@/hooks/useGPSTracking';
 import { useLiveMetrics } from '@/hooks/useLiveMetrics';
 import { useTrackingFeedback } from '@/hooks/useTrackingFeedback';
 import { useVoiceGuidance } from '@/hooks/useVoiceGuidance';
+import { useSmartStepCounting } from '@/hooks/useSmartStepCounting';
 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -72,14 +73,18 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
     onPositionUpdate: (position) => setUserLocation({ lat: position.lat, lng: position.lng })
   });
 
-  // Calculate steps from GPS distance (no sensor-based step detection)
-  const calculateStepsFromDistance = (distanceKm: number): number => {
-    const strideM = 0.5 * planningData.height; // Running stride
-    const distanceM = distanceKm * 1000;
-    return Math.round(distanceM / strideM);
-  };
-
-  const currentSteps = calculateStepsFromDistance(totalDistance);
+  // Smart step counting with calibration at 0.5 km
+  const { 
+    displayedSteps: currentSteps, 
+    isUsingRealSteps,
+    estimatedSteps,
+    realSteps 
+  } = useSmartStepCounting({
+    totalDistance,
+    height: planningData.height,
+    activityType: 'run',
+    isTracking
+  });
 
   const liveMetrics = useLiveMetrics({
     totalDistance, currentSpeed, elapsedTime, weight: planningData.weight, activityType: 'run', pace: planningData.pace
@@ -341,7 +346,9 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
               <Target size={20} className="text-red-600" />
             </div>
             <div className="text-2xl font-bold text-foreground">{currentSteps}</div>
-            <div className="text-sm text-muted-foreground">Foulées réelles</div>
+            <div className="text-sm text-muted-foreground">
+              {isUsingRealSteps ? '✓ Foulées réelles' : 'Foulées estimées'}
+            </div>
           </Card>
           
           <Card className="p-4 text-center">

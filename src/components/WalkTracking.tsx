@@ -13,6 +13,7 @@ import { useGPSTracking } from '@/hooks/useGPSTracking';
 import { useLiveMetrics } from '@/hooks/useLiveMetrics';
 import { useTrackingFeedback } from '@/hooks/useTrackingFeedback';
 import { useVoiceGuidance } from '@/hooks/useVoiceGuidance';
+import { useSmartStepCounting } from '@/hooks/useSmartStepCounting';
 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -81,14 +82,18 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
     }
   });
 
-  // Calculate steps from GPS distance (no sensor-based step detection)
-  const calculateStepsFromDistance = (distanceKm: number): number => {
-    const strideM = 0.415 * planningData.height; // Walking stride
-    const distanceM = distanceKm * 1000;
-    return Math.round(distanceM / strideM);
-  };
-
-  const currentSteps = calculateStepsFromDistance(totalDistance);
+  // Smart step counting with calibration at 0.5 km
+  const { 
+    displayedSteps: currentSteps, 
+    isUsingRealSteps,
+    estimatedSteps,
+    realSteps 
+  } = useSmartStepCounting({
+    totalDistance,
+    height: planningData.height,
+    activityType: 'walk',
+    isTracking
+  });
 
   // Live metrics calculation
   const liveMetrics = useLiveMetrics({
@@ -370,7 +375,9 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
               <Target size={20} className="text-secondary" />
             </div>
             <div className="text-2xl font-bold text-foreground">{currentSteps}</div>
-            <div className="text-sm text-muted-foreground">Pas réels</div>
+            <div className="text-sm text-muted-foreground">
+              {isUsingRealSteps ? '✓ Pas réels' : 'Pas estimés'}
+            </div>
           </Card>
           
           <Card className="p-4 text-center">
