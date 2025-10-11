@@ -375,7 +375,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
               {showSteps ? currentSteps : '--'}
             </div>
             <div className="text-sm text-muted-foreground">
-              {showSteps ? 'Pas' : 'Calibration...'}
+              {showSteps ? 'Pas réels' : 'Calibration...'}
             </div>
           </Card>
           

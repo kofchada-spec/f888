@@ -346,7 +346,7 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
               {showSteps ? currentSteps : '--'}
             </div>
             <div className="text-sm text-muted-foreground">
-              {showSteps ? 'Foulées' : 'Calibration...'}
+              {showSteps ? 'Foulées réelles' : 'Calibration...'}
             </div>
           </Card>
           
