@@ -54,6 +54,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [isVoiceMuted, setIsVoiceMuted] = useState(false);
+  const [hasInitiallyFitMap, setHasInitiallyFitMap] = useState(false);
   const mapRef = useRef<MapRef>(null);
 
   // Voice guidance settings
@@ -143,12 +144,15 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
           };
           setUserLocation(newLocation);
           
-          // Fit map to route once location is obtained
-          setTimeout(() => {
-            if (mapRef.current) {
-              mapRef.current.fitToRoute();
-            }
-          }, 500);
+          // Fit map to route once location is obtained (only once)
+          if (!hasInitiallyFitMap) {
+            setTimeout(() => {
+              if (mapRef.current) {
+                mapRef.current.fitToRoute();
+                setHasInitiallyFitMap(true);
+              }
+            }, 500);
+          }
         },
         (error) => {
           console.log('Geolocation error:', error);
@@ -156,25 +160,19 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
           const defaultLocation = { lat: 48.8566, lng: 2.3522 };
           setUserLocation(defaultLocation);
           
-          // Fit map to route even with default location
-          setTimeout(() => {
-            if (mapRef.current) {
-              mapRef.current.fitToRoute();
-            }
-          }, 500);
+          // Fit map to route even with default location (only once)
+          if (!hasInitiallyFitMap) {
+            setTimeout(() => {
+              if (mapRef.current) {
+                mapRef.current.fitToRoute();
+                setHasInitiallyFitMap(true);
+              }
+            }, 500);
+          }
         }
       );
     }
-  }, []);
-
-  // Fit map to route when destination or user location is available
-  useEffect(() => {
-    if (userLocation && destination.routeGeoJSON && mapRef.current) {
-      setTimeout(() => {
-        mapRef.current?.fitToRoute();
-      }, 1000);
-    }
-  }, [userLocation, destination]);
+  }, [hasInitiallyFitMap]);
 
   // Surveillance de la position pendant le tracking (optionnel)
   useEffect(() => {
@@ -289,6 +287,13 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
     const strideM = heightM ? 0.415 * heightM : 0.72;
     const distanceM = destination.distanceKm * 1000;
     return Math.round(distanceM / strideM);
+  };
+
+  const handleRecenterMap = () => {
+    if (mapRef.current) {
+      mapRef.current.fitToRoute();
+      toast.info("📍 Carte recentrée");
+    }
   };
 
   const handleLogoClick = () => {
@@ -433,9 +438,20 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
         </div>
 
         {/* Carte de suivi */}
-        <div className="bg-card rounded-2xl shadow-lg overflow-hidden mb-6" style={{ height: '400px' }}>
+        <div className="relative bg-card rounded-2xl shadow-lg overflow-hidden mb-6" style={{ height: '400px' }}>
+          {userLocation && (
+            <Button
+              onClick={handleRecenterMap}
+              size="sm"
+              className="absolute top-4 right-4 z-10 bg-card/90 hover:bg-card shadow-md"
+              variant="outline"
+            >
+              <Navigation className="h-4 w-4 mr-2" />
+              Me localiser
+            </Button>
+          )}
           {userLocation ? (
-            <Map 
+            <Map
               ref={mapRef}
               userLocation={userLocation}
               destinations={[{
