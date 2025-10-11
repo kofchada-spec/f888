@@ -13,6 +13,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { AvatarUpload } from './AvatarUpload';
 import avatar1 from '@/assets/avatars/avatar-1.png';
 import avatar2 from '@/assets/avatars/avatar-2.png';
 import avatar3 from '@/assets/avatars/avatar-3.png';
@@ -147,30 +148,58 @@ export const ProfileEditModal = ({
           <div>
             <Label className="text-sm font-medium mb-3 block">Choisir un avatar</Label>
             
-            <div className="grid grid-cols-3 gap-3">
-              {avatarOptions.map((avatar) => (
-                <button
-                  key={avatar.id}
-                  type="button"
-                  onClick={() => setSelectedAvatar(avatar.src)}
-                  className={`relative w-16 h-16 rounded-full overflow-hidden border-2 touch-manipulation transition-all duration-150 ${
-                    selectedAvatar === avatar.src
-                      ? 'border-primary shadow-lg ring-2 ring-primary/20'
-                      : 'border-muted hover:border-primary/50'
-                  }`}
-                >
+            {/* Avatar actuel */}
+            {selectedAvatar && (
+              <div className="flex justify-center mb-4">
+                <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-primary">
                   <img 
-                    src={avatar.src} 
-                    alt={avatar.alt}
+                    src={selectedAvatar} 
+                    alt="Avatar actuel"
                     className="w-full h-full object-cover"
                   />
-                  {selectedAvatar === avatar.src && (
-                    <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                      <div className="w-3 h-3 bg-primary rounded-full"></div>
-                    </div>
-                  )}
-                </button>
-              ))}
+                </div>
+              </div>
+            )}
+
+            {/* Upload personnalisé */}
+            {user && (
+              <div className="mb-4">
+                <AvatarUpload
+                  userId={user.id}
+                  currentAvatarUrl={selectedAvatar}
+                  onAvatarUploaded={(url) => setSelectedAvatar(url)}
+                />
+              </div>
+            )}
+
+            {/* Avatars prédéfinis */}
+            <div className="border-t pt-4 mt-4">
+              <p className="text-xs text-muted-foreground mb-3">Ou choisir un avatar prédéfini:</p>
+              <div className="grid grid-cols-4 gap-3">
+                {avatarOptions.map((avatar) => (
+                  <button
+                    key={avatar.id}
+                    type="button"
+                    onClick={() => setSelectedAvatar(avatar.src)}
+                    className={`relative w-14 h-14 rounded-full overflow-hidden border-2 touch-manipulation transition-all duration-150 ${
+                      selectedAvatar === avatar.src
+                        ? 'border-primary shadow-lg ring-2 ring-primary/20'
+                        : 'border-muted hover:border-primary/50'
+                    }`}
+                  >
+                    <img 
+                      src={avatar.src} 
+                      alt={avatar.alt}
+                      className="w-full h-full object-cover"
+                    />
+                    {selectedAvatar === avatar.src && (
+                      <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                        <div className="w-2 h-2 bg-primary rounded-full"></div>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
           
