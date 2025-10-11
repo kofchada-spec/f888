@@ -30,19 +30,24 @@ export const useVoiceGuidance = (options: VoiceGuidanceOptions) => {
     if (!synthRef.current) return null;
 
     const voices = synthRef.current.getVoices();
-    const lang = i18n.language;
+    
+    // Check if user has selected a specific voice
+    const selectedVoiceName = localStorage.getItem('selectedVoiceName');
+    if (selectedVoiceName) {
+      const selectedVoice = voices.find(v => v.name === selectedVoiceName);
+      if (selectedVoice) return selectedVoice;
+    }
 
-    // Try to find a voice matching the current language
+    // Fallback to automatic selection based on language
+    const lang = i18n.language;
     let voice = voices.find(v => v.lang.startsWith(lang));
     
-    // Fallback to any voice for the language family
     if (!voice && lang.startsWith('fr')) {
       voice = voices.find(v => v.lang.startsWith('fr'));
     } else if (!voice && lang.startsWith('en')) {
       voice = voices.find(v => v.lang.startsWith('en'));
     }
 
-    // Final fallback to default voice
     return voice || voices[0];
   }, [i18n.language]);
 

@@ -40,6 +40,10 @@ const Settings = () => {
     const stored = localStorage.getItem('announcementInterval');
     return stored || '500';
   });
+  const [selectedVoice, setSelectedVoice] = useState<string>(() => {
+    return localStorage.getItem('selectedVoiceName') || 'auto';
+  });
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
 
   useEffect(() => {
     localStorage.setItem('voiceGuidanceEnabled', String(voiceGuidanceEnabled));
@@ -48,6 +52,33 @@ const Settings = () => {
   useEffect(() => {
     localStorage.setItem('announcementInterval', announcementInterval);
   }, [announcementInterval]);
+
+  useEffect(() => {
+    if (selectedVoice === 'auto') {
+      localStorage.removeItem('selectedVoiceName');
+    } else {
+      localStorage.setItem('selectedVoiceName', selectedVoice);
+    }
+  }, [selectedVoice]);
+
+  // Load available voices
+  useEffect(() => {
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      // Filter French voices for better relevance
+      const frenchVoices = voices.filter(v => 
+        v.lang.startsWith('fr') || v.lang.startsWith(i18n.language)
+      );
+      setAvailableVoices(frenchVoices.length > 0 ? frenchVoices : voices);
+    };
+
+    loadVoices();
+    
+    // Chrome loads voices asynchronously
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+  }, [i18n.language]);
 
   const handleLanguageChange = (newLang: string) => {
     setLanguage(newLang);
@@ -318,6 +349,36 @@ const Settings = () => {
                   <SelectItem value="500">{t('settings.voice.interval.500m')}</SelectItem>
                   <SelectItem value="1000">{t('settings.voice.interval.1km')}</SelectItem>
                   <SelectItem value="2000">{t('settings.voice.interval.2km')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Voice Selection */}
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <Volume2 className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="font-medium">Voix</p>
+                  <p className="text-sm text-muted-foreground">
+                    Choisissez la voix pour les annonces
+                  </p>
+                </div>
+              </div>
+              <Select 
+                value={selectedVoice} 
+                onValueChange={setSelectedVoice}
+                disabled={!voiceGuidanceEnabled}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">🤖 Automatique</SelectItem>
+                  {availableVoices.map((voice) => (
+                    <SelectItem key={voice.name} value={voice.name}>
+                      {voice.name} ({voice.lang})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
