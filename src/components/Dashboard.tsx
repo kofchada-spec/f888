@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ProfileEditModal } from '@/components/ProfileEditModal';
 import { WeeklyStats } from '@/components/WeeklyStats';
 import { RunWeeklyStats } from '@/components/RunWeeklyStats';
+import { CombinedWeeklyStats } from '@/components/CombinedWeeklyStats';
 import { BadgeSystem } from '@/components/BadgeSystem';
 import { BetaBanner } from '@/components/BetaBanner';
 import { BetaFeedbackModal } from '@/components/BetaFeedbackModal';
@@ -575,8 +576,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
 
           {activeTab === 'all' && (
             <div className="space-y-6 animate-in fade-in-50 duration-300">
-              <WeeklyStats userProfile={{ height: userProfile.height, weight: userProfile.weight }} />
-              <RunWeeklyStats userProfile={{ height: userProfile.height, weight: userProfile.weight }} />
+              <CombinedWeeklyStats userProfile={{ height: userProfile.height, weight: userProfile.weight }} />
               <BadgeSystem 
                 walkStats={walkBadgeStats} 
                 runStats={runBadgeStats}
