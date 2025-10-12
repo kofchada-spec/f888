@@ -441,6 +441,10 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
               <p className="text-sm opacity-90">
                 {currentStreak === 0 ? "Commence ta série !" : 
                  currentStreak === 1 ? "jour actif" : 
+                 currentStreak >= 30 ? "30 jours de légende! +3 plans 🔥🔥🔥" :
+                 currentStreak >= 14 ? "2 semaines incroyables! +2 plans 🔥🔥" :
+                 currentStreak >= 7 ? "Une semaine complète! +1 plan 🔥" :
+                 currentStreak >= 2 ? "streak on🔥" :
                  "jours consécutifs"}
               </p>
             </CardContent>
