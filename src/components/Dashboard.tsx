@@ -460,12 +460,12 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
               <Award className="h-8 w-8 mx-auto mb-3 opacity-90" />
               <p className="text-2xl font-bold">{currentStreak}</p>
               <p className="text-sm opacity-90">
-                {currentStreak === 0 ? "Commence ta série !" : 
-                 currentStreak === 1 ? "jour actif" : 
-                 currentStreak >= 30 ? "30 jours de légende! +3 plans 🔥🔥🔥" :
-                 currentStreak >= 14 ? "2 semaines incroyables! +2 plans 🔥🔥" :
-                 currentStreak >= 7 ? "Une semaine complète! +1 plan 🔥" :
-                 currentStreak >= 2 ? "streak on🔥" :
+                {currentStreak === 0 ? "Lance ta série aujourd'hui ! 🚀" : 
+                 currentStreak === 1 ? "Premier pas réussi ! 🎯" : 
+                 currentStreak >= 30 ? "Légende des 30 jours ! +3 plans 👑" :
+                 currentStreak >= 14 ? "2 semaines d'excellence ! +2 plans 🔥🔥" :
+                 currentStreak >= 7 ? "Semaine légendaire ! +1 plan 🏆" :
+                 currentStreak >= 2 ? "Tu es lancé ! Continue 🔥" :
                  "jours consécutifs"}
               </p>
             </CardContent>
