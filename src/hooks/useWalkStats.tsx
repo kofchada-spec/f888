@@ -138,7 +138,11 @@ export const useWalkStats = () => {
   // Get weekly stats (Monday to Sunday)
   const getWeeklyStats = (): DayStats[] => {
     const today = new Date();
-    const startOfWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay() + 1);
+    // Calculate start of week (Monday)
+    // getDay() returns 0 for Sunday, 1 for Monday, etc.
+    const dayOfWeek = today.getDay();
+    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // If Sunday, go back 6 days to Monday
+    const startOfWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - daysFromMonday);
     
     const weekDays: DayStats[] = [];
     
