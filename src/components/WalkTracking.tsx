@@ -16,6 +16,7 @@ import { useVoiceGuidance } from '@/hooks/useVoiceGuidance';
 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useStepDetection } from '@/hooks/useStepDetection';
 
 interface Destination {
   id: string;
@@ -81,16 +82,29 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
     }
   });
 
-  // Calculate steps from GPS distance
+  // Real step detection from accelerometer
+  const { 
+    currentSteps: realSteps, 
+    isMovementDetected, 
+    resetStepDetection 
+  } = useStepDetection({
+    isTracking,
+    activityType: 'walk'
+  });
+
+  // Calculate steps from GPS distance (for display/fallback only)
   const calculateStepsFromDistance = (distanceKm: number): number => {
     const strideM = 0.415 * planningData.height; // Walking stride
     const distanceM = distanceKm * 1000;
     return Math.round(distanceM / strideM);
   };
 
-  const currentSteps = calculateStepsFromDistance(totalDistance);
+  const gpsSteps = calculateStepsFromDistance(totalDistance);
   const CALIBRATION_DISTANCE = 0.5; // km
-  const showSteps = totalDistance >= CALIBRATION_DISTANCE;
+  
+  // Use real steps if available (native app), otherwise fallback to GPS calculation
+  const currentSteps = realSteps > 0 ? realSteps : gpsSteps;
+  const showSteps = totalDistance >= CALIBRATION_DISTANCE || realSteps > 0;
 
   // Live metrics calculation
   const liveMetrics = useLiveMetrics({
@@ -211,6 +225,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
     setWalkStartTime(new Date());
     setElapsedTime(0);
     resetGPS();
+    resetStepDetection(); // Reset real step counter
     resetFeedback();
     
     validateActivityCompletion();
@@ -260,6 +275,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
     setWalkStartTime(null);
     setElapsedTime(0);
     resetGPS();
+    resetStepDetection(); // Reset real step counter
     resetFeedback();
   };
 
@@ -375,7 +391,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
               {showSteps ? currentSteps : '--'}
             </div>
             <div className="text-sm text-muted-foreground">
-              {showSteps ? 'Pas réels' : 'Calibration...'}
+              {showSteps ? (realSteps > 0 ? 'Pas réels (podomètre)' : 'Pas estimés (GPS)') : 'Calibration...'}
             </div>
           </Card>
           
@@ -426,14 +442,21 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
         <div className="mb-6">
           <div className="flex justify-between text-sm text-muted-foreground mb-2">
             <span>Progression vers l'objectif</span>
-            <span>{currentSteps} / {planningData.steps} pas (cible: {getEstimatedSteps()} pas estimés)</span>
+            <span>
+              {currentSteps} / {planningData.steps} pas 
+              {realSteps > 0 && <span className="text-primary ml-1">(réels ✓)</span>}
+              {realSteps === 0 && gpsSteps > 0 && <span className="text-orange-500 ml-1">(GPS)</span>}
+            </span>
           </div>
-            <div className="w-full bg-muted rounded-full h-3">
-              <div 
-                className="bg-primary h-3 rounded-full"
-                style={{ width: `${getProgress()}%` }}
-              ></div>
-            </div>
+          <div className="w-full bg-muted rounded-full h-3">
+            <div 
+              className="bg-primary h-3 rounded-full transition-all duration-300"
+              style={{ width: `${getProgress()}%` }}
+            ></div>
+          </div>
+          <div className="text-xs text-muted-foreground mt-1 text-right">
+            Cible route: {getEstimatedSteps()} pas estimés
+          </div>
         </div>
 
         {/* Carte de suivi */}
