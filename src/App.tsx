@@ -13,6 +13,7 @@ import SubscriptionSuccess from "./pages/SubscriptionSuccess";
 import AuthPage from "./pages/AuthPage";
 import ServiceClient from "./pages/ServiceClient";
 import Settings from "./pages/Settings";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,7 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<AuthPage />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/subscription" element={<Subscription />} />
                 <Route path="/subscription-success" element={<SubscriptionSuccess />} />
                 <Route path="/service-client" element={<ServiceClient />} />
