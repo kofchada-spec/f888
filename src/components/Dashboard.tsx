@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -50,6 +52,8 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
   const [activeTab, setActiveTab] = useState<'all' | 'walk' | 'run' | null>(null);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [showBetaBanner, setShowBetaBanner] = useState(false);
+  const [isStreakInfoOpen, setIsStreakInfoOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   // Load user profile from Supabase or localStorage
   useEffect(() => {
@@ -437,25 +441,48 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
           {/* Carte Streak */}
           <Card className="bg-gradient-to-br from-yellow-400 to-orange-500 text-white shadow-lg border-0 relative">
             <CardContent className="p-6 text-center">
-              {/* Bouton Info */}
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/20 hover:bg-white/30 active:bg-white/40 flex items-center justify-center transition-colors touch-manipulation">
+              {/* Bouton Info - Dialog sur mobile, Tooltip sur desktop */}
+              {isMobile ? (
+                <Dialog open={isStreakInfoOpen} onOpenChange={setIsStreakInfoOpen}>
+                  <DialogTrigger asChild>
+                    <button className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/20 active:bg-white/40 flex items-center justify-center transition-colors touch-manipulation">
                       <Info className="h-4 w-4 text-white" />
                     </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" align="end" className="max-w-[280px] bg-popover text-popover-foreground mr-2">
-                    <p className="font-semibold mb-2 text-sm">Zones de récompenses 🎁</p>
-                    <div className="space-y-1.5 text-xs">
-                      <p>• <strong>7 jours consécutifs:</strong> +1 plan bonus/jour</p>
-                      <p>• <strong>14 jours consécutifs:</strong> +2 plans bonus/jour</p>
-                      <p>• <strong>30 jours consécutifs:</strong> +3 plans bonus/jour</p>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle className="text-lg">Zones de récompenses 🎁</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3 pt-4">
+                      <div className="space-y-2">
+                        <p className="text-sm"><strong>7 jours consécutifs:</strong> +1 plan bonus/jour</p>
+                        <p className="text-sm"><strong>14 jours consécutifs:</strong> +2 plans bonus/jour</p>
+                        <p className="text-sm"><strong>30 jours consécutifs:</strong> +3 plans bonus/jour</p>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Reste actif chaque jour pour maintenir ta série et augmenter tes récompenses!</p>
                     </div>
-                    <p className="mt-2 text-xs opacity-90">Reste actif chaque jour pour maintenir ta série et augmenter tes récompenses!</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+                  </DialogContent>
+                </Dialog>
+              ) : (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/20 hover:bg-white/30 active:bg-white/40 flex items-center justify-center transition-colors">
+                        <Info className="h-4 w-4 text-white" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="end" className="max-w-[280px] bg-popover text-popover-foreground mr-2">
+                      <p className="font-semibold mb-2 text-sm">Zones de récompenses 🎁</p>
+                      <div className="space-y-1.5 text-xs">
+                        <p>• <strong>7 jours consécutifs:</strong> +1 plan bonus/jour</p>
+                        <p>• <strong>14 jours consécutifs:</strong> +2 plans bonus/jour</p>
+                        <p>• <strong>30 jours consécutifs:</strong> +3 plans bonus/jour</p>
+                      </div>
+                      <p className="mt-2 text-xs opacity-90">Reste actif chaque jour pour maintenir ta série et augmenter tes récompenses!</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
 
               <Award className="h-8 w-8 mx-auto mb-3 opacity-90" />
               <p className="text-2xl font-bold">{currentStreak}</p>
