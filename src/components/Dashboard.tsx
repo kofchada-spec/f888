@@ -441,13 +441,13 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <button className="absolute top-3 right-3 w-6 h-6 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors">
+                    <button className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/20 hover:bg-white/30 active:bg-white/40 flex items-center justify-center transition-colors touch-manipulation">
                       <Info className="h-4 w-4 text-white" />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="left" className="max-w-xs bg-popover text-popover-foreground">
-                    <p className="font-semibold mb-2">Zones de récompenses 🎁</p>
-                    <div className="space-y-1.5 text-sm">
+                  <TooltipContent side="bottom" align="end" className="max-w-[280px] bg-popover text-popover-foreground mr-2">
+                    <p className="font-semibold mb-2 text-sm">Zones de récompenses 🎁</p>
+                    <div className="space-y-1.5 text-xs">
                       <p>• <strong>7 jours consécutifs:</strong> +1 plan bonus/jour</p>
                       <p>• <strong>14 jours consécutifs:</strong> +2 plans bonus/jour</p>
                       <p>• <strong>30 jours consécutifs:</strong> +3 plans bonus/jour</p>
