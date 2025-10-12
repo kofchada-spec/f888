@@ -113,6 +113,7 @@ export const WeeklyStats = ({ userProfile }: WeeklyStatsProps) => {
           isOpen={isCalendarOpen}
           onClose={() => setIsCalendarOpen(false)}
           weeklyStats={weeklyStats}
+          activityType="walk"
         />
       </CardContent>
     </Card>

@@ -111,6 +111,7 @@ export const RunWeeklyStats = ({ userProfile }: RunWeeklyStatsProps) => {
             kcal: day.kcal,
             walkMin: day.runMin // Using the same field name for compatibility
           }))}
+          activityType="run"
         />
       </CardContent>
     </Card>

@@ -11,6 +11,7 @@ interface WeeklyCalendarModalProps {
   isOpen: boolean;
   onClose: () => void;
   weeklyStats: DayStats[];
+  activityType?: 'walk' | 'run' | 'all';
 }
 
 interface CalendarDay {
@@ -21,7 +22,7 @@ interface CalendarDay {
   isToday: boolean;
 }
 
-export const WeeklyCalendarModal = ({ isOpen, onClose, weeklyStats }: WeeklyCalendarModalProps) => {
+export const WeeklyCalendarModal = ({ isOpen, onClose, weeklyStats, activityType = 'all' }: WeeklyCalendarModalProps) => {
   const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null);
@@ -207,25 +208,56 @@ export const WeeklyCalendarModal = ({ isOpen, onClose, weeklyStats }: WeeklyCale
                     
                     {dayInfo.stats && dayInfo.stats.steps > 0 ? (
                       <div className="space-y-0.5 md:space-y-1 flex-1 overflow-hidden">
-                        <div className="flex items-center text-xs text-muted-foreground truncate">
-                          <Footprints className="h-2.5 w-2.5 md:h-3 md:w-3 mr-1 flex-shrink-0" />
-                          <span className="truncate">{dayInfo.stats.steps > 999 ? `${Math.round(dayInfo.stats.steps/1000)}k` : dayInfo.stats.steps}</span>
-                        </div>
-                        
-                        <div className="flex items-center text-xs text-muted-foreground truncate">
-                          <MapPin className="h-2.5 w-2.5 md:h-3 md:w-3 mr-1 flex-shrink-0" />
-                          <span className="truncate">{dayInfo.stats.distanceKm.toFixed(1)}km</span>
-                        </div>
-                        
-                        <div className="flex items-center text-xs text-muted-foreground truncate">
-                          <Flame className="h-2.5 w-2.5 md:h-3 md:w-3 mr-1 flex-shrink-0" />
-                          <span className="truncate">{dayInfo.stats.kcal}</span>
-                        </div>
-                        
-                        <div className="flex items-center text-xs text-muted-foreground truncate">
-                          <Clock className="h-2.5 w-2.5 md:h-3 md:w-3 mr-1 flex-shrink-0" />
-                          <span className="truncate">{dayInfo.stats.walkMin}min</span>
-                        </div>
+                        {activityType === 'run' ? (
+                          <>
+                            <div className="flex items-center text-xs font-semibold text-orange-600 truncate">
+                              <MapPin className="h-3 w-3 md:h-3.5 md:w-3.5 mr-1 flex-shrink-0" />
+                              <span className="truncate">{dayInfo.stats.distanceKm.toFixed(1)}km</span>
+                            </div>
+                            <div className="flex items-center text-xs text-muted-foreground truncate">
+                              <Flame className="h-2.5 w-2.5 md:h-3 md:w-3 mr-1 flex-shrink-0" />
+                              <span className="truncate">{dayInfo.stats.kcal}</span>
+                            </div>
+                            <div className="flex items-center text-xs text-muted-foreground truncate">
+                              <Clock className="h-2.5 w-2.5 md:h-3 md:w-3 mr-1 flex-shrink-0" />
+                              <span className="truncate">{dayInfo.stats.walkMin}min</span>
+                            </div>
+                          </>
+                        ) : activityType === 'walk' ? (
+                          <>
+                            <div className="flex items-center text-xs font-semibold text-primary truncate">
+                              <Footprints className="h-3 w-3 md:h-3.5 md:w-3.5 mr-1 flex-shrink-0" />
+                              <span className="truncate">{dayInfo.stats.steps > 999 ? `${Math.round(dayInfo.stats.steps/1000)}k` : dayInfo.stats.steps}</span>
+                            </div>
+                            <div className="flex items-center text-xs text-muted-foreground truncate">
+                              <MapPin className="h-2.5 w-2.5 md:h-3 md:w-3 mr-1 flex-shrink-0" />
+                              <span className="truncate">{dayInfo.stats.distanceKm.toFixed(1)}km</span>
+                            </div>
+                            <div className="flex items-center text-xs text-muted-foreground truncate">
+                              <Flame className="h-2.5 w-2.5 md:h-3 md:w-3 mr-1 flex-shrink-0" />
+                              <span className="truncate">{dayInfo.stats.kcal}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-center text-xs text-muted-foreground truncate">
+                              <Footprints className="h-2.5 w-2.5 md:h-3 md:w-3 mr-1 flex-shrink-0" />
+                              <span className="truncate">{dayInfo.stats.steps > 999 ? `${Math.round(dayInfo.stats.steps/1000)}k` : dayInfo.stats.steps}</span>
+                            </div>
+                            <div className="flex items-center text-xs text-muted-foreground truncate">
+                              <MapPin className="h-2.5 w-2.5 md:h-3 md:w-3 mr-1 flex-shrink-0" />
+                              <span className="truncate">{dayInfo.stats.distanceKm.toFixed(1)}km</span>
+                            </div>
+                            <div className="flex items-center text-xs text-muted-foreground truncate">
+                              <Flame className="h-2.5 w-2.5 md:h-3 md:w-3 mr-1 flex-shrink-0" />
+                              <span className="truncate">{dayInfo.stats.kcal}</span>
+                            </div>
+                            <div className="flex items-center text-xs text-muted-foreground truncate">
+                              <Clock className="h-2.5 w-2.5 md:h-3 md:w-3 mr-1 flex-shrink-0" />
+                              <span className="truncate">{dayInfo.stats.walkMin}min</span>
+                            </div>
+                          </>
+                        )}
                       </div>
                     ) : (
                       <div className="text-xs text-muted-foreground/50">
