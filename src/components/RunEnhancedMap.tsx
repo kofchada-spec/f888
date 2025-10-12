@@ -30,6 +30,7 @@ const RunEnhancedMap: React.FC<RunEnhancedMapProps> = ({
   const [locationError, setLocationError] = useState<string | null>(null);
   const [currentRoute, setCurrentRoute] = useState<RouteData | null>(null);
   const [initialRoute, setInitialRoute] = useState<RouteData | null>(null);
+  const hasGeneratedInitialRoute = useRef(false); // Prevent re-generation on swipe
   
   const { canClick, isLocked, incrementAttempts, remainingAttempts } = useMapClickLimiter(3);
 
@@ -542,7 +543,10 @@ const RunEnhancedMap: React.FC<RunEnhancedMapProps> = ({
   };
 
   useEffect(() => {
-    if (mapReady && userLocation && planningData && !currentRoute && !isCalculating) {
+    // Only generate route once, prevent re-generation on swipe/unmount
+    if (mapReady && userLocation && planningData && !hasGeneratedInitialRoute.current && !isCalculating) {
+      hasGeneratedInitialRoute.current = true; // Mark as generated
+      
       const generateRoute = async () => {
         if (planningData.tripType === 'one-way') {
           await oneWayHook.generateOneWayRoute();
@@ -553,7 +557,7 @@ const RunEnhancedMap: React.FC<RunEnhancedMapProps> = ({
       
       generateRoute();
     }
-  }, [mapReady, userLocation, planningData?.tripType, planningData?.steps, planningData?.height, currentRoute, isCalculating]);
+  }, [mapReady, userLocation, planningData?.tripType, planningData?.steps, planningData?.height, isCalculating]);
 
   const handleReset = () => {
     if (initialRoute) {
@@ -562,6 +566,7 @@ const RunEnhancedMap: React.FC<RunEnhancedMapProps> = ({
       if (onRouteCalculated) {
         onRouteCalculated(initialRoute);
       }
+      hasGeneratedInitialRoute.current = true; // Keep generation blocked
       toast.success('Itinéraire initial restauré');
     }
   };
