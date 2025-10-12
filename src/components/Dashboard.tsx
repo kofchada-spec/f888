@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, Edit3, Footprints, MapPin, Flame, Clock, LogOut, Crown, Settings, UserCircle, CreditCard, HelpCircle, Target, Award, Zap, MessageSquare } from 'lucide-react';
+import { User, Edit3, Footprints, MapPin, Flame, Clock, LogOut, Crown, Settings, UserCircle, CreditCard, HelpCircle, Target, Award, Zap, MessageSquare, Info } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useWalkStats } from '@/hooks/useWalkStats';
 import { useRunStats } from '@/hooks/useRunStats';
@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -434,8 +435,28 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
         {/* Streak et Message Motivationnel */}
         <div className="grid md:grid-cols-2 gap-4">
           {/* Carte Streak */}
-          <Card className="bg-gradient-to-br from-yellow-400 to-orange-500 text-white shadow-lg border-0">
+          <Card className="bg-gradient-to-br from-yellow-400 to-orange-500 text-white shadow-lg border-0 relative">
             <CardContent className="p-6 text-center">
+              {/* Bouton Info */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button className="absolute top-3 right-3 w-6 h-6 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors">
+                      <Info className="h-4 w-4 text-white" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="max-w-xs bg-popover text-popover-foreground">
+                    <p className="font-semibold mb-2">Zones de récompenses 🎁</p>
+                    <div className="space-y-1.5 text-sm">
+                      <p>• <strong>7 jours consécutifs:</strong> +1 plan bonus/jour</p>
+                      <p>• <strong>14 jours consécutifs:</strong> +2 plans bonus/jour</p>
+                      <p>• <strong>30 jours consécutifs:</strong> +3 plans bonus/jour</p>
+                    </div>
+                    <p className="mt-2 text-xs opacity-90">Reste actif chaque jour pour maintenir ta série et augmenter tes récompenses!</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
               <Award className="h-8 w-8 mx-auto mb-3 opacity-90" />
               <p className="text-2xl font-bold">{currentStreak}</p>
               <p className="text-sm opacity-90">
