@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ChevronLeft, ChevronRight, Footprints, MapPin, Flame, Clock } from 'lucide-react';
 import { DayStats } from '@/components/WeeklyStats';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface WeeklyCalendarModalProps {
   isOpen: boolean;
@@ -20,8 +22,56 @@ interface CalendarDay {
 }
 
 export const WeeklyCalendarModal = ({ isOpen, onClose, weeklyStats }: WeeklyCalendarModalProps) => {
+  const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null);
+  const [allActivities, setAllActivities] = useState<DayStats[]>([]);
+
+  // Load all activities from Supabase for the calendar
+  useEffect(() => {
+    if (!user) return;
+
+    const loadAllActivities = async () => {
+      const { data, error } = await supabase
+        .from('activities')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('date', { ascending: false });
+
+      if (error) {
+        console.error('Error loading activities:', error);
+        return;
+      }
+
+      if (data) {
+        // Group activities by date
+        const activityMap = new Map<string, DayStats>();
+        
+        data.forEach(activity => {
+          const dateISO = activity.date;
+          const existing = activityMap.get(dateISO) || {
+            dateISO,
+            steps: 0,
+            distanceKm: 0,
+            kcal: 0,
+            walkMin: 0
+          };
+          
+          activityMap.set(dateISO, {
+            dateISO,
+            steps: existing.steps + activity.steps,
+            distanceKm: existing.distanceKm + Number(activity.distance_km),
+            kcal: existing.kcal + activity.calories,
+            walkMin: existing.walkMin + activity.duration_min
+          });
+        });
+
+        setAllActivities(Array.from(activityMap.values()));
+      }
+    };
+
+    loadAllActivities();
+  }, [user]);
 
   // Helper to get local date string
   const getLocalDateString = (date: Date): string => {
@@ -52,7 +102,8 @@ export const WeeklyCalendarModal = ({ isOpen, onClose, weeklyStats }: WeeklyCale
   for (let day = 1; day <= daysInMonth; day++) {
     const date = new Date(year, month, day);
     const dateISO = getLocalDateString(date);
-    const dayData = weeklyStats.find(stat => stat.dateISO === dateISO);
+    // Look in allActivities instead of just weeklyStats
+    const dayData = allActivities.find(stat => stat.dateISO === dateISO);
     
     calendarDays.push({
       day,
