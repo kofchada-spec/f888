@@ -37,6 +37,14 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
   const markers = useRef<mapboxgl.Marker[]>([]);
   const lastDestinationKey = useRef<string>(''); // Track destination changes to prevent flicker
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
+  
+  // Store route information to re-render after style reload
+  const currentRoutes = useRef<Array<{
+    destId: string;
+    routeGeometry: any;
+    isSelected: boolean;
+    isRoundTrip: boolean;
+  }>>([]);
 
   // Expose map methods via ref
   useImperativeHandle(ref, () => ({
@@ -186,6 +194,31 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
     };
   }, [mapboxToken]);
 
+  // Listen for style reload and re-render routes (fixes swipe bug on mobile)
+  useEffect(() => {
+    if (!map.current) return;
+
+    const handleStyleData = () => {
+      // Only re-render if the style is fully loaded
+      if (!map.current?.isStyleLoaded()) return;
+      
+      console.log('🔄 Style rechargé - Restauration des routes');
+      
+      // Re-render all stored routes
+      currentRoutes.current.forEach(route => {
+        if (route.routeGeometry) {
+          addRouteFromGeometry(route.destId, route.routeGeometry, route.isSelected);
+        }
+      });
+    };
+
+    map.current.on('styledata', handleStyleData);
+
+    return () => {
+      map.current?.off('styledata', handleStyleData);
+    };
+  }, [isTracking]); // Re-attach listener when tracking state changes
+
   // Update camera when userLocation changes (only once on initialization)
   useEffect(() => {
     if (map.current && userLocation && markers.current.length === 0) {
@@ -246,6 +279,9 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
     
     lastDestinationKey.current = destinationKey;
     console.log('🗺️ Rendering routes for destinations:', destinationKey);
+
+    // Clear stored routes for new render
+    currentRoutes.current = [];
 
     // Clear existing markers only when destinations actually change
     markers.current.forEach(marker => marker.remove());
@@ -369,18 +405,32 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
         if (destination.routeGeoJSON) {
           console.log('✅ Style loaded - Adding preconfigured route immediately');
           addRouteFromGeometry(destination.id, destination.routeGeoJSON, isSelected);
+          // Store route info for re-rendering
+          currentRoutes.current.push({
+            destId: destination.id,
+            routeGeometry: destination.routeGeoJSON,
+            isSelected,
+            isRoundTrip
+          });
         } else {
           console.log('✅ Style loaded - Adding simple route immediately');
           addRouteLine(destination.id, userLocation, { lat: destLat, lng: destLng }, isRoundTrip, isSelected);
         }
       } else {
         console.log('⏳ Style not loaded - Setting up deferred route rendering');
-        map.current?.on('styledata', () => {
+        map.current?.once('styledata', () => {
           if (map.current?.isStyleLoaded()) {
             console.log('🎯 Deferred route rendering triggered');
             if (destination.routeGeoJSON) {
               console.log('✅ Adding preconfigured route (deferred)');
               addRouteFromGeometry(destination.id, destination.routeGeoJSON, isSelected);
+              // Store route info for re-rendering
+              currentRoutes.current.push({
+                destId: destination.id,
+                routeGeometry: destination.routeGeoJSON,
+                isSelected,
+                isRoundTrip
+              });
             } else {
               console.log('✅ Adding simple route (deferred)');
               addRouteLine(destination.id, userLocation, { lat: destLat, lng: destLng }, isRoundTrip, isSelected);
