@@ -12,6 +12,13 @@ const config: CapacitorConfig = {
   plugins: {
     Motion: {
       interval: 1000
+    },
+    BackgroundGeolocation: {
+      notificationTitle: "Suivi d'activité en cours",
+      notificationText: "Votre parcours est enregistré",
+      notificationChannelName: "Suivi GPS",
+      requestPermissions: true,
+      backgroundMessage: "Tracking actif en arrière-plan"
     }
   }
 };
