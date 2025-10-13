@@ -1,7 +1,7 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.8af8d277c44b4c95a8792e40739d5fe8',
+  appId: 'com.fitpas.app',
   appName: 'Fitpas',
   webDir: 'dist',
   server: {
