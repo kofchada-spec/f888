@@ -23,6 +23,12 @@ export const useGPSTracking = ({ isTracking, onPositionUpdate }: UseGPSTrackingP
   const [currentSpeed, setCurrentSpeed] = useState(0); // in km/h
   const watchIdRef = useRef<number | null>(null);
   const lastPositionRef = useRef<GPSPosition | null>(null);
+  const onPositionUpdateRef = useRef(onPositionUpdate);
+
+  // Keep onPositionUpdate ref updated
+  useEffect(() => {
+    onPositionUpdateRef.current = onPositionUpdate;
+  }, [onPositionUpdate]);
 
   /**
    * Calculate distance between two GPS coordinates using Haversine formula
@@ -89,8 +95,8 @@ export const useGPSTracking = ({ isTracking, onPositionUpdate }: UseGPSTrackingP
     }
 
     lastPositionRef.current = newPosition;
-    onPositionUpdate?.(newPosition);
-  }, [calculateDistance, calculateSpeed, onPositionUpdate]);
+    onPositionUpdateRef.current?.(newPosition);
+  }, [calculateDistance, calculateSpeed]);
 
   /**
    * Start GPS tracking
@@ -119,7 +125,7 @@ export const useGPSTracking = ({ isTracking, onPositionUpdate }: UseGPSTrackingP
         watchIdRef.current = null;
       }
     };
-  }, [isTracking, handlePositionUpdate]);
+  }, [isTracking]); // Removed handlePositionUpdate from dependencies
 
   /**
    * Reset tracking data

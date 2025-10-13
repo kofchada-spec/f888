@@ -190,35 +190,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
     }
   }, [hasInitiallyFitMap]);
 
-  // Surveillance de la position pendant le tracking (optionnel)
-  useEffect(() => {
-    let watchId: number;
-    
-    if (isTracking && navigator.geolocation) {
-      watchId = navigator.geolocation.watchPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
-        },
-        (error) => {
-          console.log('Position tracking error:', error);
-        },
-        {
-          enableHighAccuracy: true,
-          maximumAge: 10000,
-          timeout: 5000
-        }
-      );
-    }
-
-    return () => {
-      if (watchId) {
-        navigator.geolocation.clearWatch(watchId);
-      }
-    };
-  }, [isTracking]);
+  // Le hook useGPSTracking gère déjà le watchPosition, pas besoin de dupliquer
 
   const handleStartWalk = () => {
     setIsTracking(true);
@@ -478,6 +450,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
               selectedDestination={destination.id}
               onDestinationSelect={() => {}}
               planningData={planningData}
+              isTracking={isTracking}
             />
           ) : (
             <div className="h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10">
