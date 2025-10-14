@@ -28,10 +28,10 @@ workflows:
       - name: Update Capacitor
         script: |
           npx cap sync ios
-      - name: Increment build number
+      - name: Set build number
         script: |
           cd ios/App
-          agvtool new-version -all $(($(app-store-connect get-latest-testflight-build-number "$APP_STORE_CONNECT_ISSUER_ID" "$APP_STORE_CONNECT_KEY_IDENTIFIER" com.fitpas.app) + 1))
+          agvtool new-version -all 2
       - name: Set up code signing settings on Xcode project
         script: |
           xcode-project use-profiles
