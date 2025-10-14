@@ -30,8 +30,15 @@ workflows:
           npx cap sync ios
       - name: Set build number
         script: |
+          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number "6753996672")
+          if [ -z "$LATEST_BUILD_NUMBER" ]; then
+            UPDATED_BUILD_NUMBER=1
+          else
+            UPDATED_BUILD_NUMBER=$(($LATEST_BUILD_NUMBER + 1))
+          fi
           cd ios/App
-          agvtool new-version -all 2
+          agvtool new-version -all $UPDATED_BUILD_NUMBER
+          echo "Build number set to: $UPDATED_BUILD_NUMBER"
       - name: Set up code signing settings on Xcode project
         script: |
           xcode-project use-profiles
