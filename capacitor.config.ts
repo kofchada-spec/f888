@@ -20,6 +20,13 @@ const config: CapacitorConfig = {
       requestPermissions: true,
       backgroundMessage: "Tracking actif en arrière-plan"
     }
+  },
+  ios: {
+    contentInset: 'always',
+    infoPlist: {
+      NSLocationAlwaysAndWhenInUseUsageDescription: "Fitpas utilise votre position pour suivre vos parcours de marche et de course, même lorsque l'application est en arrière-plan, afin d'enregistrer votre activité physique avec précision.",
+      NSLocationWhenInUseUsageDescription: "Fitpas a besoin d'accéder à votre position pour calculer vos itinéraires de marche et de course et suivre votre progression en temps réel."
+    }
   }
 };
 
