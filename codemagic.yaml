@@ -24,16 +24,14 @@ workflows:
           npm run build
       - name: Setup iOS platform
         script: |
-          if [ ! -d "ios" ]; then
-            npx cap add ios
-          fi
-          # Fix for "undefined method map for nil" error on M1 Macs
+          # Remove corrupted iOS folder and regenerate it completely
+          rm -rf ios
+          npx cap add ios
+          # Fix for M1 architecture issues
           sudo gem install ffi
+          gem install cocoapods --user-install
           gem install xcodeproj --user-install
           cd ios/App
-          # Remove old Pods and reinstall
-          rm -rf Pods
-          rm -rf Podfile.lock
           pod install --repo-update
           cd ../..
           npx cap sync ios
