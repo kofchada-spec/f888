@@ -46,10 +46,10 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Fitpas utilise votre position pour planifier vos itinéraires de marche et course instantanément depuis n'importe où.</string>
+	<string>Fitpas needs access to your location at all times to provide continuous route tracking during your walks and runs, even when the app is in the background. This allows us to accurately record your complete route, calculate distances, track your progress in real-time, and provide turn-by-turn navigation guidance throughout your entire workout session.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Fitpas a besoin de votre position pour générer des parcours personnalisés et suivre votre progression en temps réel pendant vos sorties.</string>
+	<string>Fitpas needs access to your location to generate personalized walking and running routes based on your current position. We use your location to plan optimal routes, track your real-time progress during activities, calculate distances and speed, and provide accurate navigation to help you reach your fitness destinations.</string>
 	<key>NSMotionUsageDescription</key>
-	<string>Fitpas utilise le capteur de mouvement pour détecter vos déplacements et améliorer la précision du suivi de vos activités.</string>
+	<string>Fitpas uses motion sensors to detect your movement patterns and steps, which helps improve the accuracy of distance tracking and activity monitoring during your walks and runs.</string>
 </dict>
 </plist>
