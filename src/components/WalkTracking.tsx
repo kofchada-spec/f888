@@ -16,7 +16,7 @@ import { useVoiceGuidance } from '@/hooks/useVoiceGuidance';
 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useHealthSteps } from '@/hooks/useHealthSteps';
+import { useStepDetection } from '@/hooks/useStepDetection';
 
 interface Destination {
   id: string;
@@ -82,12 +82,12 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
     }
   });
 
-  // Real step detection from Health app
+  // Real step detection from Motion API
   const { 
     currentSteps: realSteps, 
     isMovementDetected, 
     resetStepDetection 
-  } = useHealthSteps({
+  } = useStepDetection({
     isTracking,
     activityType: 'walk'
   });
