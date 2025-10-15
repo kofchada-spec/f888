@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, RotateCcw } from 'lucide-react';
 import RunEnhancedMap from '@/components/RunEnhancedMap';
 import { useMapClickLimiter } from '@/hooks/useMapClickLimiter';
+import RouteOnboardingAlert from '@/components/RouteOnboardingAlert';
 
 interface RunMapScreenProps {
   onComplete: (destination: any) => void;
@@ -161,6 +162,9 @@ const RunMapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: Run
             </div>
           )}
         </div>
+
+        {/* Onboarding Alert */}
+        <RouteOnboardingAlert isVisible={!!routeData} activityType="run" />
 
         {/* Run Estimation - Enhanced for round-trip */}
         {routeData && (
