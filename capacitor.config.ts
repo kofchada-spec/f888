@@ -24,8 +24,8 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: 'always',
     infoPlist: {
-      NSLocationAlwaysAndWhenInUseUsageDescription: "Fitpas utilise votre position pour planifier vos itinéraires de marche et course instantanément depuis n'importe où.",
-      NSLocationWhenInUseUsageDescription: "Fitpas a besoin de votre position pour générer des parcours personnalisés et suivre votre progression en temps réel pendant vos sorties."
+      NSLocationAlwaysAndWhenInUseUsageDescription: "Fitpas needs access to your location at all times to provide continuous route tracking during your walks and runs, even when the app is in the background. This allows us to accurately record your complete route, calculate distances, track your progress in real-time, and provide turn-by-turn navigation guidance throughout your entire workout session.",
+      NSLocationWhenInUseUsageDescription: "Fitpas needs access to your location to generate personalized walking and running routes based on your current position. We use your location to plan optimal routes, track your real-time progress during activities, calculate distances and speed, and provide accurate navigation to help you reach your fitness destinations."
     }
   }
 };
