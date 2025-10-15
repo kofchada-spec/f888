@@ -28,6 +28,9 @@ workflows:
             npx cap add ios
           fi
           npx cap sync ios
+          cd ios/App
+          pod repo update
+          pod install --repo-update
       - name: Set build number
         script: |
           LATEST_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number "6753996672")
