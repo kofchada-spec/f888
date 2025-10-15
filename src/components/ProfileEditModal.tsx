@@ -13,7 +13,6 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { AvatarUpload } from './AvatarUpload';
 import avatar1 from '@/assets/avatars/avatar-1.png';
 import avatar2 from '@/assets/avatars/avatar-2.png';
 import avatar3 from '@/assets/avatars/avatar-3.png';
@@ -161,20 +160,9 @@ export const ProfileEditModal = ({
               </div>
             )}
 
-            {/* Upload personnalisé */}
-            {user && (
-              <div className="mb-4">
-                <AvatarUpload
-                  userId={user.id}
-                  currentAvatarUrl={selectedAvatar}
-                  onAvatarUploaded={(url) => setSelectedAvatar(url)}
-                />
-              </div>
-            )}
-
             {/* Avatars prédéfinis */}
-            <div className="border-t pt-4 mt-4">
-              <p className="text-xs text-muted-foreground mb-3">Ou choisir un avatar prédéfini:</p>
+            <div className="pt-2">
+              <p className="text-xs text-muted-foreground mb-3">Choisir un avatar prédéfini:</p>
               <div className="grid grid-cols-4 gap-3">
                 {avatarOptions.map((avatar) => (
                   <button
