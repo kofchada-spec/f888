@@ -16,7 +16,7 @@ import { useVoiceGuidance } from '@/hooks/useVoiceGuidance';
 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useStepDetection } from '@/hooks/useStepDetection';
+import { useHealthSteps } from '@/hooks/useHealthSteps';
 
 interface Destination {
   id: string;
@@ -73,12 +73,12 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
     onPositionUpdate: (position) => setUserLocation({ lat: position.lat, lng: position.lng })
   });
 
-  // Real step detection from accelerometer
+  // Real step detection from Health app
   const { 
     currentSteps: realSteps, 
     isMovementDetected, 
     resetStepDetection 
-  } = useStepDetection({
+  } = useHealthSteps({
     isTracking,
     activityType: 'run'
   });
