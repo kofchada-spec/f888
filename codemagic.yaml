@@ -27,9 +27,15 @@ workflows:
           if [ ! -d "ios" ]; then
             npx cap add ios
           fi
+          # Clean CocoaPods cache and update dependencies
+          pod cache clean --all
+          gem update cocoapods
           gem update xcodeproj
           cd ios/App
-          pod install --repo-update
+          # Remove old Pods and reinstall
+          rm -rf Pods
+          rm -rf Podfile.lock
+          pod install --repo-update --clean-install
           cd ../..
           npx cap sync ios
       - name: Set build number
