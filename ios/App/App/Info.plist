@@ -50,6 +50,10 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>FitPaS utilise votre position pour créer des itinéraires adaptés et suivre votre progression.</string>
 	<key>NSMotionUsageDescription</key>
-	<string>FitPaS utilise les capteurs pour compter vos pas et améliorer la précision.</string>
+	<string>Pour compter vos pas pendant vos activités.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Pour lire vos données de pas depuis Apple Santé.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Pour enregistrer vos activités dans Apple Santé.</string>
 </dict>
 </plist>
