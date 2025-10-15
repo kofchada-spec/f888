@@ -45,5 +45,9 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>FitPaS utilise votre position pour planifier des itinéraires de marche et suivre votre activité pendant vos sorties.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>FitPaS a besoin de votre position pour créer des itinéraires de marche adaptés depuis votre position actuelle et pour suivre votre progression en temps réel.</string>
 </dict>
 </plist>
