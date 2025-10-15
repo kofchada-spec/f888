@@ -49,5 +49,7 @@
 	<string>Fitpas utilise votre position pour planifier vos itinéraires de marche et course instantanément depuis n'importe où.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Fitpas a besoin de votre position pour générer des parcours personnalisés et suivre votre progression en temps réel pendant vos sorties.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Fitpas utilise le podomètre de votre appareil pour compter vos pas pendant vos activités de marche et course.</string>
 </dict>
 </plist>
