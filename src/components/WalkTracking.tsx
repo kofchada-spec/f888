@@ -355,15 +355,20 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
             <div className="text-sm text-muted-foreground">km parcourus (GPS)</div>
           </Card>
           
-          <Card className="p-4 text-center">
+          <Card className="p-4 text-center bg-gradient-to-br from-primary/5 to-primary/10 border-2 border-primary/30">
             <div className="flex items-center justify-center mb-2">
-              <Target size={20} className="text-secondary" />
+              <Target size={24} className="text-primary" />
             </div>
-            <div className="text-2xl font-bold text-foreground">
+            <div className="text-3xl font-bold text-primary">
               {showSteps ? currentSteps : '--'}
             </div>
-            <div className="text-sm text-muted-foreground">
-              {showSteps ? (realSteps > 0 ? 'Pas réels (podomètre)' : 'Pas estimés (GPS)') : 'Calibration...'}
+            <div className="text-sm font-semibold text-foreground">
+              {showSteps ? (realSteps > 0 ? 'Pas réels' : 'Pas estimés') : 'Calibration...'}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {realSteps > 0 && '✓ Podomètre'}
+              {realSteps === 0 && gpsSteps > 0 && 'GPS'}
+              {!showSteps && '⏳'}
             </div>
           </Card>
           
@@ -410,24 +415,26 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
           </div>
         </Card>
 
-        {/* Barre de progression */}
+        {/* Barre de progression - Basée sur les PAS */}
         <div className="mb-6">
           <div className="flex justify-between text-sm text-muted-foreground mb-2">
             <span>Progression vers l'objectif</span>
-            <span>
-              {currentSteps} / {planningData.steps} pas 
-              {realSteps > 0 && <span className="text-primary ml-1">(réels ✓)</span>}
-              {realSteps === 0 && gpsSteps > 0 && <span className="text-orange-500 ml-1">(GPS)</span>}
+            <span className="font-semibold text-primary">
+              {currentSteps} / {planningData.steps} pas
+              {realSteps > 0 && <span className="ml-1">✓</span>}
             </span>
           </div>
           <div className="w-full bg-muted rounded-full h-3">
             <div 
-              className="bg-primary h-3 rounded-full transition-all duration-300"
+              className="bg-gradient-to-r from-primary to-primary-glow h-3 rounded-full transition-all duration-300 shadow-glow-primary"
               style={{ width: `${getProgress()}%` }}
             ></div>
           </div>
-          <div className="text-xs text-muted-foreground mt-1 text-right">
-            Cible route: {getEstimatedSteps()} pas estimés
+          <div className="text-xs text-muted-foreground mt-1 flex justify-between">
+            <span>
+              {realSteps > 0 ? '🎯 Comptés par le podomètre natif' : '📍 Estimés via GPS'}
+            </span>
+            <span>Cible: {getEstimatedSteps()} pas</span>
           </div>
         </div>
 

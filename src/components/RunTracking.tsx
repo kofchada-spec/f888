@@ -101,7 +101,10 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
     totalDistance, currentSpeed, elapsedTime, weight: planningData.weight, activityType: 'run', pace: planningData.pace
   });
 
-  const currentProgress = planningData.steps ? Math.min((currentSteps / planningData.steps) * 100, 100) : 0;
+  // Calculate progress based on DISTANCE for running (not steps)
+  const targetDistance = planningData.distance || destination.distanceKm;
+  const currentProgress = Math.min((totalDistance / targetDistance) * 100, 100);
+  
   const { resetFeedback, getRemainingDistance } = useTrackingFeedback({
     currentProgress, isTracking, currentPosition: currentPosition ? { lat: currentPosition.lat, lng: currentPosition.lng } : null,
     destinationCoords: destination.coordinates, totalDistance
@@ -268,11 +271,6 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
     }
   };
 
-  const getProgress = () => {
-    const targetSteps = planningData.steps;
-    return Math.min((currentSteps / targetSteps) * 100, 100);
-  };
-
   const getEstimatedSteps = () => {
     const heightM = planningData.height;
     const strideM = heightM ? 0.5 * heightM : 0.85; // Running stride
@@ -346,12 +344,13 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
             <div className="text-sm text-muted-foreground">Temps</div>
           </Card>
           
-          <Card className="p-4 text-center bg-gradient-to-br from-orange-500/5 to-orange-500/10">
+          <Card className="p-4 text-center bg-gradient-to-br from-orange-500/5 to-orange-500/10 border-2 border-orange-200">
             <div className="flex items-center justify-center mb-2">
-              <Navigation size={20} className="text-orange-600" />
+              <Navigation size={24} className="text-orange-600" />
             </div>
-            <div className="text-2xl font-bold text-foreground">{totalDistance.toFixed(2)}</div>
-            <div className="text-sm text-muted-foreground">km parcourus (GPS)</div>
+            <div className="text-3xl font-bold text-orange-600">{totalDistance.toFixed(2)}</div>
+            <div className="text-sm font-semibold text-foreground">km parcourus (GPS)</div>
+            <div className="text-xs text-muted-foreground mt-1">📍 Mise en avant</div>
           </Card>
           
           <Card className="p-4 text-center">
@@ -409,24 +408,22 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
           </div>
         </Card>
 
-        {/* Progress bar */}
+        {/* Progress bar - Based on DISTANCE */}
         <div className="mb-6">
           <div className="flex justify-between text-sm text-muted-foreground mb-2">
             <span>Progression vers l'objectif</span>
-            <span>
-              {currentSteps} / {planningData.steps} foulées
-              {realSteps > 0 && <span className="text-orange-600 ml-1">(réelles ✓)</span>}
-              {realSteps === 0 && gpsSteps > 0 && <span className="text-amber-500 ml-1">(GPS)</span>}
+            <span className="font-semibold text-orange-600">
+              {totalDistance.toFixed(2)} / {destination.distanceKm.toFixed(2)} km
             </span>
           </div>
           <div className="w-full bg-muted rounded-full h-3">
             <div 
-              className="bg-orange-600 h-3 rounded-full transition-all duration-300"
-              style={{ width: `${getProgress()}%` }}
+              className="bg-gradient-to-r from-orange-600 to-red-600 h-3 rounded-full transition-all duration-300"
+              style={{ width: `${currentProgress}%` }}
             ></div>
           </div>
           <div className="text-xs text-muted-foreground mt-1 text-right">
-            Cible route: {getEstimatedSteps()} foulées estimées
+            Distance cible: {destination.distanceKm.toFixed(2)} km
           </div>
         </div>
 
