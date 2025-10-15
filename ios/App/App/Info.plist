@@ -50,10 +50,10 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Fitpas a besoin de votre position pour générer des parcours personnalisés et suivre votre progression en temps réel pendant vos sorties.</string>
 	<key>NSMotionUsageDescription</key>
-	<string>Fitpas utilise le podomètre de votre appareil pour compter vos pas pendant vos activités de marche et course.</string>
+	<string>Fitpas utilise le capteur de mouvement pour détecter vos déplacements et améliorer la précision du suivi de vos activités.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Fitpas a besoin d'accéder à vos données de pas pour suivre précisément vos activités de marche et course.</string>
+	<string>Fitpas utilise vos données de pas de l'app Santé pour compter précisément vos pas pendant vos marches et courses, sans nécessiter de calibration manuelle. Ces données restent privées et ne sont jamais partagées.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>Fitpas peut enregistrer vos activités dans l'app Santé.</string>
+	<string>Fitpas enregistre vos activités de marche et course dans l'app Santé pour que vous puissiez consulter votre historique complet et synchroniser avec d'autres apps santé.</string>
 </dict>
 </plist>
