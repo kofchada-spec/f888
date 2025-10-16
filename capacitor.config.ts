@@ -24,8 +24,8 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: 'always',
     infoPlist: {
-      NSLocationAlwaysAndWhenInUseUsageDescription: "Pour planifier et suivre vos itinéraires de marche et course.",
-      NSLocationWhenInUseUsageDescription: "Pour créer des itinéraires adaptés et suivre votre progression.",
+      NSLocationAlwaysAndWhenInUseUsageDescription: "Pour planifier et suivre vos itinéraires de marche et course, et compter vos pas.",
+      NSLocationWhenInUseUsageDescription: "Pour créer des itinéraires adaptés, suivre votre progression et compter vos pas.",
       NSMotionUsageDescription: "Pour compter vos pas pendant vos activités.",
       NSHealthShareUsageDescription: "Pour lire vos données de pas depuis Apple Santé.",
       NSHealthUpdateUsageDescription: "Pour enregistrer vos activités dans Apple Santé."
