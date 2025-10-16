@@ -3,7 +3,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, ArrowLeft } from 'lucide-react';
@@ -110,132 +109,114 @@ const Auth = ({ onComplete }: AuthProps) => {
       >
         <ArrowLeft className="h-5 w-5" />
       </Button>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold">
-              {isResetMode ? 'Récupérer le mot de passe' : isLogin ? 'Se connecter' : 'Créer un compte'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Manual Form */}
-            <motion.form 
-              className="space-y-4" 
-              onSubmit={handleSubmit}
-              key={isLogin ? 'login' : 'signup'}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
-            >
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold">
+            {isResetMode ? 'Récupérer le mot de passe' : isLogin ? 'Se connecter' : 'Créer un compte'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Manual Form */}
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="votre@email.com"
+                required
+              />
+            </div>
+            
+            {!isResetMode && (
+            <div className="space-y-2">
+              <Label htmlFor="password">Mot de passe</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                minLength={6}
+              />
+            </div>
+            )}
+
+            {!isLogin && !isResetMode && (
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="votre@email.com"
-                  required
-                />
-              </div>
-              
-              {!isResetMode && (
-              <div className="space-y-2">
-                <Label htmlFor="password">Mot de passe</Label>
-                <Input
-                  id="password"
+                  id="confirmPassword"
                   type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  minLength={6}
                 />
               </div>
-              )}
+            )}
 
-              {!isLogin && !isResetMode && (
-                <motion.div 
-                  className="space-y-2"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                >
-                  <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                  />
-                </motion.div>
-              )}
-
-              <Button 
-                type="submit"
-                variant="default"
-                disabled={isSubmitting}
-                className="w-full py-6 text-lg bg-primary hover:bg-primary/90"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {isResetMode ? 'Envoi...' : isLogin ? 'Connexion...' : 'Création...'}
-                  </>
-                ) : (
-                  isResetMode ? 'Envoyer le lien de récupération' : isLogin ? 'Se connecter' : 'Créer un compte'
-                )}
-              </Button>
-            </motion.form>
-
-            <div className="text-center space-y-2">
-              {!isResetMode && (
+            <Button 
+              type="submit"
+              variant="default"
+              disabled={isSubmitting}
+              className="w-full py-6 text-lg bg-primary hover:bg-primary/90"
+            >
+              {isSubmitting ? (
                 <>
-                  <button
-                    type="button"
-                    onClick={() => setIsLogin(!isLogin)}
-                    className="text-sm text-secondary hover:underline block"
-                  >
-                    {isLogin 
-                      ? "Pas encore de compte ? Créer un compte" 
-                      : "Déjà un compte ? Se connecter"
-                    }
-                  </button>
-                  
-                  {isLogin && (
-                    <button
-                      type="button"
-                      onClick={() => setIsResetMode(true)}
-                      className="text-sm text-muted-foreground hover:underline block"
-                    >
-                      Mot de passe oublié ?
-                    </button>
-                  )}
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {isResetMode ? 'Envoi...' : isLogin ? 'Connexion...' : 'Création...'}
                 </>
+              ) : (
+                isResetMode ? 'Envoyer le lien de récupération' : isLogin ? 'Se connecter' : 'Créer un compte'
               )}
-              
-              {isResetMode && (
+            </Button>
+          </form>
+
+          <div className="text-center space-y-2">
+            {!isResetMode && (
+              <>
                 <button
                   type="button"
-                  onClick={() => {
-                    setIsResetMode(false);
-                    setIsLogin(true);
-                  }}
-                  className="text-sm text-secondary hover:underline"
+                  onClick={() => setIsLogin(!isLogin)}
+                  className="text-sm text-secondary hover:underline block"
                 >
-                  Retour à la connexion
+                  {isLogin 
+                    ? "Pas encore de compte ? Créer un compte" 
+                    : "Déjà un compte ? Se connecter"
+                  }
                 </button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+                
+                {isLogin && (
+                  <button
+                    type="button"
+                    onClick={() => setIsResetMode(true)}
+                    className="text-sm text-muted-foreground hover:underline block"
+                  >
+                    Mot de passe oublié ?
+                  </button>
+                )}
+              </>
+            )}
+            
+            {isResetMode && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsResetMode(false);
+                  setIsLogin(true);
+                }}
+                className="text-sm text-secondary hover:underline"
+              >
+                Retour à la connexion
+              </button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

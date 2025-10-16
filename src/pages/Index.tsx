@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
 import Onboarding from '@/components/Onboarding';
 import Auth from '@/components/Auth';
 import ProfileCompletion from '@/components/ProfileCompletion';
@@ -11,19 +10,19 @@ import MapScreen from '@/components/MapScreen';
 import RunMapScreen from '@/components/RunMapScreen';
 import WalkTracking from '@/components/WalkTracking';
 import RunTracking from '@/components/RunTracking';
-import { LoadingScreen } from '@/components/LoadingScreen';
-import { PageTransition } from '@/components/PageTransition';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
-import { useProfileStatus } from '@/hooks/useProfileStatus';
+import { Loader2 } from 'lucide-react';
 
 const Index = () => {
   const { user, loading } = useAuth();
   const { subscriptionData, loading: subscriptionLoading } = useSubscription();
-  const { hasCompletedOnboarding, hasCompletedProfile, isLoading: isLoadingProfile, isInitialized } = useProfileStatus(user, loading);
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const [hasCompletedProfile, setHasCompletedProfile] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [showWalkPlanning, setShowWalkPlanning] = useState(false);
   const [showRunPlanning, setShowRunPlanning] = useState(false);
   const [showDestinationSelection, setShowDestinationSelection] = useState(false);
@@ -45,22 +44,54 @@ const Index = () => {
     weight: 70
   });
 
-  // Handle onboarding completion
-  const handleOnboardingComplete = () => {
-    localStorage.setItem('fitpas-onboarding-complete', 'true');
-    // Force reload to trigger profile check
-    window.location.reload();
-  };
+  // Check stored completion states on mount and verify profile in Supabase
+  useEffect(() => {
+    const checkCompletionStatus = async () => {
+      if (user) {
+        // If user is authenticated, check Supabase
+        try {
+          const { supabase } = await import('@/integrations/supabase/client');
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('onboarding_complete, profile_complete')
+            .eq('user_id', user.id)
+            .single();
 
-  const handleAuthComplete = () => {
-    // Auth state will trigger profile check automatically
-  };
-
-  const handleProfileComplete = () => {
-    localStorage.setItem('fitpas-profile-complete', 'true');
-    // Force reload to trigger profile check
-    window.location.reload();
-  };
+          if (profile && !error) {
+            // Use values from database
+            setHasCompletedOnboarding(profile.onboarding_complete || false);
+            setHasCompletedProfile(profile.profile_complete || false);
+            
+            // Sync with localStorage for consistency
+            if (profile.onboarding_complete) {
+              localStorage.setItem('fitpas-onboarding-complete', 'true');
+            }
+            if (profile.profile_complete) {
+              localStorage.setItem('fitpas-profile-complete', 'true');
+            }
+          } else {
+            // No profile in database, fallback to localStorage
+            setHasCompletedOnboarding(localStorage.getItem('fitpas-onboarding-complete') === 'true');
+            setHasCompletedProfile(false);
+            localStorage.removeItem('fitpas-profile-complete');
+          }
+        } catch (error) {
+          console.error('Error checking completion status:', error);
+          // Fallback to localStorage if Supabase fails
+          setHasCompletedOnboarding(localStorage.getItem('fitpas-onboarding-complete') === 'true');
+          setHasCompletedProfile(localStorage.getItem('fitpas-profile-complete') === 'true');
+        }
+      } else {
+        // Not authenticated, check localStorage
+        setHasCompletedOnboarding(localStorage.getItem('fitpas-onboarding-complete') === 'true');
+        setHasCompletedProfile(localStorage.getItem('fitpas-profile-complete') === 'true');
+      }
+      
+      setIsInitialized(true);
+    };
+    
+    checkCompletionStatus();
+  }, [user]);
 
   // Check for URL parameters
   useEffect(() => {
@@ -68,9 +99,8 @@ const Index = () => {
     const dashboardParam = searchParams.get('dashboard');
     
     if (dashboardParam === 'true') {
-      // Force return to dashboard
+      // Force return to dashboard - hide green background if onboarding shows
       setShowWalkPlanning(false);
-      setShowRunPlanning(false);
       setShowDestinationSelection(false);
       setShowWalkTracking(false);
       setSelectedDestination(null);
@@ -78,6 +108,20 @@ const Index = () => {
       setShowDestinationSelection(true);
     }
   }, [searchParams, hasCompletedOnboarding, hasCompletedProfile, user]);
+
+  const handleOnboardingComplete = () => {
+    setHasCompletedOnboarding(true);
+    localStorage.setItem('fitpas-onboarding-complete', 'true');
+  };
+
+  const handleAuthComplete = () => {
+    // This will be handled by useAuth hook automatically
+  };
+
+  const handleProfileComplete = () => {
+    setHasCompletedProfile(true);
+    localStorage.setItem('fitpas-profile-complete', 'true');
+  };
 
   const handlePlanifyWalk = () => {
     setActivityType('walk');
@@ -149,56 +193,41 @@ const Index = () => {
   //   }
   // }, [user, subscriptionData, subscriptionLoading, hasCompletedProfile, navigate, location.pathname]);
 
-  // Show loading while auth or profile check is in progress
-  // CRITICAL: Block ALL rendering until we know the profile status for certain
-  if (loading || isLoadingProfile || !isInitialized || subscriptionLoading || hasCompletedProfile === null || hasCompletedOnboarding === null) {
-    return <LoadingScreen />;
+  // Show loading while auth or initialization is loading
+  if (loading || !isInitialized || subscriptionLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <Loader2 className="mx-auto h-8 w-8 animate-spin mb-4" />
+          <p className="text-muted-foreground">Chargement...</p>
+        </div>
+      </div>
+    );
   }
 
   // Show onboarding if not completed
-  if (hasCompletedOnboarding === false) {
-    return (
-      <PageTransition>
-        <Onboarding onComplete={handleOnboardingComplete} />
-      </PageTransition>
-    );
+  if (!hasCompletedOnboarding) {
+    return <Onboarding onComplete={handleOnboardingComplete} />;
   }
 
   // Show auth if user is not authenticated
   if (!user) {
-    return (
-      <PageTransition>
-        <Auth onComplete={handleAuthComplete} />
-      </PageTransition>
-    );
+    return <Auth onComplete={handleAuthComplete} />;
   }
 
   // Show profile completion if not completed (after authentication)
-  // Only show if we're CERTAIN the profile is incomplete
-  if (hasCompletedProfile === false) {
-    return (
-      <PageTransition>
-        <ProfileCompletion onComplete={handleProfileComplete} />
-      </PageTransition>
-    );
+  if (!hasCompletedProfile) {
+    return <ProfileCompletion onComplete={handleProfileComplete} />;
   }
 
   // Show Walk Planning if active
   if (showWalkPlanning) {
-    return (
-      <PageTransition>
-        <WalkPlanning onComplete={handleWalkPlanningComplete} onBack={handleBackToDashboard} onGoToDashboard={handleGoToDashboard} />
-      </PageTransition>
-    );
+    return <WalkPlanning onComplete={handleWalkPlanningComplete} onBack={handleBackToDashboard} onGoToDashboard={handleGoToDashboard} />;
   }
 
   // Show Run Planning if active
   if (showRunPlanning) {
-    return (
-      <PageTransition>
-        <RunPlanning onComplete={handleRunPlanningComplete} onBack={handleBackToDashboard} onGoToDashboard={handleGoToDashboard} />
-      </PageTransition>
-    );
+    return <RunPlanning onComplete={handleRunPlanningComplete} onBack={handleBackToDashboard} onGoToDashboard={handleGoToDashboard} />;
   }
 
   // Show Destination Selection if active
@@ -206,26 +235,22 @@ const Index = () => {
     // Use different map screens based on activity type
     if (activityType === 'run') {
       return (
-        <PageTransition>
-          <RunMapScreen 
-            onComplete={handleDestinationComplete} 
-            onBack={handleBackToPlanning}
-            onGoToDashboard={handleGoToDashboard}
-            planningData={planningData}
-          />
-        </PageTransition>
+        <RunMapScreen 
+          onComplete={handleDestinationComplete} 
+          onBack={handleBackToPlanning}
+          onGoToDashboard={handleGoToDashboard}
+          planningData={planningData}
+        />
       );
     } else {
       return (
-        <PageTransition>
-          <MapScreen 
-            onComplete={handleDestinationComplete} 
-            onBack={handleBackToPlanning}
-            onGoToDashboard={handleGoToDashboard}
-            planningData={planningData}
-            activityType={activityType}
-          />
-        </PageTransition>
+        <MapScreen 
+          onComplete={handleDestinationComplete} 
+          onBack={handleBackToPlanning}
+          onGoToDashboard={handleGoToDashboard}
+          planningData={planningData}
+          activityType={activityType}
+        />
       );
     }
   }
@@ -234,35 +259,27 @@ const Index = () => {
   if (showWalkTracking && selectedDestination) {
     if (activityType === 'run') {
       return (
-        <PageTransition>
-          <RunTracking 
-            destination={selectedDestination}
-            planningData={planningData}
-            onBack={handleBackToDestination}
-            onGoToDashboard={handleGoToDashboard}
-          />
-        </PageTransition>
+        <RunTracking 
+          destination={selectedDestination}
+          planningData={planningData}
+          onBack={handleBackToDestination}
+          onGoToDashboard={handleGoToDashboard}
+        />
       );
     } else {
       return (
-        <PageTransition>
-          <WalkTracking 
-            destination={selectedDestination}
-            planningData={planningData}
-            onBack={handleBackToDestination}
-            onGoToDashboard={handleGoToDashboard}
-          />
-        </PageTransition>
+        <WalkTracking 
+          destination={selectedDestination}
+          planningData={planningData}
+          onBack={handleBackToDestination}
+          onGoToDashboard={handleGoToDashboard}
+        />
       );
     }
   }
 
   // Show Dashboard (default authenticated state)
-  return (
-    <PageTransition>
-      <Dashboard onPlanifyWalk={handlePlanifyWalk} onPlanifyRun={handlePlanifyRun} />
-    </PageTransition>
-  );
+  return <Dashboard onPlanifyWalk={handlePlanifyWalk} onPlanifyRun={handlePlanifyRun} />;
 };
 
 export default Index;
