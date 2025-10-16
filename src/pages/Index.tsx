@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import Onboarding from '@/components/Onboarding';
 import Auth from '@/components/Auth';
 import ProfileCompletion from '@/components/ProfileCompletion';
@@ -10,9 +11,10 @@ import MapScreen from '@/components/MapScreen';
 import RunMapScreen from '@/components/RunMapScreen';
 import WalkTracking from '@/components/WalkTracking';
 import RunTracking from '@/components/RunTracking';
+import { LoadingScreen } from '@/components/LoadingScreen';
+import { PageTransition } from '@/components/PageTransition';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
-import { Loader2 } from 'lucide-react';
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -195,39 +197,52 @@ const Index = () => {
 
   // Show loading while auth or initialization is loading
   if (loading || !isInitialized || subscriptionLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-center">
-          <Loader2 className="mx-auto h-8 w-8 animate-spin mb-4" />
-          <p className="text-muted-foreground">Chargement...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   // Show onboarding if not completed
   if (!hasCompletedOnboarding) {
-    return <Onboarding onComplete={handleOnboardingComplete} />;
+    return (
+      <PageTransition>
+        <Onboarding onComplete={handleOnboardingComplete} />
+      </PageTransition>
+    );
   }
 
   // Show auth if user is not authenticated
   if (!user) {
-    return <Auth onComplete={handleAuthComplete} />;
+    return (
+      <PageTransition>
+        <Auth onComplete={handleAuthComplete} />
+      </PageTransition>
+    );
   }
 
   // Show profile completion if not completed (after authentication)
   if (!hasCompletedProfile) {
-    return <ProfileCompletion onComplete={handleProfileComplete} />;
+    return (
+      <PageTransition>
+        <ProfileCompletion onComplete={handleProfileComplete} />
+      </PageTransition>
+    );
   }
 
   // Show Walk Planning if active
   if (showWalkPlanning) {
-    return <WalkPlanning onComplete={handleWalkPlanningComplete} onBack={handleBackToDashboard} onGoToDashboard={handleGoToDashboard} />;
+    return (
+      <PageTransition>
+        <WalkPlanning onComplete={handleWalkPlanningComplete} onBack={handleBackToDashboard} onGoToDashboard={handleGoToDashboard} />
+      </PageTransition>
+    );
   }
 
   // Show Run Planning if active
   if (showRunPlanning) {
-    return <RunPlanning onComplete={handleRunPlanningComplete} onBack={handleBackToDashboard} onGoToDashboard={handleGoToDashboard} />;
+    return (
+      <PageTransition>
+        <RunPlanning onComplete={handleRunPlanningComplete} onBack={handleBackToDashboard} onGoToDashboard={handleGoToDashboard} />
+      </PageTransition>
+    );
   }
 
   // Show Destination Selection if active
@@ -235,22 +250,26 @@ const Index = () => {
     // Use different map screens based on activity type
     if (activityType === 'run') {
       return (
-        <RunMapScreen 
-          onComplete={handleDestinationComplete} 
-          onBack={handleBackToPlanning}
-          onGoToDashboard={handleGoToDashboard}
-          planningData={planningData}
-        />
+        <PageTransition>
+          <RunMapScreen 
+            onComplete={handleDestinationComplete} 
+            onBack={handleBackToPlanning}
+            onGoToDashboard={handleGoToDashboard}
+            planningData={planningData}
+          />
+        </PageTransition>
       );
     } else {
       return (
-        <MapScreen 
-          onComplete={handleDestinationComplete} 
-          onBack={handleBackToPlanning}
-          onGoToDashboard={handleGoToDashboard}
-          planningData={planningData}
-          activityType={activityType}
-        />
+        <PageTransition>
+          <MapScreen 
+            onComplete={handleDestinationComplete} 
+            onBack={handleBackToPlanning}
+            onGoToDashboard={handleGoToDashboard}
+            planningData={planningData}
+            activityType={activityType}
+          />
+        </PageTransition>
       );
     }
   }
@@ -259,27 +278,35 @@ const Index = () => {
   if (showWalkTracking && selectedDestination) {
     if (activityType === 'run') {
       return (
-        <RunTracking 
-          destination={selectedDestination}
-          planningData={planningData}
-          onBack={handleBackToDestination}
-          onGoToDashboard={handleGoToDashboard}
-        />
+        <PageTransition>
+          <RunTracking 
+            destination={selectedDestination}
+            planningData={planningData}
+            onBack={handleBackToDestination}
+            onGoToDashboard={handleGoToDashboard}
+          />
+        </PageTransition>
       );
     } else {
       return (
-        <WalkTracking 
-          destination={selectedDestination}
-          planningData={planningData}
-          onBack={handleBackToDestination}
-          onGoToDashboard={handleGoToDashboard}
-        />
+        <PageTransition>
+          <WalkTracking 
+            destination={selectedDestination}
+            planningData={planningData}
+            onBack={handleBackToDestination}
+            onGoToDashboard={handleGoToDashboard}
+          />
+        </PageTransition>
       );
     }
   }
 
   // Show Dashboard (default authenticated state)
-  return <Dashboard onPlanifyWalk={handlePlanifyWalk} onPlanifyRun={handlePlanifyRun} />;
+  return (
+    <PageTransition>
+      <Dashboard onPlanifyWalk={handlePlanifyWalk} onPlanifyRun={handlePlanifyRun} />
+    </PageTransition>
+  );
 };
 
 export default Index;
