@@ -15,17 +15,15 @@ import { LoadingScreen } from '@/components/LoadingScreen';
 import { PageTransition } from '@/components/PageTransition';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useProfileStatus } from '@/hooks/useProfileStatus';
 
 const Index = () => {
   const { user, loading } = useAuth();
   const { subscriptionData, loading: subscriptionLoading } = useSubscription();
+  const { hasCompletedOnboarding, hasCompletedProfile, isLoading: isLoadingProfile, isInitialized } = useProfileStatus(user, loading);
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
-  const [hasCompletedProfile, setHasCompletedProfile] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [showWalkPlanning, setShowWalkPlanning] = useState(false);
   const [showRunPlanning, setShowRunPlanning] = useState(false);
   const [showDestinationSelection, setShowDestinationSelection] = useState(false);
@@ -47,60 +45,22 @@ const Index = () => {
     weight: 70
   });
 
-  // Check stored completion states on mount and verify profile in Supabase
-  useEffect(() => {
-    const checkCompletionStatus = async () => {
-      setIsLoadingProfile(true);
-      
-      if (user) {
-        // If user is authenticated, check Supabase
-        try {
-          const { supabase } = await import('@/integrations/supabase/client');
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('onboarding_complete, profile_complete')
-            .eq('user_id', user.id)
-            .single();
+  // Handle onboarding completion
+  const handleOnboardingComplete = () => {
+    localStorage.setItem('fitpas-onboarding-complete', 'true');
+    // Force reload to trigger profile check
+    window.location.reload();
+  };
 
-          if (profile && !error) {
-            // Use values from database - batch state updates
-            const onboardingComplete = profile.onboarding_complete || false;
-            const profileComplete = profile.profile_complete || false;
-            
-            setHasCompletedOnboarding(onboardingComplete);
-            setHasCompletedProfile(profileComplete);
-            
-            // Sync with localStorage for consistency
-            if (onboardingComplete) {
-              localStorage.setItem('fitpas-onboarding-complete', 'true');
-            }
-            if (profileComplete) {
-              localStorage.setItem('fitpas-profile-complete', 'true');
-            }
-          } else {
-            // No profile in database, fallback to localStorage
-            setHasCompletedOnboarding(localStorage.getItem('fitpas-onboarding-complete') === 'true');
-            setHasCompletedProfile(false);
-            localStorage.removeItem('fitpas-profile-complete');
-          }
-        } catch (error) {
-          console.error('Error checking completion status:', error);
-          // Fallback to localStorage if Supabase fails
-          setHasCompletedOnboarding(localStorage.getItem('fitpas-onboarding-complete') === 'true');
-          setHasCompletedProfile(localStorage.getItem('fitpas-profile-complete') === 'true');
-        }
-      } else {
-        // Not authenticated, check localStorage
-        setHasCompletedOnboarding(localStorage.getItem('fitpas-onboarding-complete') === 'true');
-        setHasCompletedProfile(localStorage.getItem('fitpas-profile-complete') === 'true');
-      }
-      
-      setIsLoadingProfile(false);
-      setIsInitialized(true);
-    };
-    
-    checkCompletionStatus();
-  }, [user]);
+  const handleAuthComplete = () => {
+    // Auth state will trigger profile check automatically
+  };
+
+  const handleProfileComplete = () => {
+    localStorage.setItem('fitpas-profile-complete', 'true');
+    // Force reload to trigger profile check
+    window.location.reload();
+  };
 
   // Check for URL parameters
   useEffect(() => {
@@ -108,8 +68,9 @@ const Index = () => {
     const dashboardParam = searchParams.get('dashboard');
     
     if (dashboardParam === 'true') {
-      // Force return to dashboard - hide green background if onboarding shows
+      // Force return to dashboard
       setShowWalkPlanning(false);
+      setShowRunPlanning(false);
       setShowDestinationSelection(false);
       setShowWalkTracking(false);
       setSelectedDestination(null);
@@ -117,20 +78,6 @@ const Index = () => {
       setShowDestinationSelection(true);
     }
   }, [searchParams, hasCompletedOnboarding, hasCompletedProfile, user]);
-
-  const handleOnboardingComplete = () => {
-    setHasCompletedOnboarding(true);
-    localStorage.setItem('fitpas-onboarding-complete', 'true');
-  };
-
-  const handleAuthComplete = () => {
-    // This will be handled by useAuth hook automatically
-  };
-
-  const handleProfileComplete = () => {
-    setHasCompletedProfile(true);
-    localStorage.setItem('fitpas-profile-complete', 'true');
-  };
 
   const handlePlanifyWalk = () => {
     setActivityType('walk');
@@ -202,13 +149,14 @@ const Index = () => {
   //   }
   // }, [user, subscriptionData, subscriptionLoading, hasCompletedProfile, navigate, location.pathname]);
 
-  // Show loading while auth or initialization is loading
-  if (loading || !isInitialized || subscriptionLoading || isLoadingProfile) {
+  // Show loading while auth or profile check is in progress
+  // CRITICAL: Block ALL rendering until we know the profile status for certain
+  if (loading || isLoadingProfile || !isInitialized || subscriptionLoading || hasCompletedProfile === null || hasCompletedOnboarding === null) {
     return <LoadingScreen />;
   }
 
   // Show onboarding if not completed
-  if (!hasCompletedOnboarding) {
+  if (hasCompletedOnboarding === false) {
     return (
       <PageTransition>
         <Onboarding onComplete={handleOnboardingComplete} />
@@ -226,7 +174,8 @@ const Index = () => {
   }
 
   // Show profile completion if not completed (after authentication)
-  if (!hasCompletedProfile) {
+  // Only show if we're CERTAIN the profile is incomplete
+  if (hasCompletedProfile === false) {
     return (
       <PageTransition>
         <ProfileCompletion onComplete={handleProfileComplete} />
