@@ -17,6 +17,7 @@ import { useVoiceGuidance } from '@/hooks/useVoiceGuidance';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useStepDetection } from '@/hooks/useStepDetection';
+import { useBackgroundNotification } from '@/hooks/useBackgroundNotification';
 
 interface Destination {
   id: string;
@@ -126,6 +127,14 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
     currentPosition: currentPosition ? { lat: currentPosition.lat, lng: currentPosition.lng } : null,
     destinationCoords: destination.coordinates,
     totalDistance
+  });
+
+  // Background notification
+  useBackgroundNotification({
+    isTracking,
+    activityType: 'walk',
+    distance: totalDistance,
+    duration: elapsedTime
   });
 
   // Voice guidance - announce distance
