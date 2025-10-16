@@ -1,0 +1,121 @@
+{
+  "sourceLanguage" : "fr",
+  "strings" : {
+    "NSLocationAlwaysAndWhenInUseUsageDescription" : {
+      "comment" : "Permission for location tracking during activities",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FitPaS uses your location to plan and track your walking and running routes, and count your steps."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FitPaS utiliza tu ubicación para planificar y rastrear tus rutas de caminata y carrera, y contar tus pasos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FitPaS utilise votre position pour planifier et suivre vos itinéraires de marche et course, et compter vos pas."
+          }
+        }
+      }
+    },
+    "NSLocationWhenInUseUsageDescription" : {
+      "comment" : "Permission for location when app is in use",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FitPaS uses your location to create adapted routes, track your progress and count your steps."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FitPaS utiliza tu ubicación para crear rutas adaptadas, rastrear tu progreso y contar tus pasos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FitPaS utilise votre position pour créer des itinéraires adaptés, suivre votre progression et compter vos pas."
+          }
+        }
+      }
+    },
+    "NSMotionUsageDescription" : {
+      "comment" : "Permission for step counting",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To count your steps during your activities."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para contar tus pasos durante tus actividades."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pour compter vos pas pendant vos activités."
+          }
+        }
+      }
+    },
+    "NSHealthShareUsageDescription" : {
+      "comment" : "Permission to read health data",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To read your step data from Apple Health."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para leer tus datos de pasos desde Apple Health."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pour lire vos données de pas depuis Apple Santé."
+          }
+        }
+      }
+    },
+    "NSHealthUpdateUsageDescription" : {
+      "comment" : "Permission to write health data",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To save your activities in Apple Health."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para guardar tus actividades en Apple Health."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pour enregistrer vos activités dans Apple Santé."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}
