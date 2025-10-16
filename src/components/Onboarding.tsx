@@ -95,7 +95,7 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
   
   return (
     <div className="h-full w-full flex items-center justify-center" style={{ backgroundColor: '#27AE60' }}>
-      <div className="bg-transparent p-8 w-full h-full flex flex-col items-center justify-between text-center relative overflow-hidden">
+      <div className="bg-transparent p-8 w-full h-full flex flex-col items-center justify-between text-center relative">
         {/* Back button */}
         {showBack && (
           <button 
@@ -144,7 +144,7 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
   
   return (
     <div className="h-full w-full bg-gradient-to-br from-green-50 via-blue-50 to-white flex items-center justify-center">
-      <div className="bg-white rounded-3xl p-8 w-full h-full flex flex-col items-center justify-between text-center relative">
+      <div className="p-8 w-full h-full flex flex-col items-center justify-between text-center relative">
         {/* Back button */}
         {showBack && (
           <button 
@@ -200,7 +200,7 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
   
   return (
     <div className="h-full w-full bg-gradient-to-br from-green-50 via-blue-50 to-white flex items-center justify-center">
-      <div className="bg-white rounded-3xl p-8 w-full h-full flex flex-col items-center justify-between text-center relative">
+      <div className="p-8 w-full h-full flex flex-col items-center justify-between text-center relative">
         {/* Back button */}
         {showBack && (
           <button 
