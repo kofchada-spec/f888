@@ -24,9 +24,10 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: 'always',
     infoPlist: {
-      NSLocationAlwaysAndWhenInUseUsageDescription: "Pour planifier et suivre vos itinéraires de marche et course, et compter vos pas.",
-      NSLocationWhenInUseUsageDescription: "Pour créer des itinéraires adaptés, suivre votre progression et compter vos pas.",
-      NSMotionUsageDescription: "Pour compter vos pas pendant vos activités."
+      NSLocationAlwaysAndWhenInUseUsageDescription: "FitPaS utilise votre position pour planifier et suivre vos itinéraires de marche et course, et compter vos pas.",
+      NSLocationWhenInUseUsageDescription: "FitPaS utilise votre position pour créer des itinéraires adaptés, suivre votre progression et compter vos pas.",
+      NSMotionUsageDescription: "Pour compter vos pas pendant vos activités.",
+      UIBackgroundModes: ["location"]
     }
   }
 };
