@@ -64,17 +64,17 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
   });
 
   return (
-    <div className="min-h-screen relative">
+    <div className="h-screen w-screen fixed inset-0 overflow-hidden">
       <Carousel 
         setApi={setApi} 
-        className="w-full h-screen"
+        className="w-full h-full"
         opts={{
           align: "start",
           loop: false,
           dragFree: false,
         }}
       >
-        <CarouselContent className="h-screen">
+        <CarouselContent className="h-full">
           <CarouselItem className="h-full">
             <WelcomeScreen onNext={nextSlide} showBack={false} />
           </CarouselItem>
