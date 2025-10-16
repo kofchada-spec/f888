@@ -51,5 +51,9 @@
 	<string>FitPaS utilise votre position pour créer des itinéraires adaptés, suivre votre progression et compter vos pas.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>Pour compter vos pas pendant vos activités.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 </dict>
 </plist>
