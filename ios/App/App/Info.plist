@@ -46,11 +46,11 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Fitpas enregistre votre parcours en arrière-plan pour suivre vos activités.</string>
+	<string>Fitpas suit votre parcours en arrière-plan.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Fitpas utilise votre position pour créer des itinéraires adaptés, suivre votre progression en temps réel et compter vos pas pendant vos activités.</string>
+	<string>Fitpas utilise votre position pour créer vos itinéraires.</string>
 	<key>NSMotionUsageDescription</key>
-	<string>Fitpas utilise le capteur de mouvement pour compter vos pas avec précision pendant vos activités de marche et course.</string>
+	<string>Fitpas compte vos pas pendant vos activités.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

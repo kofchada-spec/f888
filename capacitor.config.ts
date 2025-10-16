@@ -24,9 +24,9 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: 'always',
     infoPlist: {
-      NSLocationAlwaysAndWhenInUseUsageDescription: "Fitpas enregistre votre parcours en arrière-plan pour suivre vos activités.",
-      NSLocationWhenInUseUsageDescription: "Fitpas utilise votre position pour créer des itinéraires adaptés, suivre votre progression en temps réel et compter vos pas pendant vos activités.",
-      NSMotionUsageDescription: "Fitpas utilise le capteur de mouvement pour compter vos pas avec précision pendant vos activités de marche et course.",
+      NSLocationAlwaysAndWhenInUseUsageDescription: "Fitpas suit votre parcours en arrière-plan.",
+      NSLocationWhenInUseUsageDescription: "Fitpas utilise votre position pour créer vos itinéraires.",
+      NSMotionUsageDescription: "Fitpas compte vos pas pendant vos activités.",
       UIBackgroundModes: ["location"]
     }
   }
