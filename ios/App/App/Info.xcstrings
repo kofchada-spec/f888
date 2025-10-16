@@ -69,52 +69,6 @@
           }
         }
       }
-    },
-    "NSHealthShareUsageDescription" : {
-      "comment" : "Permission to read health data",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "To read your step data from Apple Health."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Para leer tus datos de pasos desde Apple Health."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pour lire vos données de pas depuis Apple Santé."
-          }
-        }
-      }
-    },
-    "NSHealthUpdateUsageDescription" : {
-      "comment" : "Permission to write health data",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "To save your activities in Apple Health."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Para guardar tus actividades en Apple Health."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pour enregistrer vos activités dans Apple Santé."
-          }
-        }
-      }
     }
   },
   "version" : "1.0"
