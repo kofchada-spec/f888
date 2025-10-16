@@ -46,7 +46,7 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Fitpas suit votre parcours en arrière-plan.</string>
+	<string>Fitpas suit votre activité en arrière plan.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Fitpas utilise votre position pour créer vos itinéraires.</string>
 	<key>NSMotionUsageDescription</key>
