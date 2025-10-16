@@ -64,17 +64,17 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
   });
 
   return (
-    <div className="min-h-screen relative">
+    <div className="h-screen w-screen fixed inset-0 overflow-hidden">
       <Carousel 
         setApi={setApi} 
-        className="w-full h-screen"
+        className="w-full h-full"
         opts={{
           align: "start",
           loop: false,
           dragFree: false,
         }}
       >
-        <CarouselContent className="h-screen">
+        <CarouselContent className="h-full">
           <CarouselItem className="h-full">
             <WelcomeScreen onNext={nextSlide} showBack={false} />
           </CarouselItem>
@@ -94,8 +94,8 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
   const { t } = useTranslation();
   
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: '#27AE60' }}>
-      <div className="bg-transparent rounded-3xl p-8 w-full max-w-sm h-[600px] flex flex-col items-center justify-between text-center relative overflow-hidden">
+    <div className="h-full w-full flex items-center justify-center" style={{ backgroundColor: '#27AE60' }}>
+      <div className="bg-transparent p-8 w-full h-full flex flex-col items-center justify-between text-center relative overflow-hidden">
         {/* Back button */}
         {showBack && (
           <button 
@@ -143,8 +143,8 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
   const { t } = useTranslation();
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-white flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl p-8 w-full max-w-sm h-[600px] flex flex-col items-center justify-between text-center relative">
+    <div className="h-full w-full bg-gradient-to-br from-green-50 via-blue-50 to-white flex items-center justify-center">
+      <div className="bg-white rounded-3xl p-8 w-full h-full flex flex-col items-center justify-between text-center relative">
         {/* Back button */}
         {showBack && (
           <button 
@@ -199,8 +199,8 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
   const { t } = useTranslation();
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-white flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl p-8 w-full max-w-sm h-[600px] flex flex-col items-center justify-between text-center relative">
+    <div className="h-full w-full bg-gradient-to-br from-green-50 via-blue-50 to-white flex items-center justify-center">
+      <div className="bg-white rounded-3xl p-8 w-full h-full flex flex-col items-center justify-between text-center relative">
         {/* Back button */}
         {showBack && (
           <button 
