@@ -64,17 +64,17 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
   });
 
   return (
-    <div className="h-screen w-screen fixed inset-0 overflow-hidden">
+    <div className="min-h-screen relative">
       <Carousel 
         setApi={setApi} 
-        className="w-full h-full"
+        className="w-full h-screen"
         opts={{
           align: "start",
           loop: false,
           dragFree: false,
         }}
       >
-        <CarouselContent className="h-full">
+        <CarouselContent className="h-screen">
           <CarouselItem className="h-full">
             <WelcomeScreen onNext={nextSlide} showBack={false} />
           </CarouselItem>
@@ -94,36 +94,37 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
   const { t } = useTranslation();
   
   return (
-    <div className="h-full w-full flex flex-col justify-between p-8 pb-12" style={{ backgroundColor: '#27AE60' }}>
-      {/* Back button */}
-      {showBack && (
-        <button 
-          onClick={() => {}} 
-          className="absolute top-6 left-6 text-white hover:text-white/80"
-        >
-          <ChevronLeft className="w-6 h-6" />
-        </button>
-      )}
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: '#27AE60' }}>
+      <div className="bg-transparent rounded-3xl p-8 w-full max-w-sm h-[600px] flex flex-col items-center justify-between text-center relative overflow-hidden">
+        {/* Back button */}
+        {showBack && (
+          <button 
+            onClick={() => {}} 
+            className="absolute top-6 left-6 text-white hover:text-white/80"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+        )}
 
-      <div className="flex-1 flex flex-col items-center justify-center text-center">
-        <div className="mb-10 transform animate-pulse">
-          <img 
-            src={fitpasLogo} 
-            alt="Fitpas Logo" 
-            className="w-28 h-28 mx-auto drop-shadow-2xl"
-          />
+        <div className="flex-1 flex flex-col items-center justify-center">
+          <div className="mb-10 transform animate-pulse">
+            <img 
+              src={fitpasLogo} 
+              alt="Fitpas Logo" 
+              className="w-28 h-28 mx-auto drop-shadow-2xl"
+            />
+          </div>
+          <div className="space-y-6 text-center">
+            <h1 className="font-raleway text-4xl font-black text-white mb-3 tracking-tight leading-none">
+              {t('onboarding.welcome.title')}
+            </h1>
+            <p className="font-raleway text-white/95 text-lg font-light leading-relaxed px-6 tracking-wide">
+              {t('onboarding.welcome.subtitle')}
+            </p>
+          </div>
         </div>
-        <div className="space-y-6">
-          <h1 className="font-raleway text-4xl font-black text-white mb-3 tracking-tight leading-none">
-            {t('onboarding.welcome.title')}
-          </h1>
-          <p className="font-raleway text-white/95 text-lg font-light leading-relaxed px-6 tracking-wide">
-            {t('onboarding.welcome.subtitle')}
-          </p>
-        </div>
-      </div>
 
-      <div className="space-y-4">
+
         <Button 
           onClick={onNext}
           className="w-full py-4 text-lg font-semibold rounded-2xl bg-white text-green-700 hover:bg-white/90 border-0"
@@ -132,9 +133,7 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
         </Button>
 
         {/* Bottom indicator */}
-        <div className="flex justify-center">
-          <div className="w-12 h-1 bg-white/30 rounded-full"></div>
-        </div>
+        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-12 h-1 bg-white/30 rounded-full"></div>
       </div>
     </div>
   );
@@ -144,8 +143,8 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
   const { t } = useTranslation();
   
   return (
-    <div className="h-full w-full bg-gradient-to-br from-green-50 via-blue-50 to-white flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl p-8 w-full max-w-sm h-full flex flex-col justify-between text-center relative">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-white flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl p-8 w-full max-w-sm h-[600px] flex flex-col items-center justify-between text-center relative">
         {/* Back button */}
         {showBack && (
           <button 
@@ -181,19 +180,16 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
           </div>
         </div>
 
-        <div className="space-y-4">
-          <Button 
-            onClick={onNext}
-            className="w-full py-4 text-lg font-semibold rounded-2xl bg-secondary hover:bg-secondary/90 text-white border-0"
-          >
-            {t('onboarding.next')}
-          </Button>
 
-          {/* Bottom indicator */}
-          <div className="flex justify-center">
-            <div className="w-12 h-1 bg-black/20 rounded-full"></div>
-          </div>
-        </div>
+        <Button 
+          onClick={onNext}
+          className="w-full py-4 text-lg font-semibold rounded-2xl bg-secondary hover:bg-secondary/90 text-white border-0"
+        >
+          {t('onboarding.next')}
+        </Button>
+
+        {/* Bottom indicator */}
+        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-12 h-1 bg-black/20 rounded-full"></div>
       </div>
     </div>
   );
@@ -203,8 +199,8 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
   const { t } = useTranslation();
   
   return (
-    <div className="h-full w-full bg-gradient-to-br from-green-50 via-blue-50 to-white flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl p-8 w-full max-w-sm h-full flex flex-col justify-between text-center relative">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-white flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl p-8 w-full max-w-sm h-[600px] flex flex-col items-center justify-between text-center relative">
         {/* Back button */}
         {showBack && (
           <button 
@@ -240,19 +236,16 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
           </div>
         </div>
 
-        <div className="space-y-4">
-          <Button 
-            onClick={onNext}
-            className="w-full py-4 text-lg font-semibold rounded-2xl bg-secondary hover:bg-secondary/90 text-white border-0"
-          >
-            {t('onboarding.welcome.start')}
-          </Button>
 
-          {/* Bottom indicator */}
-          <div className="flex justify-center">
-            <div className="w-12 h-1 bg-black/20 rounded-full"></div>
-          </div>
-        </div>
+        <Button 
+          onClick={onNext}
+          className="w-full py-4 text-lg font-semibold rounded-2xl bg-secondary hover:bg-secondary/90 text-white border-0"
+        >
+          {t('onboarding.welcome.start')}
+        </Button>
+
+        {/* Bottom indicator */}
+        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-12 h-1 bg-black/20 rounded-full"></div>
       </div>
     </div>
   );
