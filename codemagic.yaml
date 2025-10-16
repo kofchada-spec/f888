@@ -42,6 +42,13 @@ workflows:
           pod install --repo-update
           cd ../..
           npx cap sync ios
+      - name: Ensure Info.plist permissions
+        script: |
+          INFO_PLIST_PATH="ios/App/App/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :NSLocationWhenInUseUsageDescription 'Fitpas utilise votre position GPS pour planifier et afficher vos itinéraires de marche et de course en temps réel.'" "$INFO_PLIST_PATH" || /usr/libexec/PlistBuddy -c "Add :NSLocationWhenInUseUsageDescription string 'Fitpas utilise votre position GPS pour planifier et afficher vos itinéraires de marche et de course en temps réel.'" "$INFO_PLIST_PATH"
+          /usr/libexec/PlistBuddy -c "Set :NSLocationAlwaysAndWhenInUseUsageDescription 'Fitpas suit votre parcours GPS en arrière-plan pendant vos activités de marche et de course pour enregistrer votre trajet et calculer la distance parcourue.'" "$INFO_PLIST_PATH" || /usr/libexec/PlistBuddy -c "Add :NSLocationAlwaysAndWhenInUseUsageDescription string 'Fitpas suit votre parcours GPS en arrière-plan pendant vos activités de marche et de course pour enregistrer votre trajet et calculer la distance parcourue.'" "$INFO_PLIST_PATH"
+          /usr/libexec/PlistBuddy -c "Set :NSMotionUsageDescription 'Fitpas utilise les capteurs de mouvement pour détecter et compter vos pas pendant vos activités physiques.'" "$INFO_PLIST_PATH" || /usr/libexec/PlistBuddy -c "Add :NSMotionUsageDescription string 'Fitpas utilise les capteurs de mouvement pour détecter et compter vos pas pendant vos activités physiques.'" "$INFO_PLIST_PATH"
+          echo "Info.plist permissions verified and set"
       - name: Set build number
         script: |
           LATEST_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number "6753996672")
