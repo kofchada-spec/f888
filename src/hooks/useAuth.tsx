@@ -120,17 +120,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
-    if (error) {
+    
+    // Always clear local state, even if session doesn't exist on server
+    localStorage.removeItem('fitpas-onboarding-complete');
+    localStorage.removeItem('fitpas-profile-complete');
+    localStorage.removeItem('fitpas-skip-auth');
+    
+    // Clear auth state locally
+    setSession(null);
+    setUser(null);
+    
+    if (error && error.message !== "Session from session_id claim in JWT does not exist") {
       toast({
         variant: "destructive",
         title: "Erreur de déconnexion",
         description: error.message,
       });
     } else {
-      // Reset onboarding and profile states to return to green background
-      localStorage.removeItem('fitpas-onboarding-complete');
-      localStorage.removeItem('fitpas-profile-complete');
-      localStorage.removeItem('fitpas-skip-auth');
+      toast({
+        title: "Déconnexion",
+        description: "À bientôt !",
+      });
     }
   };
 
