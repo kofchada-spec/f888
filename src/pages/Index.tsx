@@ -25,6 +25,7 @@ const Index = () => {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [hasCompletedProfile, setHasCompletedProfile] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [showWalkPlanning, setShowWalkPlanning] = useState(false);
   const [showRunPlanning, setShowRunPlanning] = useState(false);
   const [showDestinationSelection, setShowDestinationSelection] = useState(false);
@@ -49,6 +50,8 @@ const Index = () => {
   // Check stored completion states on mount and verify profile in Supabase
   useEffect(() => {
     const checkCompletionStatus = async () => {
+      setIsLoadingProfile(true);
+      
       if (user) {
         // If user is authenticated, check Supabase
         try {
@@ -60,15 +63,18 @@ const Index = () => {
             .single();
 
           if (profile && !error) {
-            // Use values from database
-            setHasCompletedOnboarding(profile.onboarding_complete || false);
-            setHasCompletedProfile(profile.profile_complete || false);
+            // Use values from database - batch state updates
+            const onboardingComplete = profile.onboarding_complete || false;
+            const profileComplete = profile.profile_complete || false;
+            
+            setHasCompletedOnboarding(onboardingComplete);
+            setHasCompletedProfile(profileComplete);
             
             // Sync with localStorage for consistency
-            if (profile.onboarding_complete) {
+            if (onboardingComplete) {
               localStorage.setItem('fitpas-onboarding-complete', 'true');
             }
-            if (profile.profile_complete) {
+            if (profileComplete) {
               localStorage.setItem('fitpas-profile-complete', 'true');
             }
           } else {
@@ -89,6 +95,7 @@ const Index = () => {
         setHasCompletedProfile(localStorage.getItem('fitpas-profile-complete') === 'true');
       }
       
+      setIsLoadingProfile(false);
       setIsInitialized(true);
     };
     
@@ -196,7 +203,7 @@ const Index = () => {
   // }, [user, subscriptionData, subscriptionLoading, hasCompletedProfile, navigate, location.pathname]);
 
   // Show loading while auth or initialization is loading
-  if (loading || !isInitialized || subscriptionLoading) {
+  if (loading || !isInitialized || subscriptionLoading || isLoadingProfile) {
     return <LoadingScreen />;
   }
 
