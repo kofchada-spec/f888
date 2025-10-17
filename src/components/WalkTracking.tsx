@@ -19,6 +19,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useStepDetection } from '@/hooks/useStepDetection';
 import { useBackgroundNotification } from '@/hooks/useBackgroundNotification';
 import { useAppLifecycle } from '@/hooks/useAppLifecycle';
+import { useBackgroundGPS } from '@/hooks/useBackgroundGPS';
 
 interface Destination {
   id: string;
@@ -130,7 +131,15 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
     totalDistance
   });
 
-  // Background notification
+  // Background GPS tracking pour la marche
+  useBackgroundGPS({
+    isTracking,
+    onPositionUpdate: (position) => {
+      console.log('📍 Position background (marche):', position);
+    }
+  });
+
+  // Background notification pour la marche
   useBackgroundNotification({
     isTracking,
     activityType: 'walk',

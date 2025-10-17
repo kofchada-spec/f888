@@ -19,6 +19,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useStepDetection } from '@/hooks/useStepDetection';
 import { useBackgroundNotification } from '@/hooks/useBackgroundNotification';
 import { useAppLifecycle } from '@/hooks/useAppLifecycle';
+import { useBackgroundGPS } from '@/hooks/useBackgroundGPS';
 
 interface Destination {
   id: string;
@@ -112,7 +113,15 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
     destinationCoords: destination.coordinates, totalDistance
   });
 
-  // Background notification
+  // Background GPS tracking pour la course
+  useBackgroundGPS({
+    isTracking,
+    onPositionUpdate: (position) => {
+      console.log('📍 Position background (course):', position);
+    }
+  });
+
+  // Background notification pour la course
   useBackgroundNotification({
     isTracking,
     activityType: 'run',
