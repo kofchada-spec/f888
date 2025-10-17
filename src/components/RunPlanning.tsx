@@ -148,7 +148,7 @@ const RunPlanning = ({ onComplete, onBack, onGoToDashboard }: RunPlanningProps) 
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-background to-red-50">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-orange-50 via-background to-red-50">
       {/* Header */}
       <div className="bg-card shadow-sm">
         <div className="px-6 py-4 flex items-center justify-between">
