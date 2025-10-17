@@ -202,14 +202,18 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
       // Only re-render if the style is fully loaded
       if (!map.current?.isStyleLoaded()) return;
       
-      console.log('🔄 Style rechargé - Restauration des routes');
+      console.log('🔄 Style rechargé - Restauration des routes:', currentRoutes.current.length, 'routes');
       
-      // Re-render all stored routes
-      currentRoutes.current.forEach(route => {
-        if (route.routeGeometry) {
-          addRouteFromGeometry(route.destId, route.routeGeometry, route.isSelected);
-        }
-      });
+      // Wait a bit for style to be fully ready
+      setTimeout(() => {
+        // Re-render all stored routes
+        currentRoutes.current.forEach(route => {
+          console.log('♻️ Restauration route:', route.destId, route.routeGeometry);
+          if (route.routeGeometry) {
+            addRouteFromGeometry(route.destId, route.routeGeometry, route.isSelected);
+          }
+        });
+      }, 100);
     };
 
     map.current.on('styledata', handleStyleData);
@@ -217,7 +221,7 @@ const Map = forwardRef<MapRef, MapProps>(({ userLocation, destinations, selected
     return () => {
       map.current?.off('styledata', handleStyleData);
     };
-  }, [isTracking]); // Re-attach listener when tracking state changes
+  }, [isTracking, destinations]); // Re-attach when tracking or destinations change
 
   // Update camera when userLocation changes (only once on initialization)
   useEffect(() => {

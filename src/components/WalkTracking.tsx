@@ -18,6 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useStepDetection } from '@/hooks/useStepDetection';
 import { useBackgroundNotification } from '@/hooks/useBackgroundNotification';
+import { useAppLifecycle } from '@/hooks/useAppLifecycle';
 
 interface Destination {
   id: string;
@@ -135,6 +136,24 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
     activityType: 'walk',
     distance: totalDistance,
     duration: elapsedTime
+  });
+
+  // App lifecycle - Sauvegarder et restaurer l'état du tracking
+  useAppLifecycle({
+    isTracking,
+    startTime: walkStartTime,
+    elapsedTime,
+    totalDistance,
+    currentSteps,
+    activityType: 'walk',
+    onRestore: (state) => {
+      if (state.isTracking && state.startTime) {
+        setWalkStartTime(new Date(state.startTime));
+        setElapsedTime(state.elapsedTime);
+        setIsTracking(true);
+        toast.info("🔄 Reprise du suivi de marche");
+      }
+    }
   });
 
   // Voice guidance - announce distance

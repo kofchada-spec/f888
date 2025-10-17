@@ -18,6 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useStepDetection } from '@/hooks/useStepDetection';
 import { useBackgroundNotification } from '@/hooks/useBackgroundNotification';
+import { useAppLifecycle } from '@/hooks/useAppLifecycle';
 
 interface Destination {
   id: string;
@@ -117,6 +118,24 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
     activityType: 'run',
     distance: totalDistance,
     duration: elapsedTime
+  });
+
+  // App lifecycle - Sauvegarder et restaurer l'état du tracking
+  useAppLifecycle({
+    isTracking,
+    startTime: runStartTime,
+    elapsedTime,
+    totalDistance,
+    currentSteps,
+    activityType: 'run',
+    onRestore: (state) => {
+      if (state.isTracking && state.startTime) {
+        setRunStartTime(new Date(state.startTime));
+        setElapsedTime(state.elapsedTime);
+        setIsTracking(true);
+        toast.info("🔄 Reprise du suivi de course");
+      }
+    }
   });
 
   // Voice guidance - announce distance
