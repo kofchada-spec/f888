@@ -65,10 +65,11 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
 
   return (
     <div 
-      className="fixed inset-0 w-screen"
+      className="fixed top-0 left-0 right-0 bottom-0 w-screen overflow-hidden"
       style={{
-        minHeight: '100dvh',
-        height: '100dvh'
+        height: '100dvh',
+        margin: 0,
+        padding: 0
       }}
     >
       <Carousel
@@ -80,14 +81,14 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
           dragFree: false,
         }}
       >
-        <CarouselContent className="h-full">
-          <CarouselItem className="h-full">
+        <CarouselContent className="h-full m-0 p-0">
+          <CarouselItem className="h-full m-0 p-0">
             <WelcomeScreen onNext={nextSlide} showBack={false} />
           </CarouselItem>
-          <CarouselItem className="h-full">
+          <CarouselItem className="h-full m-0 p-0">
             <PresentationScreen onNext={nextSlide} onBack={prevSlide} showBack={true} />
           </CarouselItem>
-          <CarouselItem className="h-full">
+          <CarouselItem className="h-full m-0 p-0">
             <GoalsScreen onNext={goToComplete} onBack={prevSlide} showBack={true} />
           </CarouselItem>
         </CarouselContent>
