@@ -64,7 +64,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
   });
 
   return (
-    <div className="fixed inset-0 w-screen h-screen z-50">
+    <div className="fixed inset-0 w-screen h-screen">
       <Carousel
         setApi={setApi} 
         className="w-full h-full"
