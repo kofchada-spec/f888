@@ -139,12 +139,15 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
     }
   });
 
-  // Background notification pour la marche
+  // Background notification pour la marche avec les pas
   useBackgroundNotification({
     isTracking,
     activityType: 'walk',
     distance: totalDistance,
-    duration: elapsedTime
+    duration: elapsedTime,
+    currentSteps: currentSteps,
+    targetSteps: planningData.steps || 0,
+    remainingDistance: getRemainingDistance ? parseFloat(getRemainingDistance().replace(/[^0-9.]/g, '')) : 0
   });
 
   // App lifecycle - Sauvegarder et restaurer l'état du tracking

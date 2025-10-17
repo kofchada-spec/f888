@@ -121,12 +121,14 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
     }
   });
 
-  // Background notification pour la course
+  // Background notification pour la course avec distance restante
+  const remainingKm = Math.max(0, targetDistance - totalDistance);
   useBackgroundNotification({
     isTracking,
     activityType: 'run',
     distance: totalDistance,
-    duration: elapsedTime
+    duration: elapsedTime,
+    remainingDistance: remainingKm
   });
 
   // App lifecycle - Sauvegarder et restaurer l'état du tracking

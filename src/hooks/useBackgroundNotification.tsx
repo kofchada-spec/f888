@@ -7,13 +7,19 @@ interface UseBackgroundNotificationProps {
   activityType: 'walk' | 'run';
   distance?: number;
   duration?: number;
+  currentSteps?: number;
+  targetSteps?: number;
+  remainingDistance?: number;
 }
 
 export const useBackgroundNotification = ({
   isTracking,
   activityType,
   distance = 0,
-  duration = 0
+  duration = 0,
+  currentSteps = 0,
+  targetSteps = 0,
+  remainingDistance = 0
 }: UseBackgroundNotificationProps) => {
   const isNative = Capacitor.isNativePlatform();
 
@@ -70,18 +76,37 @@ export const useBackgroundNotification = ({
       const distanceText = distance > 0 ? `${distance.toFixed(2)} km` : '...';
       const timeText = `${minutes} min`;
 
+      let notificationBody = '';
+
+      if (activityType === 'walk') {
+        // Pour la marche : afficher les pas effectués et restants
+        const stepsRemaining = targetSteps > 0 ? Math.max(0, targetSteps - currentSteps) : 0;
+        const stepsText = `${currentSteps.toLocaleString()} pas`;
+        const remainingText = stepsRemaining > 0 
+          ? `${stepsRemaining.toLocaleString()} restants` 
+          : 'Objectif atteint !';
+        
+        notificationBody = `${stepsText} • ${remainingText}\n${distanceText} • ${timeText}`;
+      } else {
+        // Pour la course : afficher la distance et la vitesse
+        const remainingKm = remainingDistance > 0 ? `${remainingDistance.toFixed(2)} km restants` : 'Arrivée proche';
+        notificationBody = `${distanceText} parcourus • ${timeText}\n${remainingKm}`;
+      }
+
       await LocalNotifications.schedule({
         notifications: [
           {
             id: 1,
             title: activityType === 'walk' ? "Marche en cours 🚶" : "Course en cours 🏃",
-            body: `${distanceText} • ${timeText} - Enregistrement actif`,
+            body: notificationBody,
             ongoing: true,
             autoCancel: false,
             extra: {
               activityType,
               distance,
-              duration
+              duration,
+              currentSteps,
+              targetSteps
             }
           }
         ]
@@ -92,7 +117,7 @@ export const useBackgroundNotification = ({
     const interval = setInterval(updateNotification, 30000);
 
     return () => clearInterval(interval);
-  }, [isTracking, distance, duration, isNative, activityType]);
+  }, [isTracking, distance, duration, currentSteps, targetSteps, remainingDistance, isNative, activityType]);
 
   return null;
 };
