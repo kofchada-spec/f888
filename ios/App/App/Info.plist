@@ -47,6 +47,8 @@
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Fitpas utilise votre position GPS pour planifier et afficher vos itinéraires de marche et de course en temps réel.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Fitpas suit votre parcours GPS en arrière-plan pendant vos activités de marche et de course pour enregistrer votre trajet et calculer la distance parcourue même lorsque l'app est fermée.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Fitpas suit votre parcours GPS en arrière-plan pendant vos activités de marche et de course pour enregistrer votre trajet et calculer la distance parcourue.</string>
 	<key>NSMotionUsageDescription</key>
