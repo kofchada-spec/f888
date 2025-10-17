@@ -1,8 +1,10 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, User, Target } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from '@/components/ui/carousel';
 import { useTranslation } from 'react-i18next';
+import { StatusBar } from '@capacitor/status-bar';
+import { Capacitor } from '@capacitor/core';
 import mapOnboarding from '@/assets/map-onboarding.jpg';
 const fitpasLogo = '/lovable-uploads/4c20a048-5819-4d0f-b867-b91d67ca59ee.png';
 
@@ -13,6 +15,14 @@ interface OnboardingProps {
 const Onboarding = ({ onComplete }: OnboardingProps) => {
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    // Configure StatusBar to overlay on native platforms
+    if (Capacitor.isNativePlatform()) {
+      StatusBar.setOverlaysWebView({ overlay: true }).catch(console.error);
+      StatusBar.setBackgroundColor({ color: '#10b981' }).catch(console.error);
+    }
+  }, []);
 
   const nextSlide = () => {
     if (api) {
@@ -68,8 +78,13 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
       className="fixed top-0 left-0 right-0 bottom-0 w-screen overflow-hidden"
       style={{
         height: '100dvh',
+        minHeight: '-webkit-fill-available',
         margin: 0,
-        padding: 0
+        padding: 0,
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        paddingLeft: 'env(safe-area-inset-left, 0px)',
+        paddingRight: 'env(safe-area-inset-right, 0px)'
       }}
     >
       <Carousel
