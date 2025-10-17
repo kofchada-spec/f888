@@ -270,9 +270,9 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="fixed inset-0 w-screen h-screen bg-background flex flex-col overflow-hidden">
       {/* En-tête optimisé mobile */}
-      <header className="bg-card shadow-sm border-b">
+      <header className="bg-card shadow-sm border-b flex-shrink-0">
         <div className="px-3 py-3 flex items-center justify-between gap-2">
           {/* Logo + Badge */}
           <div className="flex items-center gap-1.5 cursor-pointer shrink-0" onClick={() => navigate('/')}>
@@ -395,7 +395,8 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
         </div>
       </header>
 
-      <div className="px-4 py-4 space-y-4 max-w-4xl mx-auto">
+      <div className="flex-1 overflow-y-auto">
+        <div className="px-4 py-4 space-y-4 max-w-4xl mx-auto">
         {/* Beta Banner */}
         <BetaBanner 
           forceShow={showBetaBanner} 
@@ -723,6 +724,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
         }}
         onProfileUpdate={handleProfileUpdate}
       />
+      </div>
 
       {/* Floating Feedback Button - mobile optimized */}
       <Button
