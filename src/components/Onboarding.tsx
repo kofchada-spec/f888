@@ -118,7 +118,7 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
           </button>
         )}
 
-        <div className="flex-1 flex flex-col items-center justify-center">
+        <div className="flex-1 flex flex-col items-center justify-center px-8">
           <div className="mb-10 transform animate-pulse">
             <img 
               src={fitpasLogo} 
@@ -126,11 +126,11 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
               className="w-28 h-28 mx-auto drop-shadow-2xl"
             />
           </div>
-          <div className="space-y-6 text-center">
+          <div className="space-y-6 text-center max-w-md mx-auto">
             <h1 className="font-raleway text-4xl font-black text-white mb-3 tracking-tight leading-none">
               {t('onboarding.welcome.title')}
             </h1>
-            <p className="font-raleway text-white/95 text-lg font-light leading-relaxed px-6 tracking-wide">
+            <p className="font-raleway text-white/95 text-lg font-light leading-relaxed tracking-wide">
               {t('onboarding.welcome.subtitle')}
             </p>
           </div>
