@@ -113,7 +113,7 @@ All colors MUST be HSL.
 
   html,
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
     margin: 0;
     padding: 0;
     width: 100%;
