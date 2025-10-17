@@ -64,7 +64,13 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
   });
 
   return (
-    <div className="fixed inset-0 w-screen h-screen">
+    <div 
+      className="fixed inset-0 w-screen"
+      style={{
+        minHeight: '100dvh',
+        height: '100dvh'
+      }}
+    >
       <Carousel
         setApi={setApi} 
         className="w-full h-full"
