@@ -70,11 +70,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
         height: '100dvh',
         minHeight: '-webkit-fill-available',
         margin: 0,
-        padding: 0,
-        paddingTop: 'env(safe-area-inset-top, 0px)',
-        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-        paddingLeft: 'env(safe-area-inset-left, 0px)',
-        paddingRight: 'env(safe-area-inset-right, 0px)'
+        padding: 0
       }}
     >
       <Carousel
@@ -106,8 +102,8 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
   const { t } = useTranslation();
   
   return (
-    <div className="min-h-full w-full bg-gradient-to-br from-green-400 via-green-500 to-green-600 flex items-center justify-center">
-      <div className="w-full min-h-full flex flex-col items-center justify-between text-center relative overflow-hidden" style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))', paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))', paddingLeft: '2rem', paddingRight: '2rem' }}>
+    <div className="h-[100dvh] w-full bg-gradient-to-br from-green-400 via-green-500 to-green-600 flex items-center justify-center">
+      <div className="w-full h-full flex flex-col items-center justify-between text-center relative overflow-hidden" style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))', paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))', paddingLeft: '2rem', paddingRight: '2rem' }}>
         {/* Back button */}
         {showBack && (
           <button 
@@ -155,8 +151,8 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
   const { t } = useTranslation();
   
   return (
-    <div className="min-h-full w-full bg-gradient-to-br from-green-50 via-blue-50 to-white flex items-center justify-center">
-      <div className="w-full min-h-full flex flex-col items-center justify-between text-center relative" style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))', paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))', paddingLeft: '2rem', paddingRight: '2rem' }}>
+    <div className="h-[100dvh] w-full bg-gradient-to-br from-green-50 via-blue-50 to-white flex items-center justify-center">
+      <div className="w-full h-full flex flex-col items-center justify-between text-center relative" style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))', paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))', paddingLeft: '2rem', paddingRight: '2rem' }}>
         {/* Back button */}
         {showBack && (
           <button 
@@ -211,8 +207,8 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
   const { t } = useTranslation();
   
   return (
-    <div className="min-h-full w-full bg-gradient-to-br from-green-50 via-blue-50 to-white flex items-center justify-center">
-      <div className="w-full min-h-full flex flex-col items-center justify-between text-center relative" style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))', paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))', paddingLeft: '2rem', paddingRight: '2rem' }}>
+    <div className="h-[100dvh] w-full bg-gradient-to-br from-green-50 via-blue-50 to-white flex items-center justify-center">
+      <div className="w-full h-full flex flex-col items-center justify-between text-center relative" style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))', paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))', paddingLeft: '2rem', paddingRight: '2rem' }}>
         {/* Back button */}
         {showBack && (
           <button 
