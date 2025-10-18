@@ -96,9 +96,10 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
   const gpsSteps = calculateStepsFromDistance(totalDistance);
   const CALIBRATION_DISTANCE = 0.5; // km
   
-  // Use real steps if available (native app), otherwise fallback to GPS calculation
-  const currentSteps = realSteps > 0 ? realSteps : gpsSteps;
-  const showSteps = totalDistance >= CALIBRATION_DISTANCE || realSteps > 0;
+  // On native: use ONLY real steps from pedometer (no GPS fallback)
+  // On web: use GPS estimation as fallback
+  const currentSteps = Capacitor.isNativePlatform() ? realSteps : (realSteps > 0 ? realSteps : gpsSteps);
+  const showSteps = Capacitor.isNativePlatform() ? realSteps > 0 : (totalDistance >= CALIBRATION_DISTANCE || realSteps > 0);
 
   const liveMetrics = useLiveMetrics({
     totalDistance, currentSpeed, elapsedTime, weight: planningData.weight, activityType: 'run', pace: planningData.pace
