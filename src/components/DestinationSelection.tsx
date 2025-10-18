@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ArrowLeft, MapPin, Clock, Zap, Loader2, RefreshCw } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ArrowLeft, MapPin, Clock, Zap, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
 import Map, { MapRef } from './Map';
 import { useSingleDestination } from '@/hooks/useSingleDestination';
 import { useAuth } from '@/hooks/useAuth';
@@ -35,6 +36,7 @@ interface Destination {
   distanceKm: number;
   durationMin: number;
   calories: number;
+  hasWarning?: boolean;
 }
 
 const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningData }: DestinationSelectionProps) => {
@@ -407,6 +409,22 @@ const DestinationSelection = ({ onComplete, onBack, onGoToDashboard, planningDat
 
         {/* Section Destination avec bouton Réactualiser séparé */}
         <div className="mb-8">
+          {/* Alert pour zones potentiellement inaccessibles */}
+          {activeDestination?.hasWarning && (
+            <Alert className="mb-6 border-orange-500 bg-orange-50 dark:bg-orange-950/20">
+              <AlertTriangle className="h-5 w-5 text-orange-600" />
+              <AlertDescription className="ml-2">
+                <p className="font-semibold text-orange-800 dark:text-orange-200 mb-1">
+                  Attention : Zone potentiellement inaccessible
+                </p>
+                <p className="text-sm text-orange-700 dark:text-orange-300">
+                  Cet itinéraire peut passer par des zones inaccessibles aux piétons (autoroutes, propriétés privées, etc.). 
+                  Vous pouvez générer un nouvel itinéraire en cliquant sur le bouton ci-dessous.
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-foreground">Destination proposée</h2>
             {activeDestination && (

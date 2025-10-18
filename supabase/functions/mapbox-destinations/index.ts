@@ -7,6 +7,70 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Mapbox routing parameters to exclude restricted roads
+const MAPBOX_EXCLUDE_PARAMS = 'motorway,motorway_link,trunk,ferry';
+
+/**
+ * Build Mapbox Directions URL with safety exclusions
+ */
+function buildDirectionsUrl(coords: string, mapboxToken: string, options: { alternatives?: boolean } = {}): string {
+  const baseUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${coords}`;
+  const params = new URLSearchParams({
+    geometries: 'geojson',
+    steps: 'true',
+    exclude: MAPBOX_EXCLUDE_PARAMS,
+    access_token: mapboxToken
+  });
+  
+  if (options.alternatives) {
+    params.set('alternatives', 'true');
+  }
+  
+  return `${baseUrl}?${params.toString()}`;
+}
+
+/**
+ * Analyze route for potentially inaccessible road segments
+ * Returns true if dangerous road types are detected
+ */
+function detectRestrictedRoads(route: any): boolean {
+  if (!route.legs || !route.legs[0] || !route.legs[0].steps) {
+    return false;
+  }
+  
+  const restrictedClasses = ['motorway', 'motorway_link', 'trunk', 'ferry', 'restricted'];
+  
+  for (const step of route.legs[0].steps) {
+    // Check intersections for road classes
+    if (step.intersections) {
+      for (const intersection of step.intersections) {
+        if (intersection.classes) {
+          const hasRestricted = intersection.classes.some((cls: string) => 
+            restrictedClasses.includes(cls.toLowerCase())
+          );
+          if (hasRestricted) {
+            console.log(`⚠️ Restricted road detected: ${intersection.classes.join(', ')}`);
+            return true;
+          }
+        }
+      }
+    }
+    
+    // Check maneuver classes
+    if (step.maneuver && step.maneuver.classes) {
+      const hasRestricted = step.maneuver.classes.some((cls: string) => 
+        restrictedClasses.includes(cls.toLowerCase())
+      );
+      if (hasRestricted) {
+        console.log(`⚠️ Restricted maneuver detected: ${step.maneuver.classes.join(', ')}`);
+        return true;
+      }
+    }
+  }
+  
+  return false;
+}
+
 // Input validation schema
 const inputSchema = z.object({
   userLocation: z.object({
@@ -166,7 +230,10 @@ serve(async (req) => {
           }
         } else {
           // One-way route calculation (existing logic)
-          const directionsUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${userLocation.lng},${userLocation.lat};${poi.center[0]},${poi.center[1]}?geometries=geojson&steps=true&access_token=${mapboxToken}`;
+          const directionsUrl = buildDirectionsUrl(
+            `${userLocation.lng},${userLocation.lat};${poi.center[0]},${poi.center[1]}`,
+            mapboxToken
+          );
           
           const dirResponse = await fetch(directionsUrl);
           const dirData = await dirResponse.json();
@@ -188,7 +255,8 @@ serve(async (req) => {
                 routeGeoJSON: route.geometry,
                 distanceKm: routeDistanceKm,
                 durationMin: Math.round(route.duration / 60),
-                calories: calories
+                calories: calories,
+                hasWarning: detectRestrictedRoads(route)
               };
             }
           }
@@ -234,7 +302,10 @@ serve(async (req) => {
               };
             }
           } else {
-            const directionsUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${userLocation.lng},${userLocation.lat};${randomPoi.center[0]},${randomPoi.center[1]}?geometries=geojson&steps=true&access_token=${mapboxToken}`;
+            const directionsUrl = buildDirectionsUrl(
+              `${userLocation.lng},${userLocation.lat};${randomPoi.center[0]},${randomPoi.center[1]}`,
+              mapboxToken
+            );
             
             const dirResponse = await fetch(directionsUrl);
             const dirData = await dirResponse.json();
@@ -257,7 +328,8 @@ serve(async (req) => {
               routeGeoJSON: routeGeoJSON,
               distanceKm: actualDistanceKm,
               durationMin: actualDurationMin,
-              calories: calories
+              calories: calories,
+              hasWarning: routeGeoJSON ? detectRestrictedRoads(dirData.routes[0]) : false
             };
           }
         } catch (error) {
@@ -307,7 +379,10 @@ serve(async (req) => {
             };
           }
         } else {
-          const directionsUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${userLocation.lng},${userLocation.lat};${destLng},${destLat}?geometries=geojson&steps=true&access_token=${mapboxToken}`;
+          const directionsUrl = buildDirectionsUrl(
+            `${userLocation.lng},${userLocation.lat};${destLng},${destLat}`,
+            mapboxToken
+          );
           
           const dirResponse = await fetch(directionsUrl);
           const dirData = await dirResponse.json();
@@ -330,7 +405,8 @@ serve(async (req) => {
             routeGeoJSON: routeGeoJSON,
             distanceKm: actualDistanceKm,
             durationMin: actualDurationMin,
-            calories: calories
+            calories: calories,
+            hasWarning: routeGeoJSON ? detectRestrictedRoads(dirData.routes[0]) : false
           };
         }
       } catch (error) {
@@ -409,7 +485,10 @@ async function calculateRoundTripRoute(
     console.log('Starting enhanced round-trip route calculation...');
     
     // Calculate outbound route
-    const outboundUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${start.lng},${start.lat};${destination.lng},${destination.lat}?geometries=geojson&steps=true&access_token=${mapboxToken}`;
+    const outboundUrl = buildDirectionsUrl(
+      `${start.lng},${start.lat};${destination.lng},${destination.lat}`,
+      mapboxToken
+    );
     const outboundResponse = await fetch(outboundUrl);
     const outboundData = await outboundResponse.json();
     
@@ -426,7 +505,11 @@ async function calculateRoundTripRoute(
     
     // Strategy 1: Try basic alternatives with relaxed thresholds
     try {
-      const returnUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${destination.lng},${destination.lat};${start.lng},${start.lat}?geometries=geojson&steps=true&alternatives=true&access_token=${mapboxToken}`;
+      const returnUrl = buildDirectionsUrl(
+        `${destination.lng},${destination.lat};${start.lng},${start.lat}`,
+        mapboxToken,
+        { alternatives: true }
+      );
       const returnResponse = await fetch(returnUrl);
       const returnData = await returnResponse.json();
       
@@ -662,7 +745,10 @@ async function calculateEnhancedWaypointRoutes(
       const waypointLng = midPoint[0] + Math.cos(bearing + config.angle) * config.distance;
       
       try {
-        const waypointUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${destination.lng},${destination.lat};${waypointLng},${waypointLat};${start.lng},${start.lat}?geometries=geojson&steps=true&access_token=${mapboxToken}`;
+        const waypointUrl = buildDirectionsUrl(
+          `${destination.lng},${destination.lat};${waypointLng},${waypointLat};${start.lng},${start.lat}`,
+          mapboxToken
+        );
         
         const response = await fetch(waypointUrl);
         const data = await response.json();
@@ -718,7 +804,10 @@ async function createStrategicReturnRoute(
     
     // Try routing through strategic waypoint
     const waypoint = strategicWaypoints[0];
-    const strategicUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${destination.lng},${destination.lat};${waypoint.lng},${waypoint.lat};${start.lng},${start.lat}?geometries=geojson&steps=true&access_token=${mapboxToken}`;
+    const strategicUrl = buildDirectionsUrl(
+      `${destination.lng},${destination.lat};${waypoint.lng},${waypoint.lat};${start.lng},${start.lat}`,
+      mapboxToken
+    );
     
     const response = await fetch(strategicUrl);
     const data = await response.json();
@@ -756,7 +845,10 @@ async function calculateWaypointReturn(
     // Try each waypoint configuration
     for (const waypoint of waypoints) {
       try {
-        const waypointUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${destination.lng},${destination.lat};${waypoint.lng},${waypoint.lat};${start.lng},${start.lat}?geometries=geojson&steps=true&access_token=${mapboxToken}`;
+        const waypointUrl = buildDirectionsUrl(
+          `${destination.lng},${destination.lat};${waypoint.lng},${waypoint.lat};${start.lng},${start.lat}`,
+          mapboxToken
+        );
         
         const response = await fetch(waypointUrl);
         const data = await response.json();
@@ -873,7 +965,10 @@ async function generateThreeDestinations(
         }
       } else {
         // One-way route calculation
-        const directionsUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${userLocation.lng},${userLocation.lat};${poi.center[0]},${poi.center[1]}?geometries=geojson&steps=true&access_token=${mapboxToken}`;
+        const directionsUrl = buildDirectionsUrl(
+          `${userLocation.lng},${userLocation.lat};${poi.center[0]},${poi.center[1]}`,
+          mapboxToken
+        );
         
         const dirResponse = await fetch(directionsUrl);
         const dirData = await dirResponse.json();
@@ -890,7 +985,8 @@ async function generateThreeDestinations(
               ...poi,
               route,
               routeDistanceKm,
-              score: stepDeviation
+              score: stepDeviation,
+              hasWarning: detectRestrictedRoads(route)
             });
           }
         }
@@ -910,6 +1006,7 @@ async function generateThreeDestinations(
     
     if (planningData.tripType === 'round-trip' && poi.outboundRoute && poi.returnRoute) {
       // Round-trip destination with separate routes
+      const hasWarning = detectRestrictedRoads(poi.outboundRoute) || detectRestrictedRoads(poi.returnRoute);
       destinations.push({
         id: `dest_${i + 1}_${poi.id || Math.random().toString(36).substr(2, 9)}`,
         name: poi.place_name?.split(',')[0] || poi.text || `Destination ${i + 1}`,
@@ -921,7 +1018,8 @@ async function generateThreeDestinations(
             },
         distanceKm: poi.routeDistanceKm,
         durationMin: Math.round((poi.outboundRoute.duration + poi.returnRoute.duration) / 60),
-        calories: calories
+        calories: calories,
+        hasWarning: hasWarning
       });
     } else {
       // One-way destination
@@ -932,7 +1030,8 @@ async function generateThreeDestinations(
         routeGeoJSON: poi.route.geometry,
         distanceKm: poi.routeDistanceKm,
         durationMin: Math.round(poi.route.duration / 60),
-        calories: calories
+        calories: calories,
+        hasWarning: poi.hasWarning || false
       });
     }
   }
@@ -967,7 +1066,10 @@ async function generateThreeDestinations(
           });
         }
       } else {
-        const directionsUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${userLocation.lng},${userLocation.lat};${destLng},${destLat}?geometries=geojson&steps=true&access_token=${mapboxToken}`;
+        const directionsUrl = buildDirectionsUrl(
+          `${userLocation.lng},${userLocation.lat};${destLng},${destLat}`,
+          mapboxToken
+        );
         
         const dirResponse = await fetch(directionsUrl);
         const dirData = await dirResponse.json();
@@ -990,7 +1092,8 @@ async function generateThreeDestinations(
           routeGeoJSON: routeGeoJSON,
           distanceKm: actualDistanceKm,
           durationMin: actualDurationMin,
-          calories: calories
+          calories: calories,
+          hasWarning: routeGeoJSON && dirData.routes ? detectRestrictedRoads(dirData.routes[0]) : false
         });
       }
     } catch (error) {
