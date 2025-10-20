@@ -50,6 +50,7 @@ export const useAppLifecycle = ({
     } else if (!isTracking) {
       // Nettoyer le state quand le tracking s'arrête
       localStorage.removeItem(storageKey);
+      console.log('🗑️ État du tracking supprimé');
     }
   }, [isTracking, startTime, elapsedTime, totalDistance, currentSteps, storageKey]);
 
@@ -68,16 +69,28 @@ export const useAppLifecycle = ({
         const savedState = localStorage.getItem(storageKey);
         if (savedState) {
           try {
-            const state: TrackingState = JSON.parse(savedState);
-            console.log('♻️ Restauration de l\'état du tracking:', state);
-            onRestore(state);
+            const parsedState: TrackingState = JSON.parse(savedState);
+            console.log('♻️ Restauration de l\'état du tracking:', parsedState);
+            onRestore(parsedState);
           } catch (error) {
             console.error('Erreur lors de la restauration:', error);
+            // Nettoyer l'état corrompu
+            localStorage.removeItem(storageKey);
           }
         }
       } else {
-        // L'app passe en background - l'état est déjà sauvegardé via le useEffect précédent
-        console.log('💾 App en background - état sauvegardé');
+        // L'app passe en background - sauvegarder l'état immédiatement si tracking actif
+        if (isTracking && startTime) {
+          const currentState: TrackingState = {
+            isTracking,
+            startTime: startTime.toISOString(),
+            elapsedTime,
+            totalDistance,
+            currentSteps
+          };
+          localStorage.setItem(storageKey, JSON.stringify(currentState));
+          console.log('💾 État sauvegardé avant background:', currentState);
+        }
       }
     };
 

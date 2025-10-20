@@ -34,6 +34,43 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
   const [initialRoute, setInitialRoute] = useState<RouteData | null>(null);
   const hasGeneratedInitialRoute = useRef(false); // Prevent re-generation on swipe
   
+  // Sauvegarder l'itinéraire actuel dans localStorage
+  useEffect(() => {
+    if (currentRoute && userLocation) {
+      const routeState = {
+        route: currentRoute,
+        userLocation,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('current_route_state', JSON.stringify(routeState));
+      console.log('💾 Itinéraire sauvegardé:', routeState);
+    }
+  }, [currentRoute, userLocation]);
+
+  // Restaurer l'itinéraire arcès un swipe/refresh
+  useEffect(() => {
+    const savedRouteState = localStorage.getItem('current_route_state');
+    if (savedRouteState && !currentRoute && userLocation) {
+      try {
+        const routeState = JSON.parse(savedRouteState);
+        // Vérifier que l'itinéraire n'est pas trop ancien (5 minutes max)
+        if (Date.now() - routeState.timestamp < 300000) {
+          console.log('♻️ Restauration de l\'itinéraire sauvegardé:', routeState);
+          setCurrentRoute(routeState.route);
+          if (onRouteCalculated) {
+            onRouteCalculated(routeState.route);
+          }
+          displayRouteOnMap(routeState.route);
+        } else {
+          localStorage.removeItem('current_route_state');
+        }
+      } catch (error) {
+        console.error('Erreur lors de la restauration de l\'itinéraire:', error);
+        localStorage.removeItem('current_route_state');
+      }
+    }
+  }, [userLocation, currentRoute, onRouteCalculated]);
+  
   const { canClick, isLocked, incrementAttempts, remainingAttempts } = useMapClickLimiter(3);
 
   // Refs pour accéder aux valeurs actuelles dans les event listeners
@@ -490,15 +527,30 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     console.log('Route has GeoJSON:', !!route.routeGeoJSON);
     console.log('Route data:', route);
 
-    if (!map.current || !route.routeGeoJSON) {
-      console.error('Cannot display route: missing map or GeoJSON');
+    if (!map.current || !mapReady) {
+      console.error('Cannot display route: missing map instance or map not ready');
       return;
     }
 
     console.log('Clearing previous route...');
     clearRoute();
 
-    const { outboundCoordinates, returnCoordinates } = route.routeGeoJSON;
+    // Vérifier si on a des coordonnées dans routeGeoJSON ou dans route directement
+    let outboundCoordinates = null;
+    let returnCoordinates = null;
+
+    if (route.routeGeoJSON) {
+      const { outbound, return: returnCoords } = route.routeGeoJSON;
+      outboundCoordinates = outbound;
+      returnCoordinates = returnCoords;
+    } else if (route.startCoordinates && route.endCoordinates) {
+      // Fallback : créer une route simple entre start et end
+      outboundCoordinates = [
+        [route.startCoordinates.lng, route.startCoordinates.lat],
+        [route.endCoordinates.lng, route.endCoordinates.lat]
+      ];
+    }
+
     console.log('Outbound coordinates count:', outboundCoordinates?.length || 0);
     console.log('Return coordinates count:', returnCoordinates?.length || 0);
 

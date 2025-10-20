@@ -32,6 +32,43 @@ const RunEnhancedMap: React.FC<RunEnhancedMapProps> = ({
   const [initialRoute, setInitialRoute] = useState<RouteData | null>(null);
   const hasGeneratedInitialRoute = useRef(false); // Prevent re-generation on swipe
   
+  // Sauvegarder l'itinéraire actuel dans localStorage
+  useEffect(() => {
+    if (currentRoute && userLocation) {
+      const routeState = {
+        route: currentRoute,
+        userLocation,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('current_run_route_state', JSON.stringify(routeState));
+      console.log('💾 Itinéraire de course sauvegardé:', routeState);
+    }
+  }, [currentRoute, userLocation]);
+
+  // Restaurer l'itinéraire après un swipe/refresh
+  useEffect(() => {
+    const savedRouteState = localStorage.getItem('current_run_route_state');
+    if (savedRouteState && !currentRoute && userLocation) {
+      try {
+        const routeState = JSON.parse(savedRouteState);
+        // Vérifier que l'itinéraire n'est pas trop ancien (5 minutes max)
+        if (Date.now() - routeState.timestamp < 300000) {
+          console.log('♻️ Restauration de l\'itinéraire de course sauvegardé:', routeState);
+          setCurrentRoute(routeState.route);
+          if (onRouteCalculated) {
+            onRouteCalculated(routeState.route);
+          }
+          displayRouteOnMap(routeState.route);
+        } else {
+          localStorage.removeItem('current_run_route_state');
+        }
+      } catch (error) {
+        console.error('Erreur lors de la restauration de l\'itinéraire de course:', error);
+        localStorage.removeItem('current_run_route_state');
+      }
+    }
+  }, [userLocation, currentRoute, onRouteCalculated]);
+  
   const { canClick, isLocked, incrementAttempts, remainingAttempts } = useMapClickLimiter(3);
 
   const userLocationRef = useRef<Coordinates | null>(null);
