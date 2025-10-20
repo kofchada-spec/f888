@@ -128,10 +128,8 @@ All colors MUST be HSL.
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: none;
     position: fixed;
-    padding-top: env(safe-area-inset-top, 0);
-    padding-bottom: env(safe-area-inset-bottom, 0);
-    padding-left: env(safe-area-inset-left, 0);
-    padding-right: env(safe-area-inset-right, 0);
+    /* Supprimer les paddings sur body - ils vont sur #root */
+    padding: 0;
   }
 
   /* Hide scrollbars */
@@ -150,6 +148,11 @@ All colors MUST be HSL.
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
+    /* Ajouter les safe areas sur #root au lieu de body */
+    padding-top: env(safe-area-inset-top, 0);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    padding-left: env(safe-area-inset-left, 0);
+    padding-right: env(safe-area-inset-right, 0);
   }
 
   /* Prevent pull-to-refresh on mobile */

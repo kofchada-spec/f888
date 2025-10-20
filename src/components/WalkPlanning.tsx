@@ -160,7 +160,7 @@ const WalkPlanning = ({ onComplete, onBack, onGoToDashboard }: WalkPlanningProps
   ];
 
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-br from-primary/5 via-background to-secondary/5">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
       {/* Header */}
       <div className="bg-card shadow-sm">
         <div className="px-4 py-4 flex items-center justify-between">
