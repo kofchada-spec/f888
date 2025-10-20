@@ -100,7 +100,7 @@ const Auth = ({ onComplete }: AuthProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6 relative">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative">
       <Button
         variant="ghost"
         size="icon"
@@ -109,7 +109,7 @@ const Auth = ({ onComplete }: AuthProps) => {
       >
         <ArrowLeft className="h-5 w-5" />
       </Button>
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-sm md:max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">
             {isResetMode ? 'Récupérer le mot de passe' : isLogin ? 'Se connecter' : 'Créer un compte'}

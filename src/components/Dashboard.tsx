@@ -273,7 +273,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
     <div className="fixed inset-0 w-screen h-[100dvh] bg-background flex flex-col overflow-hidden">
       {/* En-tête optimisé mobile */}
       <header className="bg-card shadow-sm border-b flex-shrink-0">
-        <div className="px-3 py-3 flex items-center justify-between gap-2">
+        <div className="px-4 py-4 flex items-center justify-between gap-3">
           {/* Logo + Badge */}
           <div className="flex items-center gap-1.5 cursor-pointer shrink-0" onClick={() => navigate('/')}>
             <img 
@@ -309,7 +309,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
             {/* Gérer mes abonnements */}
             {user && subscriptionData && (
               <Link to="/subscription">
-                <Button variant="ghost" size="sm" className="flex items-center gap-1 px-2 h-8">
+                <Button variant="ghost" size="sm" className="flex items-center gap-1 px-3 h-10">
                   <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
                   <span className="text-[10px] font-normal text-muted-foreground hidden sm:inline">Gérer mes abonnements</span>
                 </Button>
@@ -317,7 +317,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
             )}
             <Popover open={isAvatarMenuOpen} onOpenChange={setIsAvatarMenuOpen}>
               <PopoverTrigger asChild>
-                <Avatar className="h-8 w-8 cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all">
+                <Avatar className="h-9 w-9 cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all">
                   <AvatarImage src={userProfile.avatar || undefined} />
                   <AvatarFallback className="bg-gradient-to-r from-green-500 to-blue-500 text-white font-semibold text-sm">
                     {userProfile.firstName.charAt(0)}
@@ -396,7 +396,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
       </header>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="px-4 py-4 space-y-4 max-w-4xl mx-auto">
+        <div className="px-4 py-4 space-y-5 max-w-md md:max-w-4xl mx-auto">
         {/* Beta Banner */}
         <BetaBanner 
           forceShow={showBetaBanner} 
@@ -405,12 +405,12 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
         
         {/* Carte Profil */}
         <Card className="bg-card shadow-lg border">
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center justify-center mb-4">
               <h2 className="text-lg font-semibold text-foreground">💡</h2>
             </div>
             
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
               <div className="text-center">
                 <p className="text-sm text-muted-foreground">{t('dashboard.profile.gender')}</p>
                 <p className="text-lg font-medium text-foreground">{userProfile.gender}</p>
@@ -438,10 +438,10 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
         </Card>
 
         {/* Streak et Message Motivationnel */}
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid md:grid-cols-2 gap-4 md:gap-6">
           {/* Carte Streak */}
           <Card className="bg-gradient-to-br from-yellow-400 to-orange-500 text-white shadow-lg border-0 relative">
-            <CardContent className="p-6 text-center">
+            <CardContent className="p-4 md:p-6 text-center">
               {/* Bouton Info - Dialog sur mobile, Tooltip sur desktop */}
               {isMobile ? (
                 <Dialog open={isStreakInfoOpen} onOpenChange={setIsStreakInfoOpen}>
@@ -501,7 +501,7 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
 
           {/* Choix d'activité */}
           <Card className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg border-0">
-            <CardContent className="p-6">
+            <CardContent className="p-4 md:p-6">
               <p className="text-center text-lg font-medium mb-4">{t('dashboard.newDay')}</p>
               <div className="flex gap-3">
                 <Button

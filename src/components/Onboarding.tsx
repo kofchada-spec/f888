@@ -103,7 +103,7 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
   
   return (
     <div className="h-[100dvh] w-full bg-gradient-to-br from-green-400 via-green-500 to-green-600 flex items-center justify-center">
-      <div className="w-full h-full flex flex-col items-center justify-between text-center relative overflow-hidden" style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))', paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))', paddingLeft: '2rem', paddingRight: '2rem' }}>
+      <div className="w-full h-full flex flex-col items-center justify-between text-center relative overflow-hidden" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))', paddingLeft: '1rem', paddingRight: '1rem' }}>
         {/* Back button */}
         {showBack && (
           <button 
@@ -114,19 +114,19 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
           </button>
         )}
 
-        <div className="flex-1 flex flex-col items-center justify-center px-8">
+        <div className="flex-1 flex flex-col items-center justify-center px-4">
           <div className="mb-10 transform animate-pulse">
             <img 
               src={fitpasLogo} 
               alt="Fitpas Logo" 
-              className="w-28 h-28 mx-auto drop-shadow-2xl"
+              className="w-20 h-20 md:w-28 md:h-28 mx-auto drop-shadow-2xl"
             />
           </div>
           <div className="space-y-6 text-center max-w-md mx-auto">
-            <h1 className="font-raleway text-4xl font-black text-white mb-3 tracking-tight leading-none">
+            <h1 className="font-raleway text-2xl md:text-4xl font-black text-white mb-3 tracking-tight leading-none">
               {t('onboarding.welcome.title')}
             </h1>
-            <p className="font-raleway text-white/95 text-lg font-light leading-relaxed tracking-wide">
+            <p className="font-raleway text-white/95 text-base md:text-lg font-light leading-relaxed tracking-wide">
               {t('onboarding.welcome.subtitle')}
             </p>
           </div>
@@ -152,7 +152,7 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
   
   return (
     <div className="h-[100dvh] w-full bg-gradient-to-br from-green-50 via-blue-50 to-white flex items-center justify-center">
-      <div className="w-full h-full flex flex-col items-center justify-between text-center relative" style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))', paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))', paddingLeft: '2rem', paddingRight: '2rem' }}>
+      <div className="w-full h-full flex flex-col items-center justify-between text-center relative" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))', paddingLeft: '1rem', paddingRight: '1rem' }}>
         {/* Back button */}
         {showBack && (
           <button 
@@ -169,7 +169,7 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
             <img 
               src="/lovable-uploads/18d7c199-1173-482f-9050-fbbb00132134.png"
               alt="Personne qui marche"
-              className="w-36 h-36 mx-auto drop-shadow-2xl"
+              className="w-24 h-24 md:w-36 md:h-36 mx-auto drop-shadow-2xl"
             />
           </div>
 
@@ -208,7 +208,7 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
   
   return (
     <div className="h-[100dvh] w-full bg-gradient-to-br from-green-50 via-blue-50 to-white flex items-center justify-center">
-      <div className="w-full h-full flex flex-col items-center justify-between text-center relative" style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))', paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))', paddingLeft: '2rem', paddingRight: '2rem' }}>
+      <div className="w-full h-full flex flex-col items-center justify-between text-center relative" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))', paddingLeft: '1rem', paddingRight: '1rem' }}>
         {/* Back button */}
         {showBack && (
           <button 
@@ -225,7 +225,7 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
             <img 
               src={mapOnboarding}
               alt="Carte avec destinations"
-              className="w-36 h-36 mx-auto drop-shadow-2xl"
+              className="w-24 h-24 md:w-36 md:h-36 mx-auto drop-shadow-2xl"
             />
           </div>
 

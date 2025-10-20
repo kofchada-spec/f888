@@ -163,7 +163,7 @@ const WalkPlanning = ({ onComplete, onBack, onGoToDashboard }: WalkPlanningProps
     <div className="min-h-[100dvh] bg-gradient-to-br from-primary/5 via-background to-secondary/5">
       {/* Header */}
       <div className="bg-card shadow-sm">
-        <div className="px-6 py-4 flex items-center justify-between">
+        <div className="px-4 py-4 flex items-center justify-between">
           <button 
             onClick={onBack}
             className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors"
@@ -187,7 +187,7 @@ const WalkPlanning = ({ onComplete, onBack, onGoToDashboard }: WalkPlanningProps
       </div>
 
       {/* Main Content */}
-      <div className="container max-w-2xl mx-auto px-6 py-8">
+      <div className="container max-w-md md:max-w-2xl mx-auto px-4 py-6">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">
             Planifier ma marche

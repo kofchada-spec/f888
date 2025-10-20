@@ -142,7 +142,7 @@ const ProfileCompletion = ({ onComplete }: ProfileCompletionProps) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-card rounded-3xl shadow-2xl p-8 border border-border/50">
+      <div className="w-full max-w-sm md:max-w-md bg-card rounded-3xl shadow-2xl p-4 md:p-8 border border-border/50">
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <User className="w-8 h-8 text-primary" />
