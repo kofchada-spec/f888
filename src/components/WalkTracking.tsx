@@ -159,6 +159,11 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
     totalDistance,
     currentSteps,
     activityType: 'walk',
+    currentPage: 'walk-tracking',
+    pageState: {
+      destination: destination,
+      planningData: planningData
+    },
     onRestore: (state) => {
       if (state.isTracking && state.startTime) {
         setWalkStartTime(new Date(state.startTime));

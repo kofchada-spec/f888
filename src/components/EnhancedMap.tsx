@@ -40,12 +40,13 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
       const routeState = {
         route: currentRoute,
         userLocation,
+        planningData,
         timestamp: Date.now()
       };
       localStorage.setItem('current_route_state', JSON.stringify(routeState));
-      console.log('💾 Itinéraire sauvegardé:', routeState);
+      console.log('💾 Itinéraire et données de planification sauvegardés:', routeState);
     }
-  }, [currentRoute, userLocation]);
+  }, [currentRoute, userLocation, planningData]);
 
   // Restaurer l'itinéraire arcès un swipe/refresh
   useEffect(() => {
@@ -55,12 +56,17 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
         const routeState = JSON.parse(savedRouteState);
         // Vérifier que l'itinéraire n'est pas trop ancien (5 minutes max)
         if (Date.now() - routeState.timestamp < 300000) {
-          console.log('♻️ Restauration de l\'itinéraire sauvegardé:', routeState);
+          console.log('♻️ Restauration de l\'itinéraire et des données sauvegardés:', routeState);
           setCurrentRoute(routeState.route);
           if (onRouteCalculated) {
             onRouteCalculated(routeState.route);
           }
           displayRouteOnMap(routeState.route);
+          
+          // Restaurer les données de planification si disponibles
+          if (routeState.planningData) {
+            console.log('♻️ Données de planification restaurées:', routeState.planningData);
+          }
         } else {
           localStorage.removeItem('current_route_state');
         }

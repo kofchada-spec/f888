@@ -8,6 +8,10 @@ interface TrackingState {
   elapsedTime: number;
   totalDistance: number;
   currentSteps: number;
+  // Ajouter l'état de la page
+  currentPage?: string;
+  pageState?: any;
+  timestamp: number;
 }
 
 interface UseAppLifecycleProps {
@@ -17,6 +21,8 @@ interface UseAppLifecycleProps {
   totalDistance: number;
   currentSteps: number;
   activityType: 'walk' | 'run';
+  currentPage?: string;
+  pageState?: any;
   onRestore: (state: TrackingState) => void;
 }
 
@@ -31,6 +37,8 @@ export const useAppLifecycle = ({
   totalDistance,
   currentSteps,
   activityType,
+  currentPage,
+  pageState,
   onRestore
 }: UseAppLifecycleProps) => {
   const storageKey = `tracking_state_${activityType}`;
@@ -43,16 +51,19 @@ export const useAppLifecycle = ({
         startTime: startTime.toISOString(),
         elapsedTime,
         totalDistance,
-        currentSteps
+        currentSteps,
+        currentPage,
+        pageState,
+        timestamp: Date.now()
       };
       localStorage.setItem(storageKey, JSON.stringify(state));
-      console.log('💾 État du tracking sauvegardé:', state);
+      console.log('💾 État du tracking et de la page sauvegardé:', state);
     } else if (!isTracking) {
       // Nettoyer le state quand le tracking s'arrête
       localStorage.removeItem(storageKey);
       console.log('🗑️ État du tracking supprimé');
     }
-  }, [isTracking, startTime, elapsedTime, totalDistance, currentSteps, storageKey]);
+  }, [isTracking, startTime, elapsedTime, totalDistance, currentSteps, currentPage, pageState, storageKey]);
 
   // Gérer les événements de cycle de vie de l'app (uniquement sur mobile)
   useEffect(() => {
@@ -86,10 +97,13 @@ export const useAppLifecycle = ({
             startTime: startTime.toISOString(),
             elapsedTime,
             totalDistance,
-            currentSteps
+            currentSteps,
+            currentPage,
+            pageState,
+            timestamp: Date.now()
           };
           localStorage.setItem(storageKey, JSON.stringify(currentState));
-          console.log('💾 État sauvegardé avant background:', currentState);
+          console.log('💾 État complet sauvegardé avant background:', currentState);
         }
       }
     };
@@ -101,7 +115,7 @@ export const useAppLifecycle = ({
     return () => {
       listener.then(l => l.remove());
     };
-  }, [storageKey, onRestore]);
+  }, [storageKey, onRestore, isTracking, startTime, elapsedTime, totalDistance, currentSteps, currentPage, pageState]);
 
   // Restaurer l'état au montage du composant (si l'app a été tuée et relancée)
   useEffect(() => {

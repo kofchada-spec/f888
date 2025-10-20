@@ -140,6 +140,11 @@ const RunTracking = ({ destination, planningData, onBack, onGoToDashboard }: Run
     totalDistance,
     currentSteps,
     activityType: 'run',
+    currentPage: 'run-tracking',
+    pageState: {
+      destination: destination,
+      planningData: planningData
+    },
     onRestore: (state) => {
       if (state.isTracking && state.startTime) {
         setRunStartTime(new Date(state.startTime));
