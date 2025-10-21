@@ -52,12 +52,13 @@ export const useRunRoundTripRouteGeneration = (
 
       let bestRoute = null;
       let bestDifference = Infinity;
-      const maxAttempts = 15;
+      const maxAttempts = 50; // Augmenté pour plus de chances
 
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
           // Generate destination around half the target distance
-          const searchDistance = targetDistance / 2;
+          // Add some randomness to explore different areas
+          const searchDistance = targetDistance / 2 + (Math.random() - 0.5) * (targetDistance * 0.2);
           const destination = generateRandomCoordinates(userLocation, searchDistance);
           
           console.log(`🎯 Tentative ${attempt}: Utilisateur à ${userLocation.lat.toFixed(6)}, ${userLocation.lng.toFixed(6)} -> Destination ${destination.lat.toFixed(6)}, ${destination.lng.toFixed(6)}`);
@@ -119,13 +120,20 @@ export const useRunRoundTripRouteGeneration = (
       // Always use the best route found
       if (bestRoute) {
         const percentDiff = (bestDifference / targetDistance) * 100;
-        console.log(`✅ Utilisation du meilleur itinéraire trouvé (différence: ${bestDifference.toFixed(2)}km, ${percentDiff.toFixed(1)}%)`);
+        const inTolerance = bestDifference <= targetDistance * 0.05;
+        
+        if (inTolerance) {
+          console.log(`✅ Route dans la tolérance ±5% (différence: ${bestDifference.toFixed(2)}km, ${percentDiff.toFixed(1)}%)`);
+        } else {
+          console.log(`⚠️ Meilleure route trouvée hors tolérance (différence: ${bestDifference.toFixed(2)}km, ${percentDiff.toFixed(1)}%)`);
+        }
+        
         const routeData = createRouteData(bestRoute, planningData, userLocation);
         setCalculating(false);
         return routeData;
       }
 
-      // This should rarely happen, but fallback gracefully
+      // This should rarely happen
       console.warn('Aucun itinéraire généré après toutes les tentatives');
       setCalculating(false);
       return null;
