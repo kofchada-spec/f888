@@ -70,10 +70,10 @@ const RunMapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: Run
   };
 
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-br from-orange-500/5 via-background to-red-500/5">
-      {/* Header */}
-      <div className="bg-card shadow-sm">
-        <div className="px-6 py-4 flex items-center justify-between">
+    <div className="native-screen bg-gradient-to-br from-orange-500/5 via-background to-red-500/5 flex flex-col">
+      {/* Native Header */}
+      <div className="bg-card shadow-sm native-header flex-shrink-0">
+        <div className="px-6 pb-4 flex items-center justify-between">
           <button 
             onClick={onBack}
             className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors"
@@ -97,7 +97,8 @@ const RunMapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: Run
       </div>
 
       {/* Main Content */}
-      <div className="container max-w-6xl mx-auto px-6 py-8">
+      <div className="flex-1 native-scroll">
+        <div className="container max-w-6xl mx-auto px-6 py-8" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
         {/* Title */}
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-foreground mb-4">
@@ -241,6 +242,7 @@ const RunMapScreen = ({ onComplete, onBack, onGoToDashboard, planningData }: Run
           <p className="text-xs text-muted-foreground mt-2">
             L'itinéraire sera sauvegardé et le suivi GPS commencera
           </p>
+        </div>
         </div>
       </div>
     </div>

@@ -98,7 +98,8 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData, activity
       </div>
 
       {/* Main Content */}
-      <div className="container max-w-6xl mx-auto px-6 py-8">
+      <div className="flex-1 native-scroll">
+        <div className="container max-w-6xl mx-auto px-6 py-8" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
         {/* Title */}
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-foreground mb-4">
@@ -243,6 +244,7 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData, activity
           <p className="text-xs text-muted-foreground mt-2">
             L'itinéraire sera sauvegardé et le suivi GPS commencera
           </p>
+        </div>
         </div>
       </div>
     </div>
