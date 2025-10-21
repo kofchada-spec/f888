@@ -183,17 +183,23 @@ All colors MUST be HSL.
     padding-right: max(1rem, env(safe-area-inset-right));
   }
 
-  /* Native scrollable area */
+  /* Native scrollable area - FIXED for mobile */
   .native-scroll {
+    flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
+    /* Force scroll on mobile */
+    min-height: 0;
+    position: relative;
   }
 
   /* Hide scrollbar but keep functionality */
   .native-scroll::-webkit-scrollbar {
     display: none;
+    width: 0;
+    height: 0;
   }
 
   .native-scroll {
