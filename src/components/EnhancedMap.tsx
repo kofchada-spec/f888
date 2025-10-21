@@ -546,9 +546,8 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     let returnCoordinates = null;
 
     if (route.routeGeoJSON) {
-      const { outbound, return: returnCoords } = route.routeGeoJSON;
-      outboundCoordinates = outbound;
-      returnCoordinates = returnCoords;
+      outboundCoordinates = route.routeGeoJSON.outboundCoordinates;
+      returnCoordinates = route.routeGeoJSON.returnCoordinates;
     } else if (route.startCoordinates && route.endCoordinates) {
       // Fallback : créer une route simple entre start et end
       outboundCoordinates = [
