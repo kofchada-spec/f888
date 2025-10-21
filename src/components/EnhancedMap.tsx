@@ -61,7 +61,9 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
           if (onRouteCalculated) {
             onRouteCalculated(routeState.route);
           }
-          displayRouteOnMap(routeState.route);
+          displayRouteOnMap(routeState.route).catch(err => {
+            console.error('Error displaying restored route:', err);
+          });
           
           // Restaurer les données de planification si disponibles
           if (routeState.planningData) {
@@ -97,7 +99,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     planningDataRef.current = planningData;
   }, [planningData]);
 
-  const handleRouteCalculated = (route: RouteData, isInitial: boolean = false) => {
+  const handleRouteCalculated = async (route: RouteData, isInitial: boolean = false) => {
     setCurrentRoute(route);
     if (isInitial && !initialRoute) {
       setInitialRoute(route);
@@ -105,7 +107,7 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     if (onRouteCalculated) {
       onRouteCalculated(route);
     }
-    displayRouteOnMap(route);
+    await displayRouteOnMap(route);
   };
 
   const oneWayHook = useOneWayRouteGeneration(planningData, userLocation, (route) => handleRouteCalculated(route, true));
@@ -527,15 +529,26 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
     }
   };
 
-  const displayRouteOnMap = (route: RouteData) => {
+  const displayRouteOnMap = async (route: RouteData) => {
     console.log('=== DISPLAY ROUTE ON MAP ===');
     console.log('Map instance exists:', !!map.current);
     console.log('Route has GeoJSON:', !!route.routeGeoJSON);
     console.log('Route data:', route);
 
-    if (!map.current || !mapReady) {
-      console.error('Cannot display route: missing map instance or map not ready');
+    if (!map.current) {
+      console.error('Cannot display route: missing map instance');
       return;
+    }
+
+    // Wait for style to be loaded
+    if (!map.current.isStyleLoaded()) {
+      console.log('⏳ Waiting for map style to load...');
+      await new Promise<void>((resolve) => {
+        map.current!.once('style.load', () => {
+          console.log('✓ Map style loaded');
+          resolve();
+        });
+      });
     }
 
     console.log('Clearing previous route...');
@@ -676,7 +689,9 @@ const EnhancedMap: React.FC<EnhancedMapProps> = ({
   const handleReset = () => {
     if (initialRoute) {
       setCurrentRoute(initialRoute);
-      displayRouteOnMap(initialRoute);
+      displayRouteOnMap(initialRoute).catch(err => {
+        console.error('Error displaying reset route:', err);
+      });
       if (onRouteCalculated) {
         onRouteCalculated(initialRoute);
       }
