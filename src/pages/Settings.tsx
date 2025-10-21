@@ -198,7 +198,8 @@ const Settings = () => {
         </div>
       </header>
 
-      <main className="container max-w-2xl mx-auto p-6 space-y-6">
+      <main className="flex-1 native-scroll">
+        <div className="container max-w-2xl mx-auto p-6 space-y-6" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
         {/* Application Settings */}
         <Card>
           <CardHeader>
@@ -450,6 +451,7 @@ const Settings = () => {
             </div>
           </CardContent>
         </Card>
+        </div>
       </main>
     </div>
   );

@@ -340,10 +340,10 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
   };
 
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-      {/* Header */}
-      <div className="bg-card shadow-sm">
-        <div className="px-6 py-4 flex items-center justify-between">
+    <div className="native-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col">
+      {/* Native Header */}
+      <div className="bg-card shadow-sm native-header flex-shrink-0">
+        <div className="px-6 pb-4 flex items-center justify-between">
           <Button
             variant="ghost"
             size="icon"
@@ -372,7 +372,8 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
       </div>
 
       {/* Main Content */}
-      <div className="container max-w-4xl mx-auto px-6 py-8">
+      <div className="flex-1 native-scroll">
+        <div className="container max-w-4xl mx-auto px-6 py-8" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
         {/* Titre */}
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-foreground mb-2">
@@ -591,6 +592,8 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </div>
+      </div>
     </div>
   );
 };

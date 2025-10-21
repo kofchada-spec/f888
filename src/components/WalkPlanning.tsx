@@ -160,10 +160,10 @@ const WalkPlanning = ({ onComplete, onBack, onGoToDashboard }: WalkPlanningProps
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-      {/* Header */}
-      <div className="bg-card shadow-sm">
-        <div className="px-4 py-4 flex items-center justify-between">
+    <div className="native-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col">
+      {/* Native Header */}
+      <div className="bg-card shadow-sm native-header flex-shrink-0">
+        <div className="px-4 pb-4 flex items-center justify-between">
           <button 
             onClick={onBack}
             className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors"
@@ -187,7 +187,8 @@ const WalkPlanning = ({ onComplete, onBack, onGoToDashboard }: WalkPlanningProps
       </div>
 
       {/* Main Content */}
-      <div className="container max-w-md md:max-w-2xl mx-auto px-4 py-6">
+      <div className="flex-1 native-scroll">
+        <div className="container max-w-md md:max-w-2xl mx-auto px-4 py-6" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">
             Planifier ma marche
@@ -356,6 +357,7 @@ const WalkPlanning = ({ onComplete, onBack, onGoToDashboard }: WalkPlanningProps
           >
             {canPlan ? 'Trouver mes destinations' : 'Limite atteinte'}
           </Button>
+        </div>
         </div>
       </div>
     </div>

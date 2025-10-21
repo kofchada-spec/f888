@@ -148,10 +148,10 @@ const RunPlanning = ({ onComplete, onBack, onGoToDashboard }: RunPlanningProps) 
   ];
 
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-br from-orange-50 via-background to-red-50">
-      {/* Header */}
-      <div className="bg-card shadow-sm">
-        <div className="px-6 py-4 flex items-center justify-between">
+    <div className="native-screen bg-gradient-to-br from-orange-50 via-background to-red-50 flex flex-col">
+      {/* Native Header */}
+      <div className="bg-card shadow-sm native-header flex-shrink-0">
+        <div className="px-6 pb-4 flex items-center justify-between">
           <button 
             onClick={onBack}
             className="flex items-center space-x-2 text-foreground hover:text-orange-600 transition-colors"
@@ -175,7 +175,8 @@ const RunPlanning = ({ onComplete, onBack, onGoToDashboard }: RunPlanningProps) 
       </div>
 
       {/* Main Content */}
-      <div className="container max-w-2xl mx-auto px-6 py-8">
+      <div className="flex-1 native-scroll">
+        <div className="container max-w-2xl mx-auto px-6 py-8" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">
             Planifier ma course
@@ -344,6 +345,7 @@ const RunPlanning = ({ onComplete, onBack, onGoToDashboard }: RunPlanningProps) 
           >
             {canPlan ? 'Trouver mes destinations' : 'Limite atteinte'}
           </Button>
+        </div>
         </div>
       </div>
     </div>

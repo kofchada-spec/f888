@@ -270,20 +270,10 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
   };
 
   return (
-    <div className="fixed inset-0 w-screen h-screen bg-background flex flex-col overflow-hidden" style={{
-      /* Architecture mobile-native */
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      width: '100vw',
-      height: '100vh',
-      zIndex: 1
-    }}>
-      {/* En-tête optimisé mobile */}
-      <header className="bg-card shadow-sm border-b flex-shrink-0">
-        <div className="px-4 py-4 flex items-center justify-between gap-3">
+    <div className="native-screen bg-background flex flex-col">
+      {/* Native header */}
+      <header className="bg-card shadow-sm border-b flex-shrink-0 native-header">
+        <div className="px-4 pb-4 flex items-center justify-between gap-3">
           {/* Logo + Badge */}
           <div className="flex items-center gap-1.5 cursor-pointer shrink-0" onClick={() => navigate('/')}>
             <img 
@@ -405,8 +395,8 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="px-4 py-4 space-y-5 max-w-md md:max-w-4xl mx-auto">
+      <div className="flex-1 native-scroll">
+        <div className="px-4 py-4 space-y-5 max-w-md md:max-w-4xl mx-auto" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
         {/* Beta Banner */}
         <BetaBanner 
           forceShow={showBetaBanner} 

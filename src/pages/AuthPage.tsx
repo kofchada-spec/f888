@@ -63,10 +63,10 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-      {/* Header */}
-      <div className="bg-card shadow-sm">
-        <div className="px-6 py-4 flex items-center justify-between">
+    <div className="native-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col">
+      {/* Native Header */}
+      <div className="bg-card shadow-sm native-header flex-shrink-0">
+        <div className="px-6 pb-4 flex items-center justify-between">
           <button 
             onClick={() => navigate('/')}
             className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors"
@@ -90,7 +90,7 @@ const AuthPage = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex items-center justify-center p-6 pt-20">
+      <div className="flex-1 native-scroll flex items-center justify-center p-6" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-bold">

@@ -71,10 +71,10 @@ const MapScreen = ({ onComplete, onBack, onGoToDashboard, planningData, activity
   };
 
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-      {/* Header */}
-      <div className="bg-card shadow-sm">
-        <div className="px-6 py-4 flex items-center justify-between">
+    <div className="native-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col">
+      {/* Native Header */}
+      <div className="bg-card shadow-sm native-header flex-shrink-0">
+        <div className="px-6 pb-4 flex items-center justify-between">
           <button 
             onClick={onBack}
             className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors"

@@ -64,23 +64,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
   });
 
   return (
-    <div 
-      className="fixed inset-0 w-screen h-screen overflow-hidden"
-      style={{
-        height: '100dvh',
-        minHeight: '-webkit-fill-available',
-        margin: 0,
-        padding: 0,
-        /* Architecture mobile-native : s'étendre sur tout l'écran */
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        /* Forcer l'extension derrière les safe areas */
-        position: 'fixed',
-        zIndex: 1
-      }}
-    >
+    <div className="native-screen">
       <Carousel
         setApi={setApi} 
         className="w-full h-full"
@@ -110,25 +94,12 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
   const { t } = useTranslation();
   
   return (
-    <div className="h-full w-full bg-gradient-to-br from-green-400 via-green-500 to-green-600 flex items-center justify-center" style={{ 
-      /* Architecture mobile-native : background s'étend partout */
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      width: '100vw',
-      height: '100vh'
-    }}>
-      <div className="w-full h-full flex flex-col items-center justify-between text-center relative overflow-hidden" style={{ 
-        paddingTop: 'max(2rem, env(safe-area-inset-top))', 
-        paddingBottom: 'max(2rem, env(safe-area-inset-bottom))', 
-        paddingLeft: '1rem', 
-        paddingRight: '1rem',
-        /* Contenu respecte les safe areas */
-        position: 'relative',
-        zIndex: 2
-      }}>
+    <div className="h-full w-full relative">
+      {/* Background extends everywhere */}
+      <div className="bg-extend bg-gradient-to-br from-green-400 via-green-500 to-green-600" />
+      
+      {/* Content respects safe areas */}
+      <div className="relative h-full w-full flex flex-col items-center justify-between text-center native-content px-6 py-8">
         {/* Back button */}
         {showBack && (
           <button 
@@ -176,8 +147,9 @@ const PresentationScreen = ({ onNext, onBack, showBack }: { onNext: () => void; 
   const { t } = useTranslation();
   
   return (
-    <div className="h-full w-full bg-gradient-to-br from-green-50 via-blue-50 to-white flex items-center justify-center">
-      <div className="w-full h-full flex flex-col items-center justify-between text-center relative" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))', paddingLeft: '1rem', paddingRight: '1rem' }}>
+    <div className="h-full w-full relative">
+      <div className="bg-extend bg-gradient-to-br from-green-50 via-blue-50 to-white" />
+      <div className="relative w-full h-full flex flex-col items-center justify-between text-center native-content px-6 py-4">
         {/* Back button */}
         {showBack && (
           <button 
@@ -232,8 +204,9 @@ const GoalsScreen = ({ onNext, onBack, showBack }: { onNext: () => void; onBack:
   const { t } = useTranslation();
   
   return (
-    <div className="h-full w-full bg-gradient-to-br from-green-50 via-blue-50 to-white flex items-center justify-center">
-      <div className="w-full h-full flex flex-col items-center justify-between text-center relative" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))', paddingLeft: '1rem', paddingRight: '1rem' }}>
+    <div className="h-full w-full relative">
+      <div className="bg-extend bg-gradient-to-br from-green-50 via-blue-50 to-white" />
+      <div className="relative w-full h-full flex flex-col items-center justify-between text-center native-content px-6 py-4">
         {/* Back button */}
         {showBack && (
           <button 
