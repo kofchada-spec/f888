@@ -374,8 +374,8 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
       {/* Main Content */}
       <div className="flex-1 native-scroll">
         <div className="container max-w-4xl mx-auto px-6 py-8" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
-        {/* Titre */}
-        <div className="text-center mb-6">
+          {/* Titre */}
+          <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-foreground mb-2">
             Navigation vers
           </h1>
@@ -572,6 +572,7 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
           )}
         </div>
       </div>
+      </div>
 
       {/* Dialog de confirmation de sortie */}
       <Dialog open={showExitDialog} onOpenChange={setShowExitDialog}>
@@ -592,8 +593,6 @@ const WalkTracking = ({ destination, planningData, onBack, onGoToDashboard }: Wa
           </DialogFooter>
         </DialogContent>
       </Dialog>
-        </div>
-      </div>
     </div>
   );
 };
