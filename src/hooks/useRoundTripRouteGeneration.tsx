@@ -113,15 +113,17 @@ export const useRoundTripRouteGeneration = (
         }
       }
 
-      // Use best route if close enough (within ±8%)
-      if (bestRoute && bestDifference <= targetDistance * 0.08) {
-        console.log(`⚠️ Utilisation du meilleur itinéraire aller-retour réel (différence: ${bestDifference.toFixed(2)}km)`);
+      // Always use the best route found
+      if (bestRoute) {
+        const percentDiff = (bestDifference / targetDistance) * 100;
+        console.log(`✅ Utilisation du meilleur itinéraire trouvé (différence: ${bestDifference.toFixed(2)}km, ${percentDiff.toFixed(1)}%)`);
         const routeData = createRouteData(bestRoute, planningData, userLocation);
         setCalculating(false);
         return routeData;
       }
 
-      setRouteError(`Aucun itinéraire aller-retour trouvé dans la tolérance ±5%.`);
+      // This should rarely happen, but fallback gracefully
+      console.warn('Aucun itinéraire généré après toutes les tentatives');
       setCalculating(false);
       return null;
     } catch (error) {
