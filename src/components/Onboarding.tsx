@@ -67,21 +67,21 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
     <div className="native-screen">
       <Carousel
         setApi={setApi} 
-        className="w-full h-full"
+        className="w-full h-full flex flex-col"
         opts={{
           align: "start",
           loop: false,
           dragFree: false,
         }}
       >
-        <CarouselContent className="h-full m-0 p-0">
-          <CarouselItem className="h-full m-0 p-0">
+        <CarouselContent className="flex-1 h-full m-0 p-0">
+          <CarouselItem className="h-full m-0 p-0 flex-[0_0_100%]">
             <WelcomeScreen onNext={nextSlide} showBack={false} />
           </CarouselItem>
-          <CarouselItem className="h-full m-0 p-0">
+          <CarouselItem className="h-full m-0 p-0 flex-[0_0_100%]">
             <PresentationScreen onNext={nextSlide} onBack={prevSlide} showBack={true} />
           </CarouselItem>
-          <CarouselItem className="h-full m-0 p-0">
+          <CarouselItem className="h-full m-0 p-0 flex-[0_0_100%]">
             <GoalsScreen onNext={goToComplete} onBack={prevSlide} showBack={true} />
           </CarouselItem>
         </CarouselContent>
