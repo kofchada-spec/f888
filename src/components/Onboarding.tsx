@@ -71,11 +71,14 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
         minHeight: '-webkit-fill-available',
         margin: 0,
         padding: 0,
-        /* S'étendre derrière les safe areas */
-        top: 'env(safe-area-inset-top, 0)',
-        bottom: 'env(safe-area-inset-bottom, 0)',
-        left: 'env(safe-area-inset-left, 0)',
-        right: 'env(safe-area-inset-right, 0)'
+        /* Architecture mobile-native : s'étendre sur tout l'écran */
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        /* Forcer l'extension derrière les safe areas */
+        position: 'fixed',
+        zIndex: 1
       }}
     >
       <Carousel
@@ -107,8 +110,25 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
   const { t } = useTranslation();
   
   return (
-    <div className="h-full w-full bg-gradient-to-br from-green-400 via-green-500 to-green-600 flex items-center justify-center">
-      <div className="w-full h-full flex flex-col items-center justify-between text-center relative overflow-hidden" style={{ paddingTop: 'max(2rem, env(safe-area-inset-top))', paddingBottom: 'max(2rem, env(safe-area-inset-bottom))', paddingLeft: '1rem', paddingRight: '1rem' }}>
+    <div className="h-full w-full bg-gradient-to-br from-green-400 via-green-500 to-green-600 flex items-center justify-center" style={{ 
+      /* Architecture mobile-native : background s'étend partout */
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: '100vw',
+      height: '100vh'
+    }}>
+      <div className="w-full h-full flex flex-col items-center justify-between text-center relative overflow-hidden" style={{ 
+        paddingTop: 'max(2rem, env(safe-area-inset-top))', 
+        paddingBottom: 'max(2rem, env(safe-area-inset-bottom))', 
+        paddingLeft: '1rem', 
+        paddingRight: '1rem',
+        /* Contenu respecte les safe areas */
+        position: 'relative',
+        zIndex: 2
+      }}>
         {/* Back button */}
         {showBack && (
           <button 

@@ -270,7 +270,17 @@ const Dashboard = ({ onPlanifyWalk, onPlanifyRun }: DashboardProps) => {
   };
 
   return (
-    <div className="fixed inset-0 w-screen h-screen bg-background flex flex-col overflow-hidden">
+    <div className="fixed inset-0 w-screen h-screen bg-background flex flex-col overflow-hidden" style={{
+      /* Architecture mobile-native */
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: '100vw',
+      height: '100vh',
+      zIndex: 1
+    }}>
       {/* En-tête optimisé mobile */}
       <header className="bg-card shadow-sm border-b flex-shrink-0">
         <div className="px-4 py-4 flex items-center justify-between gap-3">
