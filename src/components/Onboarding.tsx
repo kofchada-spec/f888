@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, User, Target } from 'lucide-react';
+import { ChevronLeft, User, Target, Footprints } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from '@/components/ui/carousel';
 import { useTranslation } from 'react-i18next';
 import mapOnboarding from '@/assets/map-onboarding.jpg';
@@ -76,7 +76,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
       >
         <CarouselContent className="flex-1 h-full m-0 p-0">
           <CarouselItem className="h-full m-0 p-0 flex-[0_0_100%]">
-            <WelcomeScreen onNext={nextSlide} showBack={false} />
+            <WelcomeScreen onNext={nextSlide} onSkip={goToComplete} showBack={false} />
           </CarouselItem>
           <CarouselItem className="h-full m-0 p-0 flex-[0_0_100%]">
             <PresentationScreen onNext={nextSlide} onBack={prevSlide} showBack={true} />
@@ -90,7 +90,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
   );
 };
 
-const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boolean }) => {
+const WelcomeScreen = ({ onNext, onSkip, showBack }: { onNext: () => void; onSkip: () => void; showBack: boolean }) => {
   const { t } = useTranslation();
   
   return (
@@ -100,44 +100,47 @@ const WelcomeScreen = ({ onNext, showBack }: { onNext: () => void; showBack: boo
       
       {/* Content respects safe areas */}
       <div className="relative h-full w-full flex flex-col items-center justify-between text-center native-content px-6 py-8">
-        {/* Back button */}
-        {showBack && (
+        {/* Skip button - top right */}
+        <div className="w-full flex justify-end mb-4">
           <button 
-            onClick={() => {}} 
-            className="absolute top-6 left-6 text-white hover:text-white/80"
+            onClick={onSkip}
+            className="px-6 py-2 text-white/90 hover:text-white font-medium text-base transition-colors"
           >
-            <ChevronLeft className="w-6 h-6" />
+            Passer
           </button>
-        )}
+        </div>
 
         <div className="flex-1 flex flex-col items-center justify-center px-4">
-          <div className="mb-10 transform animate-pulse">
-            <img 
-              src={fitpasLogo} 
-              alt="Fitpas Logo" 
-              className="w-20 h-20 md:w-28 md:h-28 mx-auto drop-shadow-2xl"
-            />
+          {/* Icon with circle background */}
+          <div className="mb-12 relative">
+            <div className="w-24 h-24 md:w-28 md:h-28 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+              <Footprints className="w-12 h-12 md:w-14 md:h-14 text-white" strokeWidth={2.5} />
+            </div>
           </div>
-          <div className="space-y-6 text-center max-w-md mx-auto">
-            <h1 className="font-raleway text-2xl md:text-4xl font-black text-white mb-3 tracking-tight leading-none">
+          
+          <div className="space-y-4 text-center max-w-md mx-auto">
+            <h1 className="font-raleway text-3xl md:text-4xl font-bold text-white mb-3 tracking-tight leading-tight">
               {t('onboarding.welcome.title')}
             </h1>
-            <p className="font-raleway text-white/95 text-base md:text-lg font-light leading-relaxed tracking-wide">
+            <p className="font-raleway text-white/90 text-base md:text-lg font-normal leading-relaxed">
               {t('onboarding.welcome.subtitle')}
             </p>
           </div>
         </div>
 
+        <div className="w-full space-y-4">
+          <Button 
+            onClick={onNext}
+            className="w-full py-6 text-lg font-semibold rounded-3xl bg-white text-green-600 hover:bg-white/95 border-0 shadow-lg"
+          >
+            Suivant
+          </Button>
 
-        <Button 
-          onClick={onNext}
-          className="w-full py-4 text-lg font-semibold rounded-2xl bg-white text-green-700 hover:bg-white/90 border-0"
-        >
-          {t('onboarding.next')}
-        </Button>
-
-        {/* Bottom indicator */}
-        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-12 h-1 bg-white/30 rounded-full"></div>
+          {/* Bottom indicator */}
+          <div className="flex justify-center pb-2">
+            <div className="w-12 h-1 bg-white/30 rounded-full"></div>
+          </div>
+        </div>
       </div>
     </div>
   );
