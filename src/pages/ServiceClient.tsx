@@ -14,7 +14,7 @@ const ServiceClient = () => {
   const [isAboutSheetOpen, setIsAboutSheetOpen] = useState(false);
 
   const handleContact = () => {
-    toast.info("Contactez-nous à support@fitpas.com");
+    toast.info("Contactez-nous à support@fitpas.app");
   };
 
   const handleFAQ = () => {

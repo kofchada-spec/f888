@@ -145,8 +145,8 @@ export const AboutSheet = ({ open, onOpenChange }: AboutSheetProps) => {
             <section className="space-y-3 pt-4 border-t border-border">
               <h3 className="font-semibold text-xl">Contact</h3>
               <div className="space-y-2 text-sm text-muted-foreground">
-                <p>📧 Email: contact@fitpas.com</p>
-                <p>🌐 Site web: www.fitpas.com</p>
+                <p>📧 Email: support@fitpas.app</p>
+                <p>🌐 Site web: fitpas.app</p>
                 <p>📱 Version: 1.0.0</p>
               </div>
             </section>

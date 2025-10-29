@@ -160,7 +160,7 @@ export const TermsSheet = ({ open, onOpenChange }: TermsSheetProps) => {
                 <section>
                   <h3 className="font-semibold text-lg mb-2">8. Contact</h3>
                   <p className="text-sm text-muted-foreground">
-                    Pour toute question concernant vos données personnelles, contactez-nous à : privacy@fitpas.com
+                    Pour toute question concernant vos données personnelles, contactez-nous à : privacy@fitpas.app
                   </p>
                 </section>
               </div>
