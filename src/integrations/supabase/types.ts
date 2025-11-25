@@ -102,6 +102,7 @@ export type Database = {
           last_name: string | null
           onboarding_complete: boolean | null
           profile_complete: boolean | null
+          profile_completed: boolean | null
           updated_at: string
           user_id: string
           weight_kg: number | null
@@ -118,6 +119,7 @@ export type Database = {
           last_name?: string | null
           onboarding_complete?: boolean | null
           profile_complete?: boolean | null
+          profile_completed?: boolean | null
           updated_at?: string
           user_id: string
           weight_kg?: number | null
@@ -134,9 +136,37 @@ export type Database = {
           last_name?: string | null
           onboarding_complete?: boolean | null
           profile_complete?: boolean | null
+          profile_completed?: boolean | null
           updated_at?: string
           user_id?: string
           weight_kg?: number | null
+        }
+        Relationships: []
+      }
+      route_generations: {
+        Row: {
+          activity_type: string
+          generated_at: string | null
+          id: string
+          month_year: string
+          trip_type: string
+          user_id: string
+        }
+        Insert: {
+          activity_type: string
+          generated_at?: string | null
+          id?: string
+          month_year: string
+          trip_type: string
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          generated_at?: string | null
+          id?: string
+          month_year?: string
+          trip_type?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -209,12 +239,238 @@ export type Database = {
         }
         Relationships: []
       }
+      user_achievements: {
+        Row: {
+          achievement_id: string
+          id: string
+          progress: number | null
+          unlocked_at: string | null
+          user_id: string
+        }
+        Insert: {
+          achievement_id: string
+          id?: string
+          progress?: number | null
+          unlocked_at?: string | null
+          user_id: string
+        }
+        Update: {
+          achievement_id?: string
+          id?: string
+          progress?: number | null
+          unlocked_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_goals: {
+        Row: {
+          activities_goal: number | null
+          activity_type: string
+          calories_goal: number | null
+          created_at: string | null
+          distance_goal: number | null
+          id: string
+          period: string
+          steps_goal: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          activities_goal?: number | null
+          activity_type: string
+          calories_goal?: number | null
+          created_at?: string | null
+          distance_goal?: number | null
+          id?: string
+          period: string
+          steps_goal?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          activities_goal?: number | null
+          activity_type?: string
+          calories_goal?: number | null
+          created_at?: string | null
+          distance_goal?: number | null
+          id?: string
+          period?: string
+          steps_goal?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_stats: {
+        Row: {
+          created_at: string | null
+          current_streak_days: number | null
+          id: string
+          last_activity_date: string | null
+          longest_streak_days: number | null
+          total_activities: number | null
+          total_calories: number | null
+          total_distance_km: number | null
+          total_run_calories: number | null
+          total_run_distance_km: number | null
+          total_run_steps: number | null
+          total_run_time_minutes: number | null
+          total_runs: number | null
+          total_time_minutes: number | null
+          total_walk_calories: number | null
+          total_walk_distance_km: number | null
+          total_walk_steps: number | null
+          total_walk_time_minutes: number | null
+          total_walks: number | null
+          updated_at: string | null
+          user_id: string
+          weekly_goal_km: number | null
+          weekly_progress_km: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_streak_days?: number | null
+          id?: string
+          last_activity_date?: string | null
+          longest_streak_days?: number | null
+          total_activities?: number | null
+          total_calories?: number | null
+          total_distance_km?: number | null
+          total_run_calories?: number | null
+          total_run_distance_km?: number | null
+          total_run_steps?: number | null
+          total_run_time_minutes?: number | null
+          total_runs?: number | null
+          total_time_minutes?: number | null
+          total_walk_calories?: number | null
+          total_walk_distance_km?: number | null
+          total_walk_steps?: number | null
+          total_walk_time_minutes?: number | null
+          total_walks?: number | null
+          updated_at?: string | null
+          user_id: string
+          weekly_goal_km?: number | null
+          weekly_progress_km?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          current_streak_days?: number | null
+          id?: string
+          last_activity_date?: string | null
+          longest_streak_days?: number | null
+          total_activities?: number | null
+          total_calories?: number | null
+          total_distance_km?: number | null
+          total_run_calories?: number | null
+          total_run_distance_km?: number | null
+          total_run_steps?: number | null
+          total_run_time_minutes?: number | null
+          total_runs?: number | null
+          total_time_minutes?: number | null
+          total_walk_calories?: number | null
+          total_walk_distance_km?: number | null
+          total_walk_steps?: number | null
+          total_walk_time_minutes?: number | null
+          total_walks?: number | null
+          updated_at?: string | null
+          user_id?: string
+          weekly_goal_km?: number | null
+          weekly_progress_km?: number | null
+        }
+        Relationships: []
+      }
+      user_subscriptions: {
+        Row: {
+          billing_cycle_start: string | null
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          platform: string | null
+          started_at: string | null
+          status: string
+          subscription_type: string
+          transaction_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          billing_cycle_start?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          platform?: string | null
+          started_at?: string | null
+          status?: string
+          subscription_type?: string
+          transaction_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          billing_cycle_start?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          platform?: string | null
+          started_at?: string | null
+          status?: string
+          subscription_type?: string
+          transaction_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      walk_activities: {
+        Row: {
+          activity_type: string
+          calories_burned: number | null
+          created_at: string | null
+          distance_km: number | null
+          duration_minutes: number | null
+          id: string
+          steps: number | null
+          user_id: string
+        }
+        Insert: {
+          activity_type?: string
+          calories_burned?: number | null
+          created_at?: string | null
+          distance_km?: number | null
+          duration_minutes?: number | null
+          id?: string
+          steps?: number | null
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          calories_burned?: number | null
+          created_at?: string | null
+          distance_km?: number | null
+          duration_minutes?: number | null
+          id?: string
+          steps?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      calculate_user_streak: { Args: { p_user_id: string }; Returns: number }
+      get_current_billing_cycle: {
+        Args: { p_user_id: string }
+        Returns: unknown
+      }
+      get_monthly_generation_count: {
+        Args: { p_trip_type?: string; p_user_id: string }
+        Returns: number
+      }
+      get_next_reset_date: { Args: { p_user_id: string }; Returns: string }
+      get_user_activity_stats: { Args: { p_user_id: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
